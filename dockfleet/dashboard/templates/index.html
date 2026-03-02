@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>DockFleet Dashboard</title>
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Alpine.js CDN -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen">
+
+<div class="container mx-auto p-8" x-data="{ message: 'Dashboard Loaded Successfully 🚀' }">
+
+    <h1 class="text-4xl font-bold mb-6">
+        DockFleet Dashboard
+    </h1>
+
+    <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
+        <p class="text-lg" x-text="message"></p>
+    </div>
+
+</div>
+
+</body>
+</html>

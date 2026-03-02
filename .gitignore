@@ -1,6 +1,37 @@
-venv/
-.env
+# ---- Python bytecode ----
 __pycache__/
-*.pyc
-dockfleet.egg-info
-.pytest_cache
+*.py[cod]
+*.pyo
+*.pyd
+
+# ---- Virtual environments ----
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ---- SQLite databases (local only) ----
+*.sqlite
+*.sqlite3
+*.db
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Pytest
+.pytest_cache/
+
+# Coverage
+.coverage
+htmlcov/
