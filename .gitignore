@@ -2,3 +2,5 @@ venv/
 .env
 __pycache__/
 *.pyc
+dockfleet.egg-info
+.pytest_cache
