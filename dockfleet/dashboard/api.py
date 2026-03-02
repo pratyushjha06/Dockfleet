@@ -23,7 +23,13 @@ def list_services():
         {"name": "worker", "status": "stopped"}
     ]
 
-
+@app.get("/logs/{service}")
+def get_service_logs(service: str):
+    return {
+        "service": service,
+        "message": "logs stream will be available here"
+    }
+    
 @app.get("/", response_class=HTMLResponse)
 def dashboard_home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
