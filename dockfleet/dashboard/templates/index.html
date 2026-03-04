@@ -27,103 +27,111 @@
 >
 
 <div class="max-w-7xl mx-auto px-6 py-10">
-
-    <!-- Header -->
     <div class="flex justify-between items-center mb-10">
         <div>
-            <h1 class="text-4xl font-bold tracking-tight">DockFleet</h1>
-            <p class="text-gray-500 dark:text-gray-400 text-sm">
-                Service Monitoring Dashboard
+            <h1 class="text-4xl font-bold">DockFleet</h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+                Local self-healing orchestrator
             </p>
         </div>
-
+        
         <button 
             @click="toggleDarkMode()" 
-            class="px-4 py-2 rounded-xl 
-                   bg-gray-800 text-white 
-                   dark:bg-gray-700
-                   hover:scale-105 transition">
+            class="px-4 py-2 rounded-xl bg-gray-800 text-white dark:bg-gray-700 hover:scale-105 transition">
             Toggle Theme
         </button>
     </div>
+    
+    <div class="grid grid-cols-3 gap-4 mb-8 text-center">
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow">
+            <p class="text-sm text-gray-500">Total Services</p>
+            <p class="text-2xl font-bold" x-text="summary.total_services"></p>
+        </div>
+        
+        <div class="bg-green-100 dark:bg-green-900 p-4 rounded-xl shadow">
+            <p class="text-sm">Running</p>
+            <p class="text-2xl font-bold text-green-600 dark:text-green-300" 
+            x-text="summary.running"></p>
+        </div>
+        
+        <div class="bg-red-100 dark:bg-red-900 p-4 rounded-xl shadow">
+            <p class="text-sm">Unhealthy</p>
+            <p class="text-2xl font-bold text-red-600 dark:text-red-300" 
+            x-text="summary.unhealthy"></p>
+        </div>
+    </div>
 
-    <!-- Services Grid -->
-    <div class="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 
         <template x-for="service in services" :key="service.name">
-            <div class="group 
-                        bg-white/70 dark:bg-gray-800/70 
-                        backdrop-blur-xl
+            <div class="bg-white dark:bg-gray-800 
+                        p-6 rounded-2xl shadow-xl 
                         border border-gray-200 dark:border-gray-700
-                        rounded-3xl p-6 shadow-xl
-                        hover:shadow-2xl
-                        transition-all duration-300">
+                        hover:shadow-2xl transition duration-300">
 
-                <!-- Service Header -->
+                <!-- Header Row -->
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-semibold capitalize" 
+                    <h2 class="text-xl font-semibold capitalize"
                         x-text="service.name"></h2>
 
-                    <!-- Status Badge -->
                     <span 
-                        :class="service.status === 'running' 
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' 
-                            : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'"
-                        class="px-3 py-1 text-xs font-medium rounded-full">
+                        :class="{
+                            'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300': service.status === 'running',
+                            'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300': service.status === 'restarting',
+                            'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300': service.status === 'stopped'
+                        }"
+                        class="px-3 py-1 text-xs font-semibold rounded-full capitalize">
                         <span x-text="service.status"></span>
                     </span>
                 </div>
 
-                <!-- CPU Progress -->
+
+                <!-- CPU Bar -->
                 <div class="mb-4">
-                    <div class="flex justify-between text-xs mb-1">
-                        <span>CPU Usage</span>
-                        <span x-text="service.cpu"></span>
-                    </div>
+                    <p class="text-sm text-gray-500 mb-1">
+                        CPU Usage (<span x-text="service.cpu"></span>%)
+                    </p>
                     <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div 
-                            class="bg-blue-500 h-2 rounded-full transition-all"
-                            :style="'width:' + service.cpu">
+                        <div class="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                             :style="'width:' + service.cpu + '%'">
                         </div>
                     </div>
                 </div>
 
+
                 <!-- Metrics -->
-                <div class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                    <p><strong>Memory:</strong> <span x-text="service.memory"></span></p>
+                <div class="space-y-2 text-sm">
+                    <p><strong>Memory:</strong> <span x-text="service.memory"></span> MB</p>
                     <p><strong>Uptime:</strong> <span x-text="service.uptime"></span></p>
                     <p><strong>Restarts:</strong> <span x-text="service.restart_count"></span></p>
-
-                    <!-- Health -->
                     <p>
                         <strong>Health:</strong> 
                         <span 
-                            :class="service.health_status === 'healthy' 
-                                ? 'text-green-500' 
-                                : 'text-red-500'"
-                            class="font-medium"
+                            :class="{
+                                'text-green-600 dark:text-green-300': service.health_status === 'healthy',
+                                'text-yellow-600 dark:text-yellow-300': service.health_status === 'degraded',
+                                'text-red-600 dark:text-red-300': service.health_status === 'unhealthy'
+                            }"
+                            class="font-semibold capitalize"
                             x-text="service.health_status">
                         </span>
                     </p>
                 </div>
 
+
                 <!-- Buttons -->
-                <div class="mt-6 flex gap-3">
+                <div class="mt-6 flex gap-4">
                     <button 
                         @click="restartService(service.name)"
-                        class="flex-1 py-2 rounded-xl 
-                               bg-yellow-400 hover:bg-yellow-300 
-                               text-black font-medium 
-                               transition transform hover:scale-105">
+                        class="flex-1 bg-yellow-500 text-black px-3 py-2 
+                               rounded-lg hover:bg-yellow-400 transition">
                         Restart
                     </button>
 
                     <button 
                         @click="stopService(service.name)"
-                        class="flex-1 py-2 rounded-xl 
-                               bg-red-600 hover:bg-red-500 
-                               text-white font-medium 
-                               transition transform hover:scale-105">
+                        class="flex-1 bg-red-600 text-white px-3 py-2 
+                               rounded-lg hover:bg-red-500 transition">
                         Stop
                     </button>
                 </div>
@@ -132,23 +140,28 @@
         </template>
 
     </div>
+
 </div>
-
-
-<!-- Alpine Logic -->
 <script>
 function dashboard() {
     return {
         services: [],
+        summary: {},
         darkMode: true,
 
         async fetchServices() {
-            try {
-                const response = await fetch('/services');
-                this.services = await response.json();
-            } catch (error) {
-                console.error("Failed to fetch services:", error);
-            }
+            const res = await fetch('/services');
+            this.services = await res.json();
+        },
+
+        async fetchSummary() {
+            const res = await fetch('/status');
+            this.summary = await res.json();
+        },
+
+        async init() {
+            await this.fetchServices();
+            await this.fetchSummary();
         },
 
         restartService(name) {
