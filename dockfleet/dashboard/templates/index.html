@@ -1,67 +1,71 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en" x-data :class="{ 'dark': $root.darkMode }">
 <head>
     <meta charset="UTF-8">
     <title>DockFleet Dashboard</title>
 
-    <!-- Tailwind -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <script>
-        tailwind.config = {
-            darkMode: 'class'
-        }
-    </script>
-
-    <!-- Alpine -->
+    <!-- Alpine JS -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 
 <body 
     class="bg-gradient-to-br from-gray-100 to-gray-200 
-           dark:from-gray-900 dark:to-gray-950
-           text-gray-800 dark:text-gray-100 
-           min-h-screen transition-colors duration-500"
-    x-data="dashboard()"
-    x-init="fetchServices()"
+           dark:from-gray-900 dark:to-gray-800 
+           text-gray-900 dark:text-white 
+           min-h-screen transition-all duration-300"
+
+    x-data="dashboard()" 
+    x-init="init()"
 >
 
-<div class="max-w-7xl mx-auto px-6 py-10">
-    <div class="flex justify-between items-center mb-10">
+<div class="container mx-auto px-6 py-10">
+
+    <!-- NAVBAR -->
+    <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-10 gap-4">
         <div>
             <h1 class="text-4xl font-bold">DockFleet</h1>
             <p class="text-sm text-gray-500 dark:text-gray-400">
                 Local self-healing orchestrator
             </p>
         </div>
-        
+
         <button 
             @click="toggleDarkMode()" 
-            class="px-4 py-2 rounded-xl bg-gray-800 text-white dark:bg-gray-700 hover:scale-105 transition">
+            class="px-4 py-2 rounded-xl bg-gray-800 text-white 
+                   dark:bg-gray-700 hover:scale-105 transition">
             Toggle Theme
         </button>
     </div>
-    
-    <div class="grid grid-cols-3 gap-4 mb-8 text-center">
-        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow">
+
+
+    <!-- SUMMARY STRIP -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 text-center">
+
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
             <p class="text-sm text-gray-500">Total Services</p>
-            <p class="text-2xl font-bold" x-text="summary.total_services"></p>
+            <p class="text-3xl font-bold mt-1" x-text="summary.total_services || 0"></p>
         </div>
-        
-        <div class="bg-green-100 dark:bg-green-900 p-4 rounded-xl shadow">
+
+        <div class="bg-green-100 dark:bg-green-900/40 p-6 rounded-2xl shadow-lg">
             <p class="text-sm">Running</p>
-            <p class="text-2xl font-bold text-green-600 dark:text-green-300" 
-            x-text="summary.running"></p>
+            <p class="text-3xl font-bold text-green-600 dark:text-green-300 mt-1"
+               x-text="summary.running || 0"></p>
         </div>
-        
-        <div class="bg-red-100 dark:bg-red-900 p-4 rounded-xl shadow">
+
+        <div class="bg-red-100 dark:bg-red-900/40 p-6 rounded-2xl shadow-lg">
             <p class="text-sm">Unhealthy</p>
-            <p class="text-2xl font-bold text-red-600 dark:text-red-300" 
-            x-text="summary.unhealthy"></p>
+            <p class="text-3xl font-bold text-red-600 dark:text-red-300 mt-1"
+               x-text="summary.unhealthy || 0"></p>
         </div>
+
     </div>
 
-       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+    <!-- SERVICES GRID -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 
         <template x-for="service in services" :key="service.name">
             <div class="bg-white dark:bg-gray-800 
@@ -76,9 +80,9 @@
 
                     <span 
                         :class="{
-                            'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300': service.status === 'running',
-                            'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300': service.status === 'restarting',
-                            'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300': service.status === 'stopped'
+                            'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300': service.status === 'running',
+                            'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300': service.status === 'restarting',
+                            'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300': service.status === 'stopped'
                         }"
                         class="px-3 py-1 text-xs font-semibold rounded-full capitalize">
                         <span x-text="service.status"></span>
@@ -142,6 +146,9 @@
     </div>
 
 </div>
+
+
+<!-- Alpine Script -->
 <script>
 function dashboard() {
     return {
@@ -150,16 +157,27 @@ function dashboard() {
         darkMode: true,
 
         async fetchServices() {
-            const res = await fetch('/services');
-            this.services = await res.json();
+            try {
+                const res = await fetch('/services');
+                this.services = await res.json();
+            } catch (err) {
+                console.error("Failed to fetch services:", err);
+            }
         },
 
         async fetchSummary() {
-            const res = await fetch('/status');
-            this.summary = await res.json();
+            try {
+                const res = await fetch('/status');
+                this.summary = await res.json();
+            } catch (err) {
+                console.error("Failed to fetch summary:", err);
+            }
         },
 
         async init() {
+            if (this.darkMode) {
+                document.documentElement.classList.add('dark');
+            }
             await this.fetchServices();
             await this.fetchSummary();
         },
@@ -174,7 +192,12 @@ function dashboard() {
 
         toggleDarkMode() {
             this.darkMode = !this.darkMode;
-            document.documentElement.classList.toggle('dark');
+            
+            if (this.darkMode) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
         }
     }
 }
