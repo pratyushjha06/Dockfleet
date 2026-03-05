@@ -2,3 +2,4 @@ sqlmodel
 pydantic
 pyyaml
 pytest
+typer
