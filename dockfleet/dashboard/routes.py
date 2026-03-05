@@ -32,34 +32,41 @@ def dashboard_home(request: Request):
         {"request": request}
     )
 
-
 @router.get("/services", response_model=List[Service])
 def list_services():
+    return get_services()
+
+def get_services() -> List[dict]:
+
     return [
-        Service(
-            name="api",
-            status="running",
-            image="dockfleet-api:latest",
-            ports="8000:8000",
-            restart_policy="always",
-            restart_count=1
-        ),
-        Service(
-            name="worker",
-            status="restarting",
-            image="dockfleet-worker:latest",
-            ports="-",
-            restart_policy="on-failure",
-            restart_count=5
-        ),
-        Service(
-            name="scheduler",
-            status="stopped",
-            image="dockfleet-scheduler:latest",
-            ports="-",
-            restart_policy="no",
-            restart_count=2
-        )
+
+        {
+            "name": "api",
+            "status": "running",
+            "image": "dockfleet-api:latest",
+            "ports": "8000:8000",
+            "restart_policy": "always",
+            "restart_count": 1
+        },
+
+        {
+            "name": "worker",
+            "status": "restarting",
+            "image": "dockfleet-worker:latest",
+            "ports": "-",
+            "restart_policy": "on-failure",
+            "restart_count": 5
+        },
+
+        {
+            "name": "scheduler",
+            "status": "stopped",
+            "image": "dockfleet-scheduler:latest",
+            "ports": "-",
+            "restart_policy": "no",
+            "restart_count": 2
+        }
+
     ]
 
 
@@ -84,23 +91,18 @@ def stream_service_logs(service: str):
         media_type="text/event-stream"
     )
 
-
 @router.get("/status")
 def system_status():
 
-    services: List[Service] = list_services()
+    services = get_services()
 
     total = len(services)
-    running = sum(1 for s in services if s.status == "running")
-
-    unhealthy = sum(
-        1 for s in services
-        if s.status in ["stopped", "restarting", "unhealthy"]
-    )
+    running = sum(1 for s in services if s["status"] == "running")
+    stopped = sum(1 for s in services if s["status"] == "stopped")
 
     return {
         "total_services": total,
         "running": running,
-        "unhealthy": unhealthy
+        "stopped": stopped
     }
-   
+    
