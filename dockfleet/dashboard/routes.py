@@ -8,8 +8,8 @@ import json
 
 router = APIRouter()
 
-# Setup templates
 templates = Jinja2Templates(directory="dockfleet/dashboard/templates")
+
 
 class Service(BaseModel):
     name: str
@@ -18,10 +18,12 @@ class Service(BaseModel):
     ports: str
     restart_policy: str
     restart_count: int
-    
+
+
 @router.get("/health")
 def health_check():
     return {"status": "ok"}
+
 
 @router.get("/", response_class=HTMLResponse)
 def dashboard_home(request: Request):
@@ -29,6 +31,7 @@ def dashboard_home(request: Request):
         "index.html",
         {"request": request}
     )
+
 
 @router.get("/services", response_model=List[Service])
 def list_services():
@@ -80,20 +83,24 @@ def stream_service_logs(service: str):
         event_generator(),
         media_type="text/event-stream"
     )
-    
+
 
 @router.get("/status")
 def system_status():
-    services = list_services()
+
+    services: List[Service] = list_services()
 
     total = len(services)
     running = sum(1 for s in services if s.status == "running")
-    unhealthy = sum(1 for s in services if s.health_status != "healthy")
+
+    unhealthy = sum(
+        1 for s in services
+        if s.status in ["stopped", "restarting", "unhealthy"]
+    )
 
     return {
         "total_services": total,
         "running": running,
         "unhealthy": unhealthy
     }
-
     
