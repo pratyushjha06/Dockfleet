@@ -16,10 +16,10 @@ class DockerManager:
         )
 
     def stop_container(self, name):
-        self.ssh.run(f"docker stop {name}")
+        self.ssh.run(f"docker stop {name} || true")
 
     def remove_container(self, name):
-        self.ssh.run(f"docker rm {name}")
+        self.ssh.run(f"docker rm {name} || true")
 
     def remove_network(self, name):
-        self.ssh.run(f"docker network rm {name}")
+        self.ssh.run(f"docker network rm {name} || true")

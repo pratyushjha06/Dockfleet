@@ -8,23 +8,22 @@ import json
 
 router = APIRouter()
 
-# Setup templates
 templates = Jinja2Templates(directory="dockfleet/dashboard/templates")
+
 
 class Service(BaseModel):
     name: str
     status: str
-    cpu: str
-    memory: str
-    uptime: str
+    image: str
+    ports: str
+    restart_policy: str
     restart_count: int
-    health_status: str
-
 
 
 @router.get("/health")
 def health_check():
     return {"status": "ok"}
+
 
 @router.get("/", response_class=HTMLResponse)
 def dashboard_home(request: Request):
@@ -35,28 +34,40 @@ def dashboard_home(request: Request):
 
 @router.get("/services", response_model=List[Service])
 def list_services():
-    services = [
-        Service(
-            name="api",
-            status="running",
-            cpu="12%",
-            memory="256MB",
-            uptime="2h 15m",
-            restart_count=1,
-            health_status="healthy"
-        ),
-        Service(
-            name="worker",
-            status="stopped",
-            cpu="0%",
-            memory="0MB",
-            uptime="0h",
-            restart_count=3,
-            health_status="unhealthy"
-        )
-    ]
+    return get_services()
 
-    return services
+def get_services() -> List[dict]:
+
+    return [
+
+        {
+            "name": "api",
+            "status": "running",
+            "image": "dockfleet-api:latest",
+            "ports": "8000:8000",
+            "restart_policy": "always",
+            "restart_count": 1
+        },
+
+        {
+            "name": "worker",
+            "status": "restarting",
+            "image": "dockfleet-worker:latest",
+            "ports": "-",
+            "restart_policy": "on-failure",
+            "restart_count": 5
+        },
+
+        {
+            "name": "scheduler",
+            "status": "stopped",
+            "image": "dockfleet-scheduler:latest",
+            "ports": "-",
+            "restart_policy": "no",
+            "restart_count": 2
+        }
+
+    ]
 
 
 @router.get("/logs/{service}")
@@ -79,4 +90,19 @@ def stream_service_logs(service: str):
         event_generator(),
         media_type="text/event-stream"
     )
+
+@router.get("/status")
+def system_status():
+
+    services = get_services()
+
+    total = len(services)
+    running = sum(1 for s in services if s["status"] == "running")
+    stopped = sum(1 for s in services if s["status"] == "stopped")
+
+    return {
+        "total_services": total,
+        "running": running,
+        "stopped": stopped
+    }
     

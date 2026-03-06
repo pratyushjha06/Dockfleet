@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>DockFleet Dashboard</title>
@@ -15,156 +16,225 @@
 
     <!-- Alpine -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
 </head>
 
-<body 
-    class="bg-gradient-to-br from-gray-100 to-gray-200 
-           dark:from-gray-900 dark:to-gray-950
-           text-gray-800 dark:text-gray-100 
-           min-h-screen transition-colors duration-500"
+<body
+    class="bg-gradient-to-br from-gray-100 to-gray-200
+           dark:from-gray-900 dark:to-gray-800
+           text-gray-900 dark:text-white
+           min-h-screen transition-all duration-300"
     x-data="dashboard()"
-    x-init="fetchServices()"
+    x-init="init()"
 >
 
-<div class="max-w-7xl mx-auto px-6 py-10">
+<div class="container mx-auto px-6 py-10">
 
-    <!-- Header -->
+    <!-- NAVBAR -->
     <div class="flex justify-between items-center mb-10">
+
         <div>
-            <h1 class="text-4xl font-bold tracking-tight">DockFleet</h1>
-            <p class="text-gray-500 dark:text-gray-400 text-sm">
-                Service Monitoring Dashboard
+            <h1 class="text-4xl font-bold">DockFleet</h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+                Local Self-Healing Orchestrator
             </p>
         </div>
 
-        <button 
-            @click="toggleDarkMode()" 
-            class="px-4 py-2 rounded-xl 
-                   bg-gray-800 text-white 
-                   dark:bg-gray-700
-                   hover:scale-105 transition">
+        <button
+            @click="toggleDarkMode()"
+            class="px-4 py-2 rounded-xl bg-gray-800 text-white dark:bg-gray-700 hover:scale-105 transition">
             Toggle Theme
         </button>
+
     </div>
 
-    <!-- Services Grid -->
-    <div class="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+    <!-- SUMMARY STRIP -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 text-center">
+
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
+            <p class="text-sm text-gray-500">Total Services</p>
+            <p class="text-3xl font-bold mt-1" x-text="summary.total_services"></p>
+        </div>
+
+        <div class="bg-green-100 dark:bg-green-900/40 p-6 rounded-2xl shadow-lg">
+            <p class="text-sm">Running</p>
+            <p class="text-3xl font-bold text-green-600 dark:text-green-300 mt-1"
+                x-text="summary.running"></p>
+        </div>
+
+        <div class="bg-red-100 dark:bg-red-900/40 p-6 rounded-2xl shadow-lg">
+            <p class="text-sm">Stopped</p>
+            <p class="text-3xl font-bold text-red-600 dark:text-red-300 mt-1"
+                x-text="summary.stopped"></p>
+        </div>
+
+    </div>
+
+
+    <!-- SERVICES GRID -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 
         <template x-for="service in services" :key="service.name">
-            <div class="group 
-                        bg-white/70 dark:bg-gray-800/70 
-                        backdrop-blur-xl
-                        border border-gray-200 dark:border-gray-700
-                        rounded-3xl p-6 shadow-xl
-                        hover:shadow-2xl
-                        transition-all duration-300">
 
-                <!-- Service Header -->
+            <div class="bg-white dark:bg-gray-800
+                        p-6 rounded-2xl shadow-xl
+                        border border-gray-200 dark:border-gray-700
+                        hover:shadow-2xl transition duration-300">
+
+                <!-- Header -->
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-semibold capitalize" 
+
+                    <h2 class="text-xl font-semibold capitalize"
                         x-text="service.name"></h2>
 
-                    <!-- Status Badge -->
-                    <span 
-                        :class="service.status === 'running' 
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' 
-                            : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'"
-                        class="px-3 py-1 text-xs font-medium rounded-full">
+                    <span
+                        :class="{
+                        'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300': service.status === 'running',
+                        'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300': service.status === 'restarting',
+                        'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300': service.status === 'stopped'
+                    }"
+                        class="px-3 py-1 text-xs font-semibold rounded-full capitalize">
+
                         <span x-text="service.status"></span>
+
                     </span>
+
                 </div>
 
-                <!-- CPU Progress -->
-                <div class="mb-4">
-                    <div class="flex justify-between text-xs mb-1">
-                        <span>CPU Usage</span>
-                        <span x-text="service.cpu"></span>
-                    </div>
-                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div 
-                            class="bg-blue-500 h-2 rounded-full transition-all"
-                            :style="'width:' + service.cpu">
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Metrics -->
-                <div class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                    <p><strong>Memory:</strong> <span x-text="service.memory"></span></p>
-                    <p><strong>Uptime:</strong> <span x-text="service.uptime"></span></p>
-                    <p><strong>Restarts:</strong> <span x-text="service.restart_count"></span></p>
+                <!-- SERVICE DETAILS -->
+                <div class="space-y-2 text-sm">
 
-                    <!-- Health -->
                     <p>
-                        <strong>Health:</strong> 
-                        <span 
-                            :class="service.health_status === 'healthy' 
-                                ? 'text-green-500' 
-                                : 'text-red-500'"
-                            class="font-medium"
-                            x-text="service.health_status">
-                        </span>
+                        <strong>Image:</strong>
+                        <span x-text="service.image"></span>
                     </p>
+
+                    <p>
+                        <strong>Ports:</strong>
+                        <span x-text="service.ports"></span>
+                    </p>
+
+                    <p>
+                        <strong>Restart Policy:</strong>
+
+                        <span
+                            class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-xs"
+                            x-text="service.restart_policy">
+                        </span>
+
+                    </p>
+
+                    <p>
+                        <strong>Restart Count:</strong>
+                        <span x-text="service.restart_count"></span>
+                    </p>
+
                 </div>
 
-                <!-- Buttons -->
-                <div class="mt-6 flex gap-3">
-                    <button 
+
+                <!-- ACTION BUTTONS -->
+                <div class="mt-6 flex gap-4">
+
+                    <button
                         @click="restartService(service.name)"
-                        class="flex-1 py-2 rounded-xl 
-                               bg-yellow-400 hover:bg-yellow-300 
-                               text-black font-medium 
-                               transition transform hover:scale-105">
+                        class="flex-1 bg-yellow-500 text-black px-3 py-2
+                               rounded-lg hover:bg-yellow-400 transition">
+
                         Restart
+
                     </button>
 
-                    <button 
+                    <button
                         @click="stopService(service.name)"
-                        class="flex-1 py-2 rounded-xl 
-                               bg-red-600 hover:bg-red-500 
-                               text-white font-medium 
-                               transition transform hover:scale-105">
+                        class="flex-1 bg-red-600 text-white px-3 py-2
+                               rounded-lg hover:bg-red-500 transition">
+
                         Stop
+
                     </button>
+
                 </div>
 
             </div>
+
         </template>
 
     </div>
+
 </div>
 
 
-<!-- Alpine Logic -->
+
 <script>
+
 function dashboard() {
+
     return {
+
         services: [],
-        darkMode: true,
+        summary: {},
+
+        async init() {
+
+            await this.fetchServices()
+            await this.fetchSummary()
+
+        },
 
         async fetchServices() {
+
             try {
-                const response = await fetch('/services');
-                this.services = await response.json();
-            } catch (error) {
-                console.error("Failed to fetch services:", error);
+
+                const res = await fetch("/services")
+                this.services = await res.json()
+
+            } catch (err) {
+
+                console.error("Failed loading services", err)
+
             }
+
+        },
+
+        async fetchSummary() {
+
+            try {
+
+                const res = await fetch("/status")
+                this.summary = await res.json()
+
+            } catch (err) {
+
+                console.error("Failed loading summary", err)
+
+            }
+
         },
 
         restartService(name) {
-            console.log("Restart clicked:", name);
+
+            console.log("Restart clicked:", name)
+
         },
 
         stopService(name) {
-            console.log("Stop clicked:", name);
+
+            console.log("Stop clicked:", name)
+
         },
 
         toggleDarkMode() {
-            this.darkMode = !this.darkMode;
-            document.documentElement.classList.toggle('dark');
+
+            document.documentElement.classList.toggle('dark')
+
         }
+
     }
+
 }
+
 </script>
 
 </body>

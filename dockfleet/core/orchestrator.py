@@ -59,7 +59,7 @@ class Orchestrator:
                 "services": services_state,
             }
         )
-    def ps(self, desired, current_state):
+    def generate_plan(self, desired, current_state):
 
         to_create = []
         to_remove = []
@@ -99,34 +99,61 @@ class Orchestrator:
         if not self.app:
             raise ValueError("App configuration required")
 
-        # Load saved state
-        current_state = self.state.load()
+        print(f"\n[INFO] Shutting down app: {self.app.name}")
 
-        if not current_state:
-            print("No state found. Nothing to shut down.")
+        state = self.state.load()
+
+        if not state:
+            print("[INFO] No state found. Nothing to stop.")
             return
 
-        services = current_state.get("services", {})
-        network = current_state.get("network")
+        services = state.get("services", {})
 
-        # Stop and remove containers (reverse order for safety)
-        for service_name in reversed(list(services.keys())):
-            container_name = services[service_name]["container_name"]
+        for name, data in services.items():
+            container = data["container_name"]
 
-            print(f"[DOWN] Stopping container: {container_name}")
-            self.docker.stop_container(container_name)
+            print(f"[INFO] Stopping container: {container}")
+            self.docker.stop_container(container)
 
-            print(f"[DOWN] Removing container: {container_name}")
-            self.docker.remove_container(container_name)
+            print(f"[INFO] Removing container: {container}")
+            self.docker.remove_container(container)
 
-        # Remove network
+        network = state.get("network")
+
         if network:
-            print(f"[DOWN] Removing network: {network}")
+            print(f"[INFO] Removing network: {network}")
             self.docker.remove_network(network)
 
-        # Clear saved state
-        self.state.delete()
+        print("\n[INFO] Shutdown complete")
 
-        print(f"[DOWN] App '{self.app.name}' successfully shut down.")
+    def ps(self):
+        app_name = self.app.name
 
-    
+        output = self.ssh.run(
+            f'docker ps -a --filter name={app_name} '
+            f'--format "{{{{.Names}}}}|{{{{.Image}}}}|{{{{.Status}}}}"'
+        )
+
+        GREEN = "\033[92m"
+        RED = "\033[91m"
+        WHITE = "\033[97m"
+        RESET = "\033[0m"
+
+        print("\nSERVICE\t\tIMAGE\t\tSTATUS")
+
+        for line in output.splitlines():
+            if "|" not in line:
+                continue
+
+            name, image, status = line.split("|")
+
+            if "Up" in status:
+                color = GREEN
+            elif "Exited" in status:
+                color = RED
+            else:
+                color = WHITE
+
+            print(f"{name}\t{image}\t{color}{status}{RESET}")
+        
+        return output
