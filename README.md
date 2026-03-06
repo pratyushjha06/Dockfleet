@@ -171,7 +171,17 @@ Checks whether the YAML configuration is valid.
 
 ---
 
-### 2. Seed service health database
+### 2. Check system environment
+
+```
+dockfleet doctor  
+```
+
+Verifies Python version and checks whether Docker is installed and reachable.
+
+---
+
+### 3.Seed service health database
 
 ```
 dockfleet seed examples/dockfleet.yaml
@@ -181,7 +191,7 @@ Initializes the database and registers services for health monitoring.
 
 ---
 
-### 3. Start services
+### 4. Start services
 
 ```
 dockfleet up examples/dockfleet.yaml
@@ -191,7 +201,7 @@ Starts all services defined in the configuration file.
 
 ---
 
-### 4. Check running services
+### 5. Check running services
 
 ```
 dockfleet ps
@@ -201,7 +211,7 @@ Displays currently running containers managed by DockFleet.
 
 ---
 
-### 5. Stop services
+### 6. Stop services
 
 ```
 dockfleet down examples/dockfleet.yaml
