@@ -99,6 +99,16 @@
                         x-text="service.status"
                     ></span>
 
+                    <span
+                        class="px-2 py-1 rounded text-xs font-semibold capitalize"
+                        :class="{
+                            'bg-green-500 text-white': service.health_status === 'healthy',
+                            'bg-red-500 text-white': service.health_status === 'unhealthy',
+                            'bg-gray-500 text-white': service.health_status === 'unknown'
+                        }"
+                        x-text="service.health_status"
+                    ></span>
+
                 </div>
 
 
@@ -194,6 +204,8 @@ function dashboard() {
                 console.error("Failed loading services", err)
 
             }
+
+            
 
         },
 
