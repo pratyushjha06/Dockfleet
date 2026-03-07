@@ -11,19 +11,17 @@ router = APIRouter()
 templates = Jinja2Templates(directory="dockfleet/dashboard/templates")
 
 
+@router.get("/health")
+def health_check():
+    return {"status": "ok"}
 class Service(BaseModel):
     name: str
     status: str
+    health_status: str
     image: str
     ports: str
     restart_policy: str
     restart_count: int
-
-
-@router.get("/health")
-def health_check():
-    return {"status": "ok"}
-
 
 @router.get("/", response_class=HTMLResponse)
 def dashboard_home(request: Request):
@@ -43,6 +41,7 @@ def get_services() -> List[dict]:
         {
             "name": "api",
             "status": "running",
+            "health_status": "healthy",
             "image": "dockfleet-api:latest",
             "ports": "8000:8000",
             "restart_policy": "always",
@@ -52,6 +51,7 @@ def get_services() -> List[dict]:
         {
             "name": "worker",
             "status": "restarting",
+            "health_status": "unhealthy",
             "image": "dockfleet-worker:latest",
             "ports": "-",
             "restart_policy": "on-failure",
@@ -61,6 +61,7 @@ def get_services() -> List[dict]:
         {
             "name": "scheduler",
             "status": "stopped",
+            "health_status": "unknown",
             "image": "dockfleet-scheduler:latest",
             "ports": "-",
             "restart_policy": "no",
