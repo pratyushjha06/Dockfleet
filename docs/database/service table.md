@@ -23,7 +23,7 @@ Table: services
 - ports_raw
   - type: TEXT
   - constraints: NULL allowed
-  - desc: Serialized ports list from config (e.g., '["8000:8000"]' or "8000:8000,9000:9000").
+  - desc: Serialized ports list from config (e.g., "8000:8000" or "8000:8000,9000:9000").
 
 - healthcheck_raw
   - type: TEXT
@@ -33,7 +33,8 @@ Table: services
 - status
   - type: TEXT
   - constraints: NOT NULL
-  - desc: Current health status (e.g., "running", "unhealthy", "restarting", "stopped").
+  - desc: Current service status (e.g., "running", "unhealthy", "restarting", "stopped").
+  - note: Seed time: status is set to "stopped". Unknown / unhealthy states will only be used once the health engine is implemented in Week 2.
 
 - restart_count
   - type: INTEGER
