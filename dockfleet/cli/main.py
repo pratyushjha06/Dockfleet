@@ -16,7 +16,7 @@ app.add_typer(validate_app, name="validate")
 
 @validate_app.callback(invoke_without_command=True)
 def validate(path: Path = typer.Argument("dockfleet.yaml")):
-    """Validate a DockFleet configuration file."""
+    """Validate a DockFleet YAML configuration file before running services."""
     try:
         load_config(path)
         typer.echo("✓ Config valid")
@@ -35,22 +35,22 @@ def validate(path: Path = typer.Argument("dockfleet.yaml")):
 
 @app.command()
 def seed(path: Path = typer.Argument("dockfleet.yaml")):
-    """Initialize DB and seed services."""
-    try:
+   """Initialize the service database and register services from the configuration."""
+   try:
         typer.echo(f"Seeding services from {path}...")
 
         bootstrap_from_path(str(path))
 
         typer.echo("✓ Seeding complete")
 
-    except Exception as e:
+   except Exception as e:
         typer.echo(f"Seeding failed: {e}")
         raise typer.Exit(code=1)
 
 
 @app.command()
 def up(path: Path = typer.Argument("dockfleet.yaml")):
-    """Start services."""
+    """Start all services defined in the DockFleet configuration."""
     try:
         config = load_config(path)
 
@@ -68,7 +68,7 @@ def up(path: Path = typer.Argument("dockfleet.yaml")):
 
 @app.command()
 def down(path: Path = typer.Argument("dockfleet.yaml")):
-    """Stop services."""
+    """Stop and remove all containers managed by DockFleet."""
     try:
         config = load_config(path)
 
@@ -86,7 +86,7 @@ def down(path: Path = typer.Argument("dockfleet.yaml")):
 
 @app.command()
 def ps():
-    """List running containers."""
+    """Show currently running DockFleet containers."""
     try:
         typer.echo("Listing running containers...\n")
 
@@ -100,7 +100,7 @@ def ps():
 
 @app.command()
 def doctor():
-    """Check DockFleet environment."""
+    """Check system environment (Python version and Docker availability)."""
     typer.echo("Running DockFleet doctor...\n")
 
     # Python version check

@@ -50,6 +50,20 @@ DockFleet provides simple orchestration with built-in self-healing:
 
 ---
 
+## Concepts
+
+### What is a Service?
+
+A service represents a containerized application defined in the DockFleet configuration file.  
+Each service specifies the Docker image, ports, restart policy, and optional health checks.
+
+### DockFleet vs Docker Compose
+
+DockFleet is similar to Docker Compose but focuses on lightweight local orchestration with built-in health monitoring and automatic recovery.  
+It is designed for small deployments and development environments where Kubernetes would be too complex.
+
+---
+
 ### <u>Setup (Python + Virtual Environment)</u>
 
 #### 1. Requirements
@@ -156,6 +170,10 @@ http://localhost:8080
 ```
 
 ---
+
+## First Run
+
+After setting up the development environment, you can run DockFleet using the example configuration.
 
 ## Quick Start
 
