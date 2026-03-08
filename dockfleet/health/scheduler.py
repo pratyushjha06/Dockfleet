@@ -4,15 +4,17 @@ import time
 from typing import Optional
 from dockfleet.cli.config import DockFleetConfig, HealthCheckConfig
 from dockfleet.health.checker import HealthChecker
+from dockfleet.health.status import update_service_health
 
 DEFAULT_INTERVAL_SECONDS = 30
 
 class HealthScheduler:
     """
-    Background scheduler to periodically runs health checks
+    Background scheduler that periodically runs health checks
     for services that have a healthcheck configured in DockFleetConfig.
-
-    Day 8 scope: only logs/prints healthy/unhealthy, no DB writes.
+    - Run HTTP/TCP/process checks via HealthChecker
+    - Log results
+    - Persist status / last_health_check / restart_count in DB
     """
     def __init__(
         self,
@@ -28,7 +30,9 @@ class HealthScheduler:
         self._checker = HealthChecker()
 
     def start(self) -> None:
+
         # Start the background polling thread if it's not already running.
+
         if self._thread is not None and self._thread.is_alive():
             return
 
@@ -43,6 +47,7 @@ class HealthScheduler:
         self._logger.info("HealthScheduler: started background thread")
 
     def stop(self) -> None:
+
         # Signal the polling thread to stop and wait for it to finish.
 
         self._stopped = True
@@ -57,7 +62,8 @@ class HealthScheduler:
         """
         Main loop to runs health checks in the background.
 
-        Day 8: read from in-memory config only, no DB writes.
+        Uses in-memory DockFleetConfig to know which services to check,
+        and writes results into the Service table via update_service_health.
         """
         self._logger.info("HealthScheduler: poll loop started")
 
@@ -75,11 +81,18 @@ class HealthScheduler:
                 status_str = "HEALTHY" if ok else "UNHEALTHY"
                 self._logger.info("HealthScheduler: %s -> %s", name, status_str)
 
+                update_service_health(
+                    name,
+                    ok,
+                    reason=None if ok else "health check failed",
+                )
+
             time.sleep(self.interval_seconds)
 
         self._logger.info("HealthScheduler: poll loop exiting")
 
     def _run_single_check(self, name: str, hc: HealthCheckConfig) -> bool:
+
         # Run one health check based on its type and return True/False.
  
         hc_type = hc.type.lower()
@@ -113,8 +126,9 @@ class HealthScheduler:
         return False
 
     def _split_host_port(self, endpoint: str) -> tuple[Optional[str], Optional[int]]:
-        # Helper to split 'host:port' strings safely.
-
+        """
+        Helper to split 'host:port' strings safely.
+        """
         if ":" not in endpoint:
             return None, None
 
