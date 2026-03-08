@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from dockfleet.cli.config import load_config
 from dockfleet.core.orchestrator import Orchestrator
 from dockfleet.health.seed import bootstrap_from_path
+from dockfleet.health.scheduler import HealthScheduler
 
 app = typer.Typer(help="DockFleet CLI - Manage Docker services from YAML configuration")
 
@@ -122,7 +123,43 @@ def doctor():
     except Exception:
         typer.echo("✗ Docker not found or not running")
         raise typer.Exit(code=1)
+@app.command("health-dev")
+def health_dev(path: Path = typer.Argument("dockfleet.yaml")):
+    """
+    Developer command to run the health check scheduler manually.
+    Press Ctrl+C to stop.
+    """
 
+    try:
+        typer.echo("Starting DockFleet health check scheduler (DEV MODE)")
+        typer.echo("Press Ctrl+C to stop\n")
+
+        config = load_config(path)
+
+        # check if any service has healthcheck defined
+        services_with_health = [
+            name for name, svc in config.services.items()
+            if svc.healthcheck is not None
+        ]
+
+        if not services_with_health:
+            typer.echo("No services with healthcheck defined in config.")
+            raise typer.Exit(code=1)
+
+        scheduler = HealthScheduler(config)
+
+        scheduler.start()
+
+        try:
+            while True:
+                pass
+        except KeyboardInterrupt:
+            typer.echo("\nStopping health scheduler...")
+            scheduler.stop()
+
+    except Exception as e:
+        typer.echo(f"Health scheduler failed: {e}")
+        raise typer.Exit(code=1)
 
 if __name__ == "__main__":
     app()
