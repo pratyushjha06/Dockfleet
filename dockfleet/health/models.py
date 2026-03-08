@@ -2,7 +2,7 @@ from sqlmodel import Field, Session, SQLModel, create_engine
 from datetime import datetime
 
 # Service table model 
-# fields: id, name, images, restart_policy, ports_raw, healthcheck_raw, status, restart_count, last_health_check, last_failure_reason
+# fields: id, name, images, restart_policy, ports_raw, healthcheck_raw, status, restart_count, last_health_check, last_failure_reason, consecutive_failures
 class Service(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(nullable=False, unique=True)
@@ -12,9 +12,9 @@ class Service(SQLModel, table=True):
     healthcheck_raw: str | None = Field(default=None)
     status: str = Field(default="unknown", nullable=False)
     restart_count: int = Field(default=0, nullable=False)
-    last_health_check : datetime | None = Field(default=None)
+    last_health_check: datetime | None = Field(default=None)
     last_failure_reason: str | None = Field(default=None)
-
+    consecutive_failures: int = Field(default=0, nullable=False)
 
 # RestartEvent table model
 # fields: id, service_id, restarted_at, reason, previous_status, new_status
@@ -26,10 +26,8 @@ class RestartEvent(SQLModel, table=True):
     previous_status: str | None = Field(default=None)
     new_status: str | None = Field(default=None)
 
-
-
-# init_db() function 
-# work: engine  + tables create 
+# init_db() function
+# work: engine + tables create
 sqlite_file_name = "dockfleet.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 engine = create_engine(sqlite_url)

@@ -1,8 +1,12 @@
 import json
-from .models import Service
-from dockfleet.cli.config import DockFleetConfig, ServiceConfig, HealthCheckConfig, RestartPolicy
 from sqlmodel import Session, select
-
+from .models import Service
+from dockfleet.cli.config import (
+    DockFleetConfig,
+    ServiceConfig,
+    HealthCheckConfig,
+    RestartPolicy,
+)
 
 def services_from_config(config: DockFleetConfig) -> list[Service]:
     services: list[Service] = []
@@ -35,6 +39,7 @@ def services_from_config(config: DockFleetConfig) -> list[Service]:
         restart_count = 0
         last_health_check = None
         last_failure_reason = None
+        consecutive_failures = 0
 
         # 5) Create Service instance not in DB
         service = Service(
@@ -47,6 +52,7 @@ def services_from_config(config: DockFleetConfig) -> list[Service]:
             restart_count=restart_count,
             last_health_check=last_health_check,
             last_failure_reason=last_failure_reason,
+            consecutive_failures=consecutive_failures,
         )
 
         services.append(service)

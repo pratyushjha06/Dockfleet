@@ -58,6 +58,9 @@ class HealthScheduler:
             self._thread.join(timeout=self.interval_seconds + 5)
             self._logger.info("HealthScheduler: thread stopped")
 
+        # Reset thread handle so a fresh start() can create a new one
+        self._thread = None
+
     def _poll(self) -> None:
         """
         Main loop to runs health checks in the background.
@@ -77,15 +80,25 @@ class HealthScheduler:
                 if hc is None:
                     continue
 
-                ok = self._run_single_check(name, hc)
-                status_str = "HEALTHY" if ok else "UNHEALTHY"
-                self._logger.info("HealthScheduler: %s -> %s", name, status_str)
+                try:
+                    ok = self._run_single_check(name, hc)
+                    status_str = "HEALTHY" if ok else "UNHEALTHY"
+                    self._logger.info(
+                        "HealthScheduler: %s -> %s", name, status_str
+                    )
 
-                update_service_health(
-                    name,
-                    ok,
-                    reason=None if ok else "health check failed",
-                )
+                    update_service_health(
+                        name,
+                        ok,
+                        reason=None if ok else "health check failed",
+                    )
+                except Exception as exc:  # pragma: no cover (defensive)
+                    # Defensive guard: one bad service should not kill scheduler
+                    self._logger.error(
+                        "HealthScheduler: error while polling %s: %s",
+                        name,
+                        exc,
+                    )
 
             time.sleep(self.interval_seconds)
 
@@ -126,9 +139,7 @@ class HealthScheduler:
         return False
 
     def _split_host_port(self, endpoint: str) -> tuple[Optional[str], Optional[int]]:
-        """
-        Helper to split 'host:port' strings safely.
-        """
+        # Helper to split 'host:port' strings safely.
         if ":" not in endpoint:
             return None, None
 

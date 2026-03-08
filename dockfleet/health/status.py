@@ -46,10 +46,17 @@ def update_service_health(
     """
     Update Service row after a health check.
 
-    - If healthy:  status = "running", update last_health_check,
-      restart_count unchanged.
-    - If unhealthy: status = "unhealthy", update last_health_check,
-      increment restart_count, store last_failure_reason.
+    - If healthy:
+        status = "running"
+        last_health_check updated
+        restart_count unchanged
+        consecutive_failures reset to 0
+    - If unhealthy:
+        status = "unhealthy"
+        last_health_check updated
+        restart_count++
+        consecutive_failures++
+        last_failure_reason stored (if provided)
     """
     with Session(engine) as session:
         svc = session.exec(
@@ -66,10 +73,13 @@ def update_service_health(
         if is_healthy:
             # health OK -> treat as running service
             svc.status = "running"
-            # restart_count unchanged
+            # if we were failing before, reset the streak
+            svc.consecutive_failures = 0
+            # restart_count unchanged here 
         else:
             svc.status = "unhealthy"
             svc.restart_count += 1
+            svc.consecutive_failures += 1
             if reason:
                 svc.last_failure_reason = reason
 
