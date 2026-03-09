@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from sqlmodel import Session, select
-from .models import Service, engine
+from .models import Service, RestartEvent, engine
 
 def mark_service_running(name: str) -> None:
     _update_status(name, "running", set_last_health=True)
@@ -84,19 +84,54 @@ def update_service_health(
 
 def needs_restart(service: Service) -> bool:
     """
-    Decide if a service should be restarted based on failure streak
-    and restart_policy.
+    Decide if a service should be auto-restarted.
     Rules:
-    - If restart_policy == "never" -> never restart.
-    - Otherwise, restart if consecutive_failures >= 3.
+    - At least 3 consecutive health check failures.
+    - restart_policy must be "always" or "on-failure".
+    - restart_policy == "never" is a hard block.
     """
-    # policies: "always", "on-failure", "never"
-    if service.restart_policy == "never":
-        return False
-
     if service.consecutive_failures < 3:
         return False
 
-    # For "always" and "on-failure", once we have 3 consecutive
-    # unhealthy checks, this service is eligible for restart.
+    if service.restart_policy not in {"always", "on-failure"}:
+        return False
+
     return True
+
+def record_restart_event(service: Service, reason: str) -> None:
+    """
+    Store a simple restart event for later crash analytics.
+    Example reason: "3_failed_health_checks".
+    """
+    # No DB lookup needed; we already have the Service instance.
+    event = RestartEvent(
+        service_id=service.id,
+        restarted_at=datetime.utcnow(),
+        reason=reason,
+        previous_status=service.status,
+        new_status="running",  # intended post-restart status
+    )
+
+    with Session(engine) as session:
+        session.add(event)
+        session.commit()
+
+def mark_restart_successful(service_name: str) -> None:
+    """
+    Called by orchestrator after a successful auto-restart.
+    Resets consecutive_failures and marks status as running.
+    """
+    with Session(engine) as session:
+        svc = session.exec(
+            select(Service).where(Service.name == service_name)
+        ).one_or_none()
+
+        if svc is None:
+            print(f"[restart] Service '{service_name}' not found in DB")
+            return
+
+        svc.consecutive_failures = 0
+        svc.status = "running"
+
+        session.add(svc)
+        session.commit()

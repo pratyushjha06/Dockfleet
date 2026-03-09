@@ -1,9 +1,20 @@
 from dockfleet.core.docker import DockerManager
 from dockfleet.health.status import (
     mark_service_running,
-    mark_service_stopped
+    mark_service_stopped,
+    mark_restart_successful,
+    record_restart_event
 )
+
+from dockfleet.health.models import Service, engine
 from dockfleet.health.seed import bootstrap_from_config
+import logging
+from sqlmodel import Session, select
+from datetime import datetime
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
 
 class Orchestrator:
 
@@ -33,11 +44,11 @@ class Orchestrator:
 
             mark_service_running(name)
 
-            print(f" Started service: {name}")
+            print(f"Started service: {name}")
 
         except Exception as e:
 
-            print(f" Failed to start {name}")
+            print(f"Failed to start {name}")
             print(e)
 
     def stop_service(self, name):
@@ -51,25 +62,68 @@ class Orchestrator:
 
             mark_service_stopped(name)
 
-            print(f" Stopped service: {name}")
+            print(f"Stopped service: {name}")
 
         except Exception as e:
 
-            print(f" Failed to stop {name}")
+            print(f"Failed to stop {name}")
             print(e)
 
-    def restart(self, service_name):
-
+    def restart_service(self, service_name: str) -> bool:
+        """Low-level container restart."""
         if service_name not in self.config.services:
-            print(f"Service {service_name} not found")
-            return
-
+            logger.warning(f"Service {service_name} not found")
+            return False
+        
         svc = self.config.services[service_name]
+        print(f"Restarting container: {service_name}")
+        
+        try:
+            self.stop_service(service_name)
+            self.start_service(service_name, svc)
+            return True
+        except Exception as e:
+            logger.error(f"Container restart failed: {e}")
+            return False
 
-        print(f"Restarting service: {service_name}")
+    def handle_unhealthy_service(self, service_name: str, reason: str = "3_failed_health_checks") -> None:
+        """HealthScheduler calls this for auto-restart."""
+        logger.info("Auto-restart: %s (%s)", service_name, reason)
+        
+        try:
+            success = self.restart_service(service_name)
+        except Exception as exc:
+            logger.error("CRITICAL restart error %s: %s", service_name, exc)
+            self._mark_restart_failed(service_name, str(exc))
+            return
+        
+        if not success:
+            logger.error("restart_service failed %s", service_name)
+            self._mark_restart_failed(service_name, "restart_service returned False")
+            return
+        
+        # SUCCESS 
+        logger.info("%s auto-restarted", service_name)
+        mark_restart_successful(service_name)
+        
+        # Record event
+        with Session(engine) as session:
+            svc = session.exec(select(Service).where(Service.name == service_name)).one_or_none()
+            if svc:
+                record_restart_event(svc, reason)
+            else:
+                logger.warning("Service %s not found after restart", service_name)
 
-        self.stop_service(service_name)
-        self.start_service(service_name, svc)
+    def _mark_restart_failed(self, service_name: str, reason: str) -> None:
+
+        with Session(engine) as session:
+            svc = session.exec(select(Service).where(Service.name == service_name)).one_or_none()
+            if svc:
+                svc.status = "crashed"
+                svc.last_failure_reason = f"auto-restart failed: {reason}"
+                session.add(svc)
+                session.commit()
+                logger.error(" %s marked CRASHED: %s", service_name, reason)
 
     def up(self):
         print("Starting services...\n")
