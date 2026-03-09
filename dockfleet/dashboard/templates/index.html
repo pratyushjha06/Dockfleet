@@ -19,249 +19,229 @@
 
 </head>
 
-<body
-    class="bg-gradient-to-br from-gray-100 to-gray-200
+<body class="bg-gradient-to-br from-gray-100 to-gray-200
            dark:from-gray-900 dark:to-gray-800
            text-gray-900 dark:text-white
-           min-h-screen transition-all duration-300"
-    x-data="dashboard()"
-    x-init="init()"
->
+           min-h-screen transition-all duration-300" x-data="dashboard()" x-init="init()">
 
-<div class="container mx-auto px-6 py-10">
+    <div class="container mx-auto px-6 py-10">
 
-    <!-- NAVBAR -->
-    <div class="flex justify-between items-center mb-10">
+        <!-- NAVBAR -->
+        <div class="flex justify-between items-center mb-10">
 
-        <div>
-            <h1 class="text-4xl font-bold">DockFleet</h1>
-            <p class="text-sm text-gray-500 dark:text-gray-400">
-                Local Self-Healing Orchestrator
-            </p>
+            <div>
+                <h1 class="text-4xl font-bold">DockFleet</h1>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    Local Self-Healing Orchestrator
+                </p>
+            </div>
+
+            <button @click="toggleDarkMode()"
+                class="px-4 py-2 rounded-xl bg-gray-800 text-white dark:bg-gray-700 hover:scale-105 transition">
+                Toggle Theme
+            </button>
+
         </div>
 
-        <button
-            @click="toggleDarkMode()"
-            class="px-4 py-2 rounded-xl bg-gray-800 text-white dark:bg-gray-700 hover:scale-105 transition">
-            Toggle Theme
-        </button>
 
-    </div>
+        <!-- SUMMARY STRIP -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 text-center">
 
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
+                <p class="text-sm text-gray-500">Total Services</p>
+                <p class="text-3xl font-bold mt-1" x-text="summary.total_services"></p>
+            </div>
 
-    <!-- SUMMARY STRIP -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 text-center">
+            <div class="bg-green-100 dark:bg-green-900/40 p-6 rounded-2xl shadow-lg">
+                <p class="text-sm">Running</p>
+                <p class="text-3xl font-bold text-green-600 dark:text-green-300 mt-1" x-text="summary.running"></p>
+            </div>
 
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
-            <p class="text-sm text-gray-500">Total Services</p>
-            <p class="text-3xl font-bold mt-1" x-text="summary.total_services"></p>
+            <div class="bg-red-100 dark:bg-red-900/40 p-6 rounded-2xl shadow-lg">
+                <p class="text-sm">Stopped</p>
+                <p class="text-3xl font-bold text-red-600 dark:text-red-300 mt-1" x-text="summary.stopped"></p>
+            </div>
+
         </div>
 
-        <div class="bg-green-100 dark:bg-green-900/40 p-6 rounded-2xl shadow-lg">
-            <p class="text-sm">Running</p>
-            <p class="text-3xl font-bold text-green-600 dark:text-green-300 mt-1"
-                x-text="summary.running"></p>
-        </div>
 
-        <div class="bg-red-100 dark:bg-red-900/40 p-6 rounded-2xl shadow-lg">
-            <p class="text-sm">Stopped</p>
-            <p class="text-3xl font-bold text-red-600 dark:text-red-300 mt-1"
-                x-text="summary.stopped"></p>
-        </div>
+        <!-- SERVICES GRID -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 
-    </div>
+            <template x-for="service in services" :key="service.name">
 
-
-    <!-- SERVICES GRID -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-
-        <template x-for="service in services" :key="service.name">
-
-            <div class="bg-white dark:bg-gray-800
+                <div class="bg-white dark:bg-gray-800
                         p-6 rounded-2xl shadow-xl
                         border border-gray-200 dark:border-gray-700
                         hover:shadow-2xl transition duration-300">
 
-                <!-- Header -->
-                <div class="flex justify-between items-center mb-4">
+                    <!-- Header -->
+                    <div class="flex justify-between items-center mb-4">
 
-                    <h2 class="text-xl font-semibold capitalize"
-                        x-text="service.name"></h2>
+                        <h2 class="text-xl font-semibold capitalize" x-text="service.name"></h2>
 
-                    <span
-                        class="px-2 py-1 rounded text-xs font-semibold capitalize"
-                        :class="{
+                        <span class="px-2 py-1 rounded text-xs font-semibold capitalize" :class="{
                             'bg-green-600 text-white': service.status === 'running',
                             'bg-red-600 text-white': service.status === 'stopped',
                             'bg-yellow-500 text-black': service.status === 'restarting',
                             'bg-gray-500 text-white': service.status === 'unknown'
-                        }"
-                        x-text="service.status"
-                    ></span>
+                        }" x-text="service.status"></span>
 
-                    <span
-                        class="px-2 py-1 rounded text-xs font-semibold capitalize"
-                        :class="{
+                        <span class="px-2 py-1 rounded text-xs font-semibold capitalize" :class="{
                             'bg-green-500 text-white': service.health_status === 'healthy',
                             'bg-red-500 text-white': service.health_status === 'unhealthy',
                             'bg-gray-500 text-white': service.health_status === 'unknown'
-                        }"
-                        x-text="service.health_status"
-                    ></span>
+                        }" x-text="service.health_status"></span>
 
-                </div>
+                    </div>
 
 
-                <!-- SERVICE DETAILS -->
-                <div class="space-y-2 text-sm">
+                    <!-- SERVICE DETAILS -->
+                    <div class="space-y-2 text-sm">
 
-                    <p>
-                        <strong>Image:</strong>
-                        <span x-text="service.image"></span>
-                    </p>
+                        <p>
+                            <strong>Image:</strong>
+                            <span x-text="service.image"></span>
+                        </p>
 
-                    <p>
-                        <strong>Ports:</strong>
-                        <span x-text="service.ports"></span>
-                    </p>
+                        <p>
+                            <strong>Ports:</strong>
+                            <span x-text="service.ports"></span>
+                        </p>
 
-                    <p>
-                        <strong>Restart Policy:</strong>
+                        <p>
+                            <strong>Restart Policy:</strong>
 
-                        <span
-                            class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-xs"
-                            x-text="service.restart_policy">
-                        </span>
+                            <span class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-xs"
+                                x-text="service.restart_policy">
+                            </span>
 
-                    </p>
+                        </p>
 
-                    <p>
-                        <strong>Restart Count:</strong>
-                        <span x-text="service.restart_count"></span>
-                    </p>
-                    
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
-    Last Check:
-    <span x-text="formatTime(service.last_health_check)"></span>
-</p>
+                        <p>
+                            <strong>Restart Count:</strong>
+                            <span x-text="service.restart_count"></span>
+                        </p>
 
-                </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            Last Check:
+                            <span x-text="formatTime(service.last_health_check)"></span>
+                        </p>
+
+                    </div>
 
 
-                <!-- ACTION BUTTONS -->
-                <div class="mt-6 flex gap-4">
+                    <!-- ACTION BUTTONS -->
+                    <div class="mt-6 flex gap-4">
 
-                    <button
-                        @click="restartService(service.name)"
-                        class="flex-1 bg-yellow-500 text-black px-3 py-2
+                        <button @click="restartService(service.name)" class="flex-1 bg-yellow-500 text-black px-3 py-2
                                rounded-lg hover:bg-yellow-400 transition">
 
-                        Restart
+                            Restart
 
-                    </button>
+                        </button>
 
-                    <button
-                        @click="stopService(service.name)"
-                        class="flex-1 bg-red-600 text-white px-3 py-2
+                        <button @click="stopService(service.name)" class="flex-1 bg-red-600 text-white px-3 py-2
                                rounded-lg hover:bg-red-500 transition">
 
-                        Stop
+                            Stop
 
-                    </button>
+                        </button>
+
+                    </div>
 
                 </div>
 
-            </div>
+            </template>
 
-        </template>
+        </div>
 
     </div>
 
-</div>
+
+
+    <script>
+
+        function dashboard() {
+
+            return {
+
+                services: [],
+                summary: {},
+
+                async init() {
+
+                    await this.fetchServices()
+                    await this.fetchSummary()
+
+                },
+
+                async fetchServices() {
+
+                    try {
+
+                        const res = await fetch("/services")
+                        this.services = await res.json()
+
+                    } catch (err) {
+
+                        console.error("Failed loading services", err)
+
+                    }
 
 
 
-<script>
+                },
 
-function dashboard() {
+                async fetchSummary() {
 
-    return {
+                    try {
 
-        services: [],
-        summary: {},
+                        const res = await fetch("/status")
+                        this.summary = await res.json()
 
-        async init() {
+                    } catch (err) {
 
-            await this.fetchServices()
-            await this.fetchSummary()
+                        console.error("Failed loading summary", err)
 
-        },
+                    }
 
-        async fetchServices() {
+                },
 
-            try {
+                restartService(name) {
 
-                const res = await fetch("/services")
-                this.services = await res.json()
+                    console.log("Restart clicked:", name)
 
-            } catch (err) {
+                },
 
-                console.error("Failed loading services", err)
+                stopService(name) {
+
+                    console.log("Stop clicked:", name)
+
+                },
+
+                toggleDarkMode() {
+
+                    document.documentElement.classList.toggle('dark')
+
+                },
+
+                formatTime(timestamp) {
+
+                    if (!timestamp) return "Never"
+
+                    const date = new Date(timestamp)
+
+                    return date.toLocaleTimeString()
+
+                },
 
             }
 
-            
+        }
 
-        },
-
-        async fetchSummary() {
-
-            try {
-
-                const res = await fetch("/status")
-                this.summary = await res.json()
-
-            } catch (err) {
-
-                console.error("Failed loading summary", err)
-
-            }
-
-        },
-
-        restartService(name) {
-
-            console.log("Restart clicked:", name)
-
-        },
-
-        stopService(name) {
-
-            console.log("Stop clicked:", name)
-
-        },
-
-        toggleDarkMode() {
-
-            document.documentElement.classList.toggle('dark')
-
-        },
-        
-        formatTime(timestamp) {
-
-    if (!timestamp) return "Never"
-
-    const date = new Date(timestamp)
-
-    return date.toLocaleTimeString()
-
-},
-
-    }
-
-}
-
-</script>
+    </script>
 
 </body>
+
 </html>
