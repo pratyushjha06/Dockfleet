@@ -70,9 +70,24 @@ class Orchestrator:
             print(e)
 
     def restart_service(self, service_name: str) -> bool:
-        """Low-level container restart."""
+        """Day 11: Idempotent restart w/ DB counter."""
         if service_name not in self.config.services:
             logger.warning(f"Service {service_name} not found")
+            return False
+        
+        # DAY 11: IDEMPOTENT - skip if not running
+        import subprocess
+        container_name = self.container_name(service_name)
+        try:
+            result = subprocess.run(
+                ["docker", "ps", "--filter", f"name={container_name}", "--format", "{{.Names}}"],
+                capture_output=True, text=True, timeout=5
+            )
+            if not result.stdout.strip():
+                logger.info(f"{service_name} not running, skipping restart")
+                return False
+        except subprocess.TimeoutExpired:
+            logger.warning(f"Timeout checking {service_name}")
             return False
         
         svc = self.config.services[service_name]
@@ -80,16 +95,22 @@ class Orchestrator:
         
         try:
             self.stop_service(service_name)
+            
+            from dockfleet.health.status import increment_restart_count
+            increment_restart_count(service_name)
+            
             self.start_service(service_name, svc)
+            logger.info(f"{service_name} restarted (DB count updated)")
             return True
         except Exception as e:
             logger.error(f"Container restart failed: {e}")
             return False
-
-    def handle_unhealthy_service(self, service_name: str, reason: str = "3_failed_health_checks") -> None:
-        """HealthScheduler calls this for auto-restart."""
-        logger.info("Auto-restart: %s (%s)", service_name, reason)
+    
+    def handle_unhealthy_service(self, service_name: str, config=None, reason: str = "health failure") -> None:
         
+        config = config or self.config  
+        logger.info("Auto-restart: %s (%s)", service_name, reason)
+
         try:
             success = self.restart_service(service_name)
         except Exception as exc:
