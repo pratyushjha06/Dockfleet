@@ -69,6 +69,7 @@ class Orchestrator:
             print(f"Failed to stop {name}")
             print(e)
 
+<<<<<<< HEAD
     def restart_service(self, service_name: str, config=None) -> bool:
         """Day 11: COMPLETE idempotent restart + DB restart_count."""
         config = config or self.config
@@ -78,6 +79,15 @@ class Orchestrator:
             return False
         
         # ✅ IDEMPOTENT: Skip if not running
+=======
+    def restart_service(self, service_name: str) -> bool:
+        """Day 11: Idempotent restart w/ DB counter."""
+        if service_name not in self.config.services:
+            logger.warning(f"Service {service_name} not found")
+            return False
+        
+        # DAY 11: IDEMPOTENT - skip if not running
+>>>>>>> cb0ee7a8d8d9fc483fd0f3a6be61a3cad7bc0154
         import subprocess
         container_name = self.container_name(service_name)
         try:
@@ -88,28 +98,46 @@ class Orchestrator:
             if not result.stdout.strip():
                 logger.info(f"{service_name} not running, skipping restart")
                 return False
+<<<<<<< HEAD
         except:
             logger.warning(f"Cannot check {service_name}, skipping")
             return False
         
         svc = config.services[service_name]
         print(f"🔄 Restarting container: {service_name}")
+=======
+        except subprocess.TimeoutExpired:
+            logger.warning(f"Timeout checking {service_name}")
+            return False
+        
+        svc = self.config.services[service_name]
+        print(f"Restarting container: {service_name}")
+>>>>>>> cb0ee7a8d8d9fc483fd0f3a6be61a3cad7bc0154
         
         try:
             # Stop container
             self.stop_service(service_name)
             
+<<<<<<< HEAD
             # ✅ DAY 11: SELF-CONTAINED DB restart_count increment
             self._increment_restart_count(service_name)
             
             # Start fresh
             self.start_service(service_name, svc)
             logger.info(f"✅ {service_name} restarted (restart_count incremented)")
+=======
+            from dockfleet.health.status import increment_restart_count
+            increment_restart_count(service_name)
+            
+            self.start_service(service_name, svc)
+            logger.info(f"{service_name} restarted (DB count updated)")
+>>>>>>> cb0ee7a8d8d9fc483fd0f3a6be61a3cad7bc0154
             return True
             
         except Exception as e:
             logger.error(f"Container restart failed: {e}")
             return False
+<<<<<<< HEAD
 
     def _increment_restart_count(self, service_name: str) -> None:
         """Self-contained DB restart_count increment (Day 11 req)."""
@@ -131,6 +159,9 @@ class Orchestrator:
         except Exception as e:
             logger.error(f"DB increment failed for {service_name}: {e}")
 
+=======
+    
+>>>>>>> cb0ee7a8d8d9fc483fd0f3a6be61a3cad7bc0154
     def handle_unhealthy_service(self, service_name: str, config=None, reason: str = "health failure") -> None:
         
         config = config or self.config  
