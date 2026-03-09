@@ -69,27 +69,73 @@ class Orchestrator:
             print(f"Failed to stop {name}")
             print(e)
 
-    def restart_service(self, service_name: str) -> bool:
-        """Low-level container restart."""
-        if service_name not in self.config.services:
+    def restart_service(self, service_name: str, config=None) -> bool:
+        """Day 11: COMPLETE idempotent restart + DB restart_count."""
+        config = config or self.config
+        
+        if service_name not in config.services:
             logger.warning(f"Service {service_name} not found")
             return False
         
-        svc = self.config.services[service_name]
-        print(f"Restarting container: {service_name}")
+        # ✅ IDEMPOTENT: Skip if not running
+        import subprocess
+        container_name = self.container_name(service_name)
+        try:
+            result = subprocess.run(
+                ["docker", "ps", "--filter", f"name={container_name}", "--format", "{{.Names}}"],
+                capture_output=True, text=True, timeout=5
+            )
+            if not result.stdout.strip():
+                logger.info(f"{service_name} not running, skipping restart")
+                return False
+        except:
+            logger.warning(f"Cannot check {service_name}, skipping")
+            return False
+        
+        svc = config.services[service_name]
+        print(f"🔄 Restarting container: {service_name}")
         
         try:
+            # Stop container
             self.stop_service(service_name)
+            
+            # ✅ DAY 11: SELF-CONTAINED DB restart_count increment
+            self._increment_restart_count(service_name)
+            
+            # Start fresh
             self.start_service(service_name, svc)
+            logger.info(f"✅ {service_name} restarted (restart_count incremented)")
             return True
+            
         except Exception as e:
             logger.error(f"Container restart failed: {e}")
             return False
 
-    def handle_unhealthy_service(self, service_name: str, reason: str = "3_failed_health_checks") -> None:
-        """HealthScheduler calls this for auto-restart."""
-        logger.info("Auto-restart: %s (%s)", service_name, reason)
+    def _increment_restart_count(self, service_name: str) -> None:
+        """Self-contained DB restart_count increment (Day 11 req)."""
+        try:
+            with Session(engine) as session:
+                svc = session.exec(
+                    select(Service).where(Service.name == service_name)
+                ).one_or_none()
+                
+                if svc:
+                    # Increment restart_count (create if missing)
+                    svc.restart_count = (svc.restart_count or 0) + 1
+                    session.add(svc)
+                    session.commit()
+                    logger.info(f"DB: {service_name} restart_count={svc.restart_count}")
+                else:
+                    logger.warning(f"Service {service_name} not in DB")
+                    
+        except Exception as e:
+            logger.error(f"DB increment failed for {service_name}: {e}")
+
+    def handle_unhealthy_service(self, service_name: str, config=None, reason: str = "health failure") -> None:
         
+        config = config or self.config  
+        logger.info("Auto-restart: %s (%s)", service_name, reason)
+
         try:
             success = self.restart_service(service_name)
         except Exception as exc:
