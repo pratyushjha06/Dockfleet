@@ -78,14 +78,19 @@ def system_status():
         1 for s in services if s["health_status"] == "healthy"
     )
 
+    restarting = sum(
+        1 for s in services if s["health_status"] == "restarting"
+    )
+
     stopped = sum(
-        1 for s in services if s["health_status"] != "healthy"
+        1 for s in services if s["health_status"] not in ["healthy", "restarting"]
     )
 
     return {
         "total_services": total,
         "running": running,
+        "restarting": restarting,
         "stopped": stopped
     }
-
+    
     
