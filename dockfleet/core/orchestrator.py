@@ -5,16 +5,16 @@ from dockfleet.health.status import (
     mark_restart_successful,
     record_restart_event
 )
-
+import subprocess
 from dockfleet.health.models import Service, engine
 from dockfleet.health.seed import bootstrap_from_config
 import logging
 from sqlmodel import Session, select
 from datetime import datetime
 from typing import Optional
+from dockfleet.cli.config import RestartPolicy
 
 logger = logging.getLogger(__name__)
-
 
 class Orchestrator:
 
@@ -69,15 +69,27 @@ class Orchestrator:
             print(f"Failed to stop {name}")
             print(e)
 
-    def restart_service(self, service_name: str, config=None) -> bool:
-
+    def restart_service(self, service_name: str, config=None, backoff_attempt: int = 0) -> bool:
         config = config or self.config
         
         if service_name not in config.services:
             logger.warning(f"Service {service_name} not found")
             return False
         
-        import subprocess
+        svc = config.services[service_name]
+        
+        if svc.restart == RestartPolicy.never: 
+            logger.info(f"{service_name}: restart='never', skipping")
+            return False
+        
+        if backoff_attempt > 0:
+            import time
+            delay = min(2 ** backoff_attempt, 32)
+            logger.info(f"{service_name}: backoff {delay}s (attempt {backoff_attempt})")
+            time.sleep(delay)
+        
+        logger.info(f"Restarting {service_name}")
+        
         container_name = self.container_name(service_name)
         try:
             result = subprocess.run(
@@ -85,29 +97,25 @@ class Orchestrator:
                 capture_output=True, text=True, timeout=5
             )
             if not result.stdout.strip():
-                logger.info(f"{service_name} not running, skipping restart")
+                logger.info(f"{service_name} not running, skipping")
                 return False
         except:
             logger.warning(f"Cannot check {service_name}, skipping")
             return False
         
-        svc = config.services[service_name]
-        print(f"Restarting container: {service_name}")
-        
         try:
-            # Stop container
             self.stop_service(service_name)
-            
             self._increment_restart_count(service_name)
-            
-            # Start fresh
             self.start_service(service_name, svc)
-            logger.info(f"{service_name} restarted (restart_count incremented)")
+            
+            logger.info(f"{service_name} restarted (count updated)")
             return True
             
         except Exception as e:
-            logger.error(f"Container restart failed: {e}")
+            logger.error(f"{service_name} restart FAILED: {e}")
             return False
+
+
 
     def _increment_restart_count(self, service_name: str) -> None:
         try:
