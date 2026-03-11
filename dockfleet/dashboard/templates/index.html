@@ -232,6 +232,46 @@
 
         </div>
 
+        <!-- LOG VIEWER -->
+<div class="mt-16">
+
+    <h2 class="text-2xl font-bold mb-4">Live Service Logs</h2>
+
+    <div class="flex gap-4 mb-4">
+
+        <!-- Service Selector -->
+        <select x-model="selectedService"
+            class="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700">
+
+            <option value="">Select Service</option>
+
+            <template x-for="service in services">
+                <option :value="service.name" x-text="service.name"></option>
+            </template>
+
+        </select>
+
+        <!-- Start Logs Button -->
+        <button
+            @click="startLogs()"
+            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
+
+            Start Logs
+
+        </button>
+
+    </div>
+
+    <!-- Logs Container -->
+    <div
+        x-ref="logBox"
+        class="bg-black text-green-400 font-mono text-xs p-4 rounded-xl
+               h-72 overflow-y-auto">
+
+    </div>
+
+</div>
+
     </div>
 
 
