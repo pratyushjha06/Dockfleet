@@ -3,6 +3,7 @@ import subprocess
 from pathlib import Path
 import logging
 import time
+from datetime import datetime
 from dockfleet.health.status import update_service_health
 import typer
 from pydantic import ValidationError
@@ -10,14 +11,12 @@ from dockfleet.cli.config import load_config
 from dockfleet.core.orchestrator import Orchestrator
 from dockfleet.health.seed import bootstrap_from_path
 from dockfleet.health.scheduler import HealthScheduler
-from dockfleet.health.models import sqlite_file_name  # if you expose this; otherwise hardcode "dockfleet.db"
-
+from dockfleet.health.models import sqlite_file_name  
 
 app = typer.Typer(help="DockFleet CLI - Manage Docker services from YAML configuration")
 
 validate_app = typer.Typer()
 app.add_typer(validate_app, name="validate")
-
 
 @validate_app.callback(invoke_without_command=True)
 def validate(path: Path = typer.Argument("dockfleet.yaml")):
@@ -37,7 +36,6 @@ def validate(path: Path = typer.Argument("dockfleet.yaml")):
         typer.echo(f"Unexpected error: {e}")
         raise typer.Exit(code=1)
 
-
 @app.command()
 def seed(path: Path = typer.Argument("dockfleet.yaml")):
     """Initialize the service database and register services from the configuration."""
@@ -51,7 +49,6 @@ def seed(path: Path = typer.Argument("dockfleet.yaml")):
     except Exception as e:
         typer.echo(f"Seeding failed: {e}")
         raise typer.Exit(code=1)
-
 
 @app.command()
 def up(path: Path = typer.Argument("dockfleet.yaml")):
@@ -70,7 +67,6 @@ def up(path: Path = typer.Argument("dockfleet.yaml")):
         typer.echo(f"Error starting services: {e}")
         raise typer.Exit(code=1)
 
-
 @app.command()
 def down(path: Path = typer.Argument("dockfleet.yaml")):
     """Stop and remove all containers managed by DockFleet."""
@@ -88,7 +84,6 @@ def down(path: Path = typer.Argument("dockfleet.yaml")):
         typer.echo(f"Error stopping services: {e}")
         raise typer.Exit(code=1)
 
-
 @app.command()
 def ps():
     """Show currently running DockFleet containers."""
@@ -101,7 +96,6 @@ def ps():
     except Exception as e:
         typer.echo(f"Error listing containers: {e}")
         raise typer.Exit(code=1)
-
 
 @app.command()
 def doctor():
@@ -127,7 +121,6 @@ def doctor():
     except Exception:
         typer.echo("✗ Docker not found or not running")
         raise typer.Exit(code=1)
-
 
 @app.command("health-dev")
 def health_dev(
@@ -179,19 +172,19 @@ def health_dev(
                     continue
                 ok = scheduler._run_single_check(name, hc)
                 status_str = "HEALTHY" if ok else "UNHEALTHY"
-                typer.echo(f"[once] {name} -> {status_str}")
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                typer.echo(f"[{timestamp}] {name}: {status_str.lower()}")
                 update_service_health(
                     name,
                     ok,
                     reason=None if ok else "health check failed",
                 )
                 scheduler._handle_post_health(name)
-            typer.echo("Single health pass complete.")
+        typer.echo("Single health pass complete.")
         return
 
-
         # Normal long-running mode
-        scheduler.start()
+        typer.echo("Health monitoring started...")
 
         try:
             while True:
@@ -203,7 +196,6 @@ def health_dev(
     except Exception as e:
         typer.echo(f"Health scheduler failed: {e}")
         raise typer.Exit(code=1)
-
 
 if __name__ == "__main__":
     app()

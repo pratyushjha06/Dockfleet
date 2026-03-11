@@ -153,6 +153,19 @@ pip install -r requirements.txt
 
 This will install FastAPI, Typer, SQLModel/SQLAlchemy, and other libraries used by Dockfleet.
 
+
+
+### Install CLI locally
+
+DockFleet CLI (`dockfleet ...` commands) is provided by this repository itself.  
+For development, install it in editable mode inside your virtual environment.
+
+from project root, with venv activated
+
+```
+pip install -e .
+```
+
 ---
 
 #### Run Dashboard
@@ -236,6 +249,37 @@ dockfleet down examples/dockfleet.yaml
 ```
 
 Stops and removes all containers defined in the configuration.
+
+---
+
+## Health Monitoring
+
+DockFleet includes a built-in **health monitoring engine** that continuously checks the status of services and stores results in a SQLite database.
+
+Supported health checks:
+
+- **HTTP checks** – verify API endpoints respond correctly
+
+- **TCP checks** – confirm a port is reachable
+
+- **Process checks** – ensure containers are running
+
+You can run the health monitor using the CLI.
+
+Example:
+
+```
+python -m dockfleet.cli.main health-dev examples/dockfleet.yaml --once
+```
+
+Example output:
+
+```
+[2026-03-11 21:49:20] api: healthy  
+[2026-03-11 21:49:20] redis: healthy
+```
+
+Health results are stored in SQLite and will later be used by DockFleet to trigger automatic service recovery.
 
 ---
 
