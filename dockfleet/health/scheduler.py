@@ -5,9 +5,14 @@ from typing import Optional
 from sqlmodel import Session, select
 from dockfleet.cli.config import DockFleetConfig, HealthCheckConfig
 from dockfleet.health.checker import HealthChecker
-from dockfleet.health.status import update_service_health, needs_restart
 from dockfleet.health.models import Service, engine
-from dockfleet.core.orchestrator import handle_unhealthy_service
+from dockfleet.health.status import (
+    update_service_health,
+    needs_restart,
+    mark_restart_successful,
+    record_restart_event,
+)
+from dockfleet.core.orchestrator import restart_service, mark_restart_failed
 
 DEFAULT_INTERVAL_SECONDS = 30
 
@@ -18,8 +23,9 @@ class HealthScheduler:
     - Run HTTP/TCP/process checks via HealthChecker
     - Log results
     - Persist status / last_health_check / restart_count in DB
-    - Signal orchestrator when auto-restart thresholds are hit
+    - Trigger auto-restart via orchestrator when thresholds are hit
     """
+
     def __init__(
         self,
         config: DockFleetConfig,
@@ -69,15 +75,14 @@ class HealthScheduler:
 
         Uses in-memory DockFleetConfig to know which services to check,
         and writes results into the Service table via update_service_health.
-        Also checks for services that have hit the auto-restart threshold
-        and delegates restart handling to the orchestrator layer.
+        After each update, evaluates auto-restart rules and, when needed,
+        asks the orchestrator to restart the container.
         """
         self._logger.info("HealthScheduler: poll loop started")
 
         while not self._stopped:
             self._logger.info("HealthScheduler: polling services...")
 
-            # 1) Run health checks and update DB state
             for name, svc_cfg in self.config.services.items():
                 hc: Optional[HealthCheckConfig] = svc_cfg.healthcheck
 
@@ -97,6 +102,9 @@ class HealthScheduler:
                         ok,
                         reason=None if ok else "health check failed",
                     )
+
+                    # after DB update, decide & trigger restart if needed
+                    self._handle_post_health(name)
                 except Exception as exc:  # pragma: no cover (defensive)
                     # Defensive guard: one bad service should not kill scheduler
                     self._logger.error(
@@ -105,57 +113,57 @@ class HealthScheduler:
                         exc,
                     )
 
-            # 2) After updating DB, see which services now need restart
-            try:
-                self._check_and_trigger_restarts()
-            except Exception as exc:  # pragma: no cover (defensive)
-                # Even if restart logic has a bug, do not kill scheduler loop
-                self._logger.error(
-                    "HealthScheduler: error while evaluating auto-restarts: %s",
-                    exc,
-                )
-
             time.sleep(self.interval_seconds)
 
         self._logger.info("HealthScheduler: poll loop exiting")
 
-    def _check_and_trigger_restarts(self) -> None:
+    def _handle_post_health(self, name: str) -> None:
         """
-        Read services from DB and for any that satisfy needs_restart,
-        delegate to orchestrator via handle_unhealthy_service.
+        After a health check + DB update for a single service, reload its row,
+        evaluate auto-restart rules, and if needed trigger an orchestrator
+        restart plus health-side bookkeeping.
 
-        This keeps health logic (DB + decision) on the health side,
-        and actual container restarts on the orchestrator side.
+        This keeps the decision logic on the health side and the actual
+        container restart on the orchestrator side.
         """
         with Session(engine) as session:
-            services = session.exec(select(Service)).all()
+            svc = session.exec(
+                select(Service).where(Service.name == name)
+            ).one_or_none()
 
-        for svc in services:
-            if not needs_restart(svc):
-                continue
-
-            self._logger.info(
-                "HealthScheduler: auto-restart candidate detected: %s "
-                "(policy=%s, consecutive_failures=%d)",
-                svc.name,
-                svc.restart_policy,
-                svc.consecutive_failures,
+        if svc is None:
+            self._logger.warning(
+                "HealthScheduler: service '%s' not found in DB after health update",
+                name,
             )
-            """"
-            Delegate to orchestrator; orchestrator is responsible for:
-             - performing the restart
-             - resetting consecutive_failures in DB on success
-             - logging a RestartEvent and failure reason if needed
-            """
+            return
 
-            try:
-                handle_unhealthy_service(svc, self.config)
-            except Exception as exc:  # pragma: no cover (defensive)
-                self._logger.error(
-                    "HealthScheduler: auto-restart failed for %s: %s",
-                    svc.name,
-                    exc,
-                )
+        if not needs_restart(svc):
+            return
+
+        self._logger.info(
+            "HealthScheduler: auto-restart candidate detected: %s "
+            "(policy=%s, consecutive_failures=%d)",
+            svc.name,
+            svc.restart_policy,
+            svc.consecutive_failures,
+        )
+
+        try:
+            # Orchestrator does the real Docker restart.
+            restart_service(svc.name, self.config)
+
+            # On success: reset streak, mark running, and record event.
+            mark_restart_successful(svc.name)
+            record_restart_event(svc, "3_failed_health_checks")
+        except Exception as exc:  # pragma: no cover (defensive)
+            # Restart failed: mark as crashed with a readable reason.
+            self._logger.error(
+                "HealthScheduler: auto-restart failed for %s: %s",
+                svc.name,
+                exc,
+            )
+            mark_restart_failed(svc.name, str(exc))
 
     def _run_single_check(self, name: str, hc: HealthCheckConfig) -> bool:
         # Run one health check based on its type and return True/False.
