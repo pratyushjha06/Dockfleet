@@ -18,11 +18,11 @@ logger = logging.getLogger(__name__)
 
 _orchestrator_instance = None
 
-def get_orchestrator(config=None):
+def get_orchestrator(config=None, self_healing: bool = True):
     """Get/create global Orchestrator instance."""
     global _orchestrator_instance
     if _orchestrator_instance is None:
-        _orchestrator_instance = Orchestrator(config or {})
+        _orchestrator_instance = Orchestrator(config or {}, self_healing=self_healing)
     return _orchestrator_instance
 
 def restart_service(name: str, config=None) -> bool:
@@ -37,8 +37,9 @@ def mark_restart_failed(name: str, reason: str) -> None:
 
 class Orchestrator:
 
-    def __init__(self, config):
+    def __init__(self, config, self_healing: bool = True):
         self.config = config
+        self.self_healing = self_healing
         self.docker = DockerManager()
         self.network = "dockfleet_net"
 
@@ -91,6 +92,10 @@ class Orchestrator:
     def restart_service(self, service_name: str, config=None, backoff_attempt: int = 0) -> bool:
         config = config or self.config
         
+        if not self.self_healing:
+            logger.info("Self-healing disabled, skip restart for %s", service_name)
+            return False
+
         if service_name not in config.services:
             logger.warning(f"Service {service_name} not found")
             return False
@@ -158,6 +163,11 @@ class Orchestrator:
         
         config = config or self.config  
         logger.info("Auto-restart: %s (%s)", service_name, reason)
+
+        # NEW SELF-HEALING GUARD
+        if not self.self_healing:
+            logger.info("Self-healing disabled, skip auto-restart for %s", service_name)
+            return
 
         try:
             success = self.restart_service(service_name)
