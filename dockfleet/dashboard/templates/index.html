@@ -187,15 +187,12 @@
 
                         </p>
 
-                        <p >
+                        <p>
                             <strong>Restart Count:</strong>
-                            <span
-                                class="px-3 py-1 rounded text-sm font-bold"
-                                :class="{
+                            <span class="px-3 py-1 rounded text-sm font-bold" :class="{
                                     'bg-gray-200 dark:bg-gray-700': service.restart_count == 0,
                                     'bg-orange-400 text-black animate-pulse': service.restart_count > 0
-                                }"
-                                    x-text="service.restart_count">
+                                }" x-text="service.restart_count">
                             </span>
                         </p>
 
@@ -233,44 +230,39 @@
         </div>
 
         <!-- LOG VIEWER -->
-<div class="mt-16">
+        <div class="mt-16">
 
-    <h2 class="text-2xl font-bold mb-4">Live Service Logs</h2>
+            <h2 class="text-2xl font-bold mb-4">Live Service Logs</h2>
 
-    <div class="flex gap-4 mb-4">
+            <div class="flex gap-4 mb-4">
 
-        <!-- Service Selector -->
-        <select x-model="selectedService"
-            class="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700">
+                <!-- Service Selector -->
+                <select x-model="selectedService" class="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700">
 
-            <option value="">Select Service</option>
+                    <option value="">Select Service</option>
 
-            <template x-for="service in services">
-                <option :value="service.name" x-text="service.name"></option>
-            </template>
+                    <template x-for="service in services">
+                        <option :value="service.name" x-text="service.name"></option>
+                    </template>
 
-        </select>
+                </select>
 
-        <!-- Start Logs Button -->
-        <button
-            @click="startLogs()"
-            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
+                <!-- Start Logs Button -->
+                <button @click="startLogs()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
 
-            Start Logs
+                    Start Logs
 
-        </button>
+                </button>
 
-    </div>
+            </div>
 
-    <!-- Logs Container -->
-    <div
-        x-ref="logBox"
-        class="bg-black text-green-400 font-mono text-xs p-4 rounded-xl
+            <!-- Logs Container -->
+            <div x-ref="logBox" class="bg-black text-green-400 font-mono text-xs p-4 rounded-xl
                h-72 overflow-y-auto">
 
-    </div>
+            </div>
 
-</div>
+        </div>
 
     </div>
 
@@ -284,8 +276,11 @@
 
                 services: [],
                 summary: {},
+
                 selectedService: "",
                 logSource: null,
+                logs: [],
+                autoScroll: true,
 
                 async init() {
 
@@ -380,36 +375,36 @@
 
                 startLogs() {
 
-    if (!this.selectedService) {
-        alert("Select a service first")
-        return
-    }
+                    if (!this.selectedService) {
+                        alert("Select a service first")
+                        return
+                    }
 
-    // close previous stream
-    if (this.logSource) {
-        this.logSource.close()
-    }
+                    // close previous stream
+                    if (this.logSource) {
+                        this.logSource.close()
+                    }
 
-    // clear logs
-    this.$refs.logBox.innerHTML = ""
+                    // clear logs
+                    this.$refs.logBox.innerHTML = ""
 
-    // connect to SSE endpoint
-    this.logSource = new EventSource(`/logs/${this.selectedService}`)
+                    // connect to SSE endpoint
+                    this.logSource = new EventSource(`/logs/${this.selectedService}`)
 
-    this.logSource.onmessage = (event) => {
+                    this.logSource.onmessage = (event) => {
 
-        const line = document.createElement("div")
+                        const line = document.createElement("div")
 
-        line.textContent = event.data
+                        line.textContent = event.data
 
-        this.$refs.logBox.appendChild(line)
+                        this.$refs.logBox.appendChild(line)
 
-        this.$refs.logBox.scrollTop =
-            this.$refs.logBox.scrollHeight
+                        this.$refs.logBox.scrollTop =
+                            this.$refs.logBox.scrollHeight
 
-    }
+                    }
 
-},
+                },
 
                 toggleDarkMode() {
 
