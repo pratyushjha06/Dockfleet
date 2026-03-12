@@ -16,22 +16,22 @@ def _update_status(
 ) -> None:
     """Low-level helper to flip status for a service by name."""
     with Session(engine) as session:
-        existing = session.exec(
+        svc = session.exec(
             select(Service).where(Service.name == name)
         ).one_or_none()
 
-        if existing is None:
+        if svc is None:
             print(
                 f"[status] Service '{name}' not found in DB, skipping status update"
             )
             return
 
-        existing.status = new_status
+        svc.status = new_status
 
         if set_last_health:
-            existing.last_health_check = datetime.utcnow()
+            svc.last_health_check = datetime.utcnow()
 
-        session.add(existing)
+        session.add(svc)
         session.commit()
 
 def update_service_health(
@@ -41,18 +41,16 @@ def update_service_health(
 ) -> None:
     """
     Update Service row after a health check.
-
     - If healthy:
         status = "running"
         last_health_check updated
-        restart_count unchanged
         consecutive_failures reset to 0
+        restart_count unchanged
     - If unhealthy:
         status = "unhealthy"
         last_health_check updated
-        restart_count++
         consecutive_failures++
-        last_failure_reason stored (if provided)
+        restart_count unchanged (restart attempts are tracked separately)
     """
     with Session(engine) as session:
         svc = session.exec(
@@ -67,14 +65,10 @@ def update_service_health(
         svc.last_health_check = now
 
         if is_healthy:
-            # health OK -> treat as running service
             svc.status = "running"
-            # if we were failing before, reset the streak
             svc.consecutive_failures = 0
-            # restart_count unchanged here
         else:
             svc.status = "unhealthy"
-            svc.restart_count += 1
             svc.consecutive_failures += 1
             if reason:
                 svc.last_failure_reason = reason
@@ -103,7 +97,6 @@ def record_restart_event(service: Service, reason: str) -> None:
     Store a simple restart event for later crash analytics.
     Example reason: "3_failed_health_checks".
     """
-    # No DB lookup needed; we already have the Service instance.
     event = RestartEvent(
         service_id=service.id,
         restarted_at=datetime.utcnow(),
@@ -120,6 +113,8 @@ def mark_restart_successful(service_name: str) -> None:
     """
     Called by orchestrator after a successful auto-restart.
     Resets consecutive_failures and marks status as running.
+    Does NOT touch restart_count; that is incremented separately
+    for each restart attempt (auto or manual).
     """
     with Session(engine) as session:
         svc = session.exec(
@@ -132,6 +127,62 @@ def mark_restart_successful(service_name: str) -> None:
 
         svc.consecutive_failures = 0
         svc.status = "running"
+
+        session.add(svc)
+        session.commit()
+
+def record_manual_restart_event(service_name: str) -> None:
+    """
+    Called when a manual restart is triggered from the dashboard
+    and the orchestrator has successfully restarted the container.
+
+    - Increments restart_count (restart attempts).
+    - Marks status as 'running'.
+    - Inserts a RestartEvent with reason='manual_dashboard_restart'.
+    """
+    with Session(engine) as session:
+        svc = session.exec(
+            select(Service).where(Service.name == service_name)
+        ).one_or_none()
+
+        if svc is None:
+            print(f"[manual-restart] Service '{service_name}' not found in DB")
+            return
+
+        previous_status = svc.status
+        svc.restart_count = (svc.restart_count or 0) + 1
+        svc.status = "running"
+
+        event = RestartEvent(
+            service_id=svc.id,
+            restarted_at=datetime.utcnow(),
+            reason="manual_dashboard_restart",
+            previous_status=previous_status,
+            new_status="running",
+        )
+
+        session.add(svc)
+        session.add(event)
+        session.commit()
+
+def record_manual_stop(service_name: str) -> None:
+    """
+    Called when a manual stop is triggered from the dashboard
+    and the orchestrator has successfully stopped the container.
+
+    - Marks status as 'stopped'.
+    - Does NOT touch restart_count or consecutive_failures.
+    """
+    with Session(engine) as session:
+        svc = session.exec(
+            select(Service).where(Service.name == service_name)
+        ).one_or_none()
+
+        if svc is None:
+            print(f"[manual-stop] Service '{service_name}' not found in DB")
+            return
+
+        svc.status = "stopped"
 
         session.add(svc)
         session.commit()

@@ -1,8 +1,7 @@
 from __future__ import annotations
-from typing import Any, Dict, List
+from typing import Any
 from sqlmodel import Session, select
 from .models import Service, engine
-
 
 def get_all_services() -> list[Service]:
     """
@@ -13,7 +12,6 @@ def get_all_services() -> list[Service]:
     with Session(engine) as session:
         services = session.exec(select(Service)).all()
     return services
-
 
 def get_services_for_dashboard() -> list[dict[str, Any]]:
     """
@@ -32,9 +30,44 @@ def get_services_for_dashboard() -> list[dict[str, Any]]:
                 "status": svc.status,
                 "restart_count": svc.restart_count,
                 "last_health_check": svc.last_health_check,
-                # extra health-engine fields that may be useful to the UI
                 "consecutive_failures": svc.consecutive_failures,
                 "last_failure_reason": svc.last_failure_reason,
             }
         )
     return result
+
+def get_services_for_dashboard_with_stats(
+    stats_by_name: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Enrich DB-based service state with Docker runtime stats
+    (CPU, memory, uptime, etc.), for the /services API.
+
+    stats_by_name example:
+        {
+          "api": {"cpu": 0.12, "memory": 128_000_000, "uptime": 42},
+          "redis": {"cpu": 0.01, "memory": 32_000_000, "uptime": 120},
+        }
+
+    Convention:
+    - cpu: fractional (0.12 = 12% CPU)
+    - memory: bytes
+    - uptime: seconds
+    """
+    base = get_services_for_dashboard()
+    enriched: list[dict[str, Any]] = []
+
+    for svc in base:
+        name = svc["name"]
+        stats = stats_by_name.get(name, {})
+
+        enriched.append(
+            {
+                **svc,
+                "cpu": stats.get("cpu"),
+                "memory": stats.get("memory"),
+                "uptime": stats.get("uptime"),
+            }
+        )
+
+    return enriched
