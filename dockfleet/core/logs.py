@@ -1,29 +1,48 @@
+# dockfleet/api/logs.py
+from fastapi.responses import StreamingResponse
+from fastapi import HTTPException
 import subprocess
-from subprocess import PIPE, STDOUT
+import logging
+from dockfleet.core.orchestrator import get_container_name
 
+logger = logging.getLogger(__name__)
 
-def stream_container_logs(container_name: str):
-    """
-    Stream logs from a Docker container using docker logs -f.
-    Yields log lines continuously as they appear.
-    """
-
-    process = subprocess.Popen(
-        ["docker", "logs", "-f", container_name],
-        stdout=PIPE,
-        stderr=STDOUT,
-        text=True,
-        bufsize=1
-    )
-
+async def stream_logs(service_name: str):
+    """Stream Docker logs → SSE with resilience."""
+    container = get_container_name(service_name)
+    
+    # Check container exists first
     try:
-        # Read logs line-by-line
-        for line in iter(process.stdout.readline, ""):
-            yield line.strip()
-
-    except Exception as e:
-        yield f"[ERROR] {str(e)}"
-
+        result = subprocess.run(
+            ["docker", "ps", "-a", "--filter", f"name={container}", "--format", "{{.Names}}"],
+            capture_output=True, text=True, timeout=5
+        )
+        if not result.stdout.strip():
+            yield f"data: {{ \"error\": \"Container {container} not found\" }}\n\n"
+            return
+    except Exception:
+        yield f"data: {{ \"error\": \"Failed to check container {container}\" }}\n\n"
+        return
+    
+    # Stream logs with tail=100, follow
+    cmd = ["docker", "logs", "--tail", "100", "-f", container]
+    proc = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+        text=True, bufsize=1, universal_newlines=True
+    )
+    
+    try:
+        for line in proc.stdout:
+            line = line.rstrip()
+            if line:
+                yield f"data: {line}\n\n"
+    except GeneratorExit:
+        logger.info(f"Client disconnected from {container} logs")
     finally:
-        # Ensure process is terminated
-        process.kill()
+        # Cleanup Popen on disconnect/timeout
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+        logger.info(f"Logs stream for {container} cleaned up")

@@ -6,17 +6,33 @@ from dockfleet.health.status import (
     record_restart_event
 )
 import subprocess
+import re
 from dockfleet.health.models import Service, engine
 from dockfleet.health.seed import bootstrap_from_config
 import logging
 from sqlmodel import Session, select
 from datetime import datetime
+from pydantic import BaseModel
 from typing import Optional
 from dockfleet.cli.config import RestartPolicy
 
 logger = logging.getLogger(__name__)
 
+class ServiceStat(BaseModel):
+    service_name: str
+    container_name: str
+    cpu_percent: Optional[float] = None
+    mem_current: Optional[str] = None
+    mem_percent: Optional[str] = None
+    uptime: Optional[str] = None
+    status: str = "unknown"  # running, stopped, missing
+
 _orchestrator_instance = None
+
+def get_service_stats(config=None):
+    """Module wrapper for stats."""
+    orch = get_orchestrator(config)
+    return orch.get_service_stats()
 
 def get_orchestrator(config=None, self_healing: bool = True):
     """Get/create global Orchestrator instance."""
@@ -56,6 +72,7 @@ def get_logs(service_name: str, lines: int = 100, follow: bool = False) -> str:
     except Exception as e:
         logger.error(f"Failed to get logs for {container_name}: {e}")
         return f"Error: {e}"
+
 
 class Orchestrator:
 
@@ -248,3 +265,82 @@ class Orchestrator:
         print("Running containers:\n")
 
         self.docker.list_containers()
+
+    def get_service_stats(self) -> list[ServiceStat]:
+        """Enhanced Docker stats with inspect data."""
+        stats = []
+        
+        try:
+            result = subprocess.run([
+                "docker", "stats", "--no-stream", "--no-trunc",
+                "--format", "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.NetIO}}\t{{.BlockIO}}\t{{.PIDs}}"
+            ], capture_output=True, text=True, timeout=10)
+            
+            if result.returncode != 0:
+                self.logger.warning("Docker stats failed")
+                return self._get_missing_stats()
+            
+            lines = [line for line in result.stdout.strip().split('\n')[1:] if line.strip()]
+            
+            for line in lines:
+                parts = line.split('\t')
+                if len(parts) >= 4 and parts[0].startswith('dockfleet_'):
+                    container = parts[0].strip()
+                    service_name = container.replace('dockfleet_', '')
+                    
+                    # Parse stats
+                    cpu_str, mem_usage, mem_perc = parts[1:4]
+                    cpu = float(re.sub(r'[^\d.]', '', cpu_str)) if cpu_str != '0.00%' else 0.0
+                    mem_current, mem_limit = mem_usage.split('/')
+                    uptime = self._get_container_uptime(container)
+                    
+                    stats.append(ServiceStat(
+                        service_name=service_name,
+                        container_name=container,
+                        cpu_percent=cpu,
+                        mem_current=f"{mem_current}/{mem_limit}",
+                        mem_percent=mem_perc.strip(),
+                        uptime=uptime,
+                        status="running"
+                    ))
+        
+        except Exception as e:
+            self.logger.error(f"Stats collection failed: {e}")
+            return self._get_missing_stats()
+        
+        expected = [f"dockfleet_{name}" for name in self.config.services]
+        for container in expected:
+            if container not in {s.container_name for s in stats}:
+                service_name = container.replace('dockfleet_', '')
+                stats.append(ServiceStat(
+                    service_name=service_name,
+                    container_name=container,
+                    status="stopped"
+                ))
+        
+        return sorted(stats, key=lambda x: x.service_name)
+
+    def _get_container_uptime(self, container_name: str) -> str:
+        """Get uptime from docker inspect."""
+        try:
+            result = subprocess.run([
+                "docker", "inspect", container_name,
+                "--format", "{{.State.StartedAt}}"
+            ], capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                started_at = result.stdout.strip()
+                return f"Up {started_at.split('T')[1].split('.')[0]}"
+        except:
+            pass
+        return "Unknown"
+
+    def _get_missing_stats(self) -> list[ServiceStat]:
+        """Return all services as unknown."""
+        return [
+            ServiceStat(
+                service_name=name,
+                container_name=f"dockfleet_{name}",
+                status="unknown"
+            )
+            for name in self.config.services.keys()
+        ]
