@@ -168,6 +168,8 @@
                     <!-- SERVICE DETAILS -->
                     <div class="space-y-2 text-sm">
 
+
+
                         <p>
                             <strong>Image:</strong>
                             <span x-text="service.image"></span>
@@ -176,6 +178,21 @@
                         <p>
                             <strong>Ports:</strong>
                             <span x-text="service.ports"></span>
+                        </p>
+
+                        <p>
+                            <strong>CPU Usage:</strong>
+                            <span x-text="service.cpu"></span>
+                        </p>
+
+                        <p>
+                            <strong>Memory Usage:</strong>
+                            <span x-text="service.memory"></span>
+                        </p>
+
+                        <p>
+                            <strong>Uptime:</strong>
+                            <span x-text="service.uptime"></span>
                         </p>
 
                         <p>
@@ -247,39 +264,29 @@
 
                 </select>
 
-                <button
-                    @click="connectLogs()"
-                    class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
-                
+                <button @click="connectLogs()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
+
                     Start Logs
                 </button>
-                
-                <button
-                    @click="disconnectLogs()"
-                    class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-500">
+
+                <button @click="disconnectLogs()" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-500">
                     Stop
                 </button>
-                
-                <button
-                    @click="clearLogs()"
-                    class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-500">
-                    
+
+                <button @click="clearLogs()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-500">
+
                     Clear Logs
                 </button>
-                
-                <button
-                    @click="toggleScroll()"
-                    class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-500">
+
+                <button @click="toggleScroll()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-500">
                     Toggle Auto Scroll
                 </button>
 
             </div>
 
-            <div
-                x-ref="logBox"
-                class="bg-black text-green-400 font-mono text-xs p-4 rounded-xl
+            <div x-ref="logBox" class="bg-black text-green-400 font-mono text-xs p-4 rounded-xl
                 h-72 overflow-y-auto border border-gray-700">
-                
+
                 <template x-for="line in logs">
                     <div x-text="line"></div>
                 </template>
@@ -306,50 +313,14 @@
                 autoScroll: true,
 
                 async init() {
-
+                    
                     await this.fetchServices()
                     await this.fetchSummary()
-
-                    // simulate lifecycle
-                    setTimeout(() => {
-
-                        let redis = this.services.find(s => s.name === "redis")
-
-                        if (redis) {
-
-                            redis.health_status = "unhealthy"
-
-                        }
-
-                    }, 4000)
-
-
-                    setTimeout(() => {
-
-                        let redis = this.services.find(s => s.name === "redis")
-
-                        if (redis) {
-
-                            redis.health_status = "restarting"
-
-                        }
-
-                    }, 8000)
-
-
-                    setTimeout(() => {
-
-                        let redis = this.services.find(s => s.name === "redis")
-
-                        if (redis) {
-
-                            redis.health_status = "healthy"
-                            redis.restart_count += 1
-
-                        }
-
-                    }, 12000)
-
+                    setInterval(() => {
+                        this.fetchServices()
+                        this.fetchSummary()
+                    }, 5000)
+                
                 },
 
                 async fetchServices() {
@@ -384,59 +355,93 @@
 
                 },
 
-                restartService(name) {
+                async restartService(name) {
 
-                    console.log("Restart clicked:", name)
+                    try {
+
+                        const res = await fetch(`/services/${name}/restart`, {
+                            method: "POST"
+                        })
+
+                        const data = await res.json()
+
+                        alert(data.message)
+
+                        await this.fetchServices()
+                        await this.fetchSummary()
+
+                    } catch (err) {
+
+                        console.error("Restart failed", err)
+
+                    }
 
                 },
 
-                stopService(name) {
+                async stopService(name) {
 
-                    console.log("Stop clicked:", name)
+                    try {
+
+                        const res = await fetch(`/services/${name}/stop`, {
+                            method: "POST"
+                        })
+
+                        const data = await res.json()
+
+                        alert(data.message)
+
+                        await this.fetchServices()
+                        await this.fetchSummary()
+
+                    } catch (err) {
+
+                        console.error("Stop failed", err)
+
+                    }
 
                 },
 
                 connectLogs() {
-                    
+
                     if (!this.selectedService) return
-                    
+
                     // close old connection
                     if (this.logSource) {
                         this.logSource.close()
                     }
-                    
+
                     this.logs = []
-                    
+
                     this.logSource = new EventSource(`/logs/${this.selectedService}`)
-                    
+
                     this.logSource.onmessage = (event) => {
-                        
+
                         this.logs.push(event.data)
                         this.$nextTick(() => {
                             if (this.autoScroll) {
                                 this.$refs.logBox.scrollTop =
-                                this.$refs.logBox.scrollHeight
+                                    this.$refs.logBox.scrollHeight
                             }
                         })
-                    
+
                     }
                 },
-                
+
                 disconnectLogs() {
-                    
+
                     if (this.logSource) {
                         this.logSource.close()
                         this.logSource = null
                     }
                 },
-                
+
                 clearLogs() {
                     this.logs = []
                 },
-                
+
                 toggleScroll() {
-this.autoScroll = !this.autoScroll
-},
+                    this.autoScroll = !this.autoScroll
+                },
 
                 toggleDarkMode() {
 
