@@ -4,6 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <title>DockFleet Dashboard</title>
+    <script>
+    if (localStorage.theme === 'dark') {
+    document.documentElement.classList.add('dark')
+    }
+    </script>
 
     <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -89,7 +94,7 @@
         </div>
 
         <!-- SUMMARY STRIP -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10 text-center">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-6 mb-10 text-center">
 
             <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
                 <p class="text-sm text-gray-500">Total Services</p>
@@ -99,6 +104,11 @@
             <div class="bg-green-100 dark:bg-green-900/40 p-6 rounded-2xl shadow-lg">
                 <p class="text-sm">Running</p>
                 <p class="text-3xl font-bold text-green-600 dark:text-green-300 mt-1" x-text="summary.running"></p>
+            </div>
+
+            <div class="bg-red-200 dark:bg-red-900/40 p-6 rounded-2xl shadow-lg">
+                <p class="text-sm">Unhealthy</p>
+                <p class="text-3xl font-bold text-red-700 dark:text-red-300 mt-1" x-text="summary.unhealthy"></p>
             </div>
 
             <div class="bg-red-100 dark:bg-red-900/40 p-6 rounded-2xl shadow-lg">
@@ -115,14 +125,15 @@
 
 
         <!-- SERVICES GRID -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
             <template x-for="service in services" :key="service.name">
 
                 <div class="bg-white dark:bg-gray-800
-                        p-6 rounded-2xl shadow-xl
-                        border border-gray-200 dark:border-gray-700
-                        hover:shadow-2xl transition duration-300">
+                    p-6 rounded-2xl shadow-lg
+                    border border-gray-200 dark:border-gray-700
+                    hover:shadow-2xl hover:-translate-y-1
+                    transition duration-300">
 
                     <!-- Header -->
                     <div class="flex justify-between items-center mb-4">
@@ -142,20 +153,20 @@
                         <span class="px-2 py-1 rounded text-xs font-semibold capitalize" :class="{
                             'bg-green-600 text-white': service.status === 'running',
                             'bg-red-600 text-white': service.status === 'stopped',
-                            'bg-yellow-500 text-black': service.status === 'restarting',
+                            'bg-blue-500 hover:bg-blue-400 text-black': service.status === 'restarting',
                             'bg-gray-500 text-white': service.status === 'unknown'
                         }" x-text="service.status"></span>
 
-                        <span class="px-2 py-1 rounded text-xs font-semibold capitalize flex items-center gap-1" :class="{
-    'bg-green-500 text-white': service.health_status === 'healthy',
-    'bg-orange-500 text-white': service.health_status === 'restarting',
-    'bg-red-500 text-white animate-pulse': service.health_status === 'unhealthy',
-    'bg-gray-500 text-white': service.health_status === 'unknown'
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold capitalize flex items-center gap-1"
+                            :class="{
+'bg-green-500 text-white': service.health_status === 'healthy',
+'bg-orange-500 text-white animate-pulse': service.health_status === 'restarting',
+'bg-red-600 text-white animate-pulse': service.health_status === 'unhealthy',
+'bg-gray-500 text-white': service.health_status === 'unknown'
 }">
 
                             <span x-text="service.health_status"></span>
 
-                            <!-- Spinner for restarting -->
                             <template x-if="service.health_status === 'restarting'">
                                 <span class="spinner"></span>
                             </template>
@@ -207,9 +218,9 @@
                         <p>
                             <strong>Restart Count:</strong>
                             <span class="px-3 py-1 rounded text-sm font-bold" :class="{
-                                    'bg-gray-200 dark:bg-gray-700': service.restart_count == 0,
-                                    'bg-orange-400 text-black animate-pulse': service.restart_count > 0
-                                }" x-text="service.restart_count">
+'bg-gray-200 dark:bg-gray-700': service.restart_count == 0,
+'bg-yellow-400 text-black animate-pulse': service.restart_count > 0
+}" x-text="service.restart_count">
                             </span>
                         </p>
 
@@ -285,7 +296,7 @@
             </div>
 
             <div x-ref="logBox" class="bg-black text-green-400 font-mono text-xs p-4 rounded-xl
-                h-72 overflow-y-auto border border-gray-700">
+                h-60 md:h-72 overflow-y-auto border border-gray-700">
 
                 <template x-for="line in logs">
                     <div x-text="line"></div>
@@ -313,14 +324,21 @@
                 autoScroll: true,
 
                 async init() {
-                    
+
                     await this.fetchServices()
                     await this.fetchSummary()
                     setInterval(() => {
                         this.fetchServices()
                         this.fetchSummary()
                     }, 5000)
-                
+
+                    if (localStorage.theme === 'dark') {
+                        document.documentElement.classList.add('dark')
+                    } else {
+                        document.documentElement.classList.remove('dark')
+ 
+                    }
+
                 },
 
                 async fetchServices() {
@@ -446,6 +464,10 @@
                 toggleDarkMode() {
 
                     document.documentElement.classList.toggle('dark')
+                    localStorage.theme =
+                        document.documentElement.classList.contains('dark')
+                            ? 'dark'
+                            : 'light'
 
                 },
 
