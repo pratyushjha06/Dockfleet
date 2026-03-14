@@ -11,12 +11,27 @@ from dockfleet.health.seed import bootstrap_from_config
 import logging
 from sqlmodel import Session, select
 from datetime import datetime
+from pydantic import BaseModel
 from typing import Optional
 from dockfleet.cli.config import RestartPolicy
 
 logger = logging.getLogger(__name__)
 
+class ServiceStat(BaseModel):
+    service_name: str
+    container_name: str
+    cpu_percent: Optional[float] = None
+    mem_current: Optional[str] = None
+    mem_percent: Optional[str] = None
+    uptime: Optional[str] = None
+    status: str = "unknown"  # running, stopped, missing
+
 _orchestrator_instance = None
+
+def get_service_stats(config=None):
+    """Module wrapper for stats."""
+    orch = get_orchestrator(config)
+    return orch.get_service_stats()
 
 def get_orchestrator(config=None, self_healing: bool = True):
     """Get/create global Orchestrator instance."""
@@ -56,6 +71,8 @@ def get_logs(service_name: str, lines: int = 100, follow: bool = False) -> str:
     except Exception as e:
         logger.error(f"Failed to get logs for {container_name}: {e}")
         return f"Error: {e}"
+
+
 
 class Orchestrator:
 
@@ -248,3 +265,56 @@ class Orchestrator:
         print("Running containers:\n")
 
         self.docker.list_containers()
+
+    def get_service_stats(self) -> list[ServiceStat]:
+        """Get Docker stats for all dockfleet_ containers."""
+        stats = []
+        
+        try:
+    
+            result = subprocess.run([
+                "docker", "stats", "--no-stream", "--no-trunc", 
+                "--format", "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.Uptime}}"
+            ], capture_output=True, text=True, timeout=10)
+            
+            if result.returncode != 0:
+                return [ServiceStat(service_name="error", container_name="error", status="docker_failed")]
+            
+            lines = result.stdout.strip().split('\n')[1:]
+            
+            for line in lines:
+                if not line.strip():
+                    continue
+                parts = line.split('\t')
+                if len(parts) >= 5:
+                    container = parts[0].strip()
+                    if container.startswith('dockfleet_'):
+                        service_name = container.replace('dockfleet_', '')
+                        stats.append(ServiceStat(
+                            service_name=service_name,
+                            container_name=container,
+                            cpu_percent=float(parts[1].replace('%', '')) if parts[1] != '0.00%' else 0.0,
+                            mem_current=parts[2],
+                            mem_percent=parts[3],
+                            uptime=parts[4],
+                            status="running"
+                        ))
+        
+        except subprocess.TimeoutExpired:
+            return [ServiceStat(service_name="timeout", status="docker_timeout")]
+        except Exception as e:
+            return [ServiceStat(service_name="error", status=f"exception: {str(e)}")]
+        
+        # Add missing services as stopped
+        expected_containers = [f"dockfleet_{name}" for name in self.config.services.keys()]
+        found_containers = {stat.container_name for stat in stats}
+        for container in expected_containers:
+            if container not in found_containers:
+                service_name = container.replace('dockfleet_', '')
+                stats.append(ServiceStat(
+                    service_name=service_name,
+                    container_name=container,
+                    status="stopped"
+                ))
+        
+        return sorted(stats, key=lambda x: x.service_name)
