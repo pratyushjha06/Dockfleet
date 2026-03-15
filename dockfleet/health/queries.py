@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections import Counter
 from typing import Any
 from sqlmodel import Session, select
 from .models import Service, engine
@@ -32,6 +33,9 @@ def get_services_for_dashboard() -> list[dict[str, Any]]:
                 "last_health_check": svc.last_health_check,
                 "consecutive_failures": svc.consecutive_failures,
                 "last_failure_reason": svc.last_failure_reason,
+                "image": svc.image,
+                "ports": svc.ports_raw,
+                "restart_policy": svc.restart_policy,
             }
         )
     return result
@@ -71,3 +75,17 @@ def get_services_for_dashboard_with_stats(
         )
 
     return enriched
+
+def get_status_counts() -> dict[str, int]:
+    """
+    Return a simple count of services per status, e.g.:
+    {"running": 2, "unhealthy": 1, "stopped": 1}
+    Useful for dashboard summary bar.
+    """
+    services = get_all_services()
+    counter: Counter[str] = Counter()
+
+    for svc in services:
+        counter[svc.status or "unknown"] += 1
+
+    return dict(counter)
