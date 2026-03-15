@@ -7,7 +7,7 @@ from dockfleet.core.orchestrator import get_container_name
 
 logger = logging.getLogger(__name__)
 
-async def stream_logs(service_name: str):
+async def stream_container_logs(service_name: str):
     """Stream Docker logs → SSE with resilience."""
     container = get_container_name(service_name)
     
