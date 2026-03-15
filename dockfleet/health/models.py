@@ -1,8 +1,10 @@
 from sqlmodel import Field, Session, SQLModel, create_engine
 from datetime import datetime
 
-# Service table model 
-# fields: id, name, images, restart_policy, ports_raw, healthcheck_raw, status, restart_count, last_health_check, last_failure_reason, consecutive_failures
+"""
+Service table model
+fields: id, name, image, restart_policy, ports_raw, healthcheck_raw, status, restart_count, last_health_check, last_failure_reason, consecutive_failures
+"""
 class Service(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(nullable=False, unique=True)
@@ -25,6 +27,29 @@ class RestartEvent(SQLModel, table=True):
     reason: str = Field(nullable=False)
     previous_status: str | None = Field(default=None)
     new_status: str | None = Field(default=None)
+
+# LogEvent table model (log metadata skeleton)
+# fields: id, service_id, service_name, created_at, level, message, source
+class LogEvent(SQLModel, table=True):
+    """
+    Lightweight log metadata row for future log aggregation / crash analytics.
+    Raw Docker logs will still be streamed separately; this table stores
+    small, query-friendly summaries (who, when, what, where-from).
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+
+    service_id: int = Field(nullable=False, foreign_key="service.id")
+    service_name: str = Field(nullable=False)
+
+    created_at: datetime = Field(nullable=False)
+
+    # Optional metadata fields
+    level: str | None = Field(default=None)  # e.g. "INFO", "WARN", "ERROR"
+    message: str | None = Field(default=None)  # short summary / first line
+    source: str | None = Field(
+        default=None
+    )  # e.g. "docker-logs", "scheduler", "orchestrator"
 
 # init_db() function
 # work: engine + tables create

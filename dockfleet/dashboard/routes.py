@@ -1,10 +1,13 @@
+import subprocess
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
+from dockfleet.dashboard.services import get_services
+from dockfleet.core.logs import stream_container_logs
 from pydantic import BaseModel
 from typing import List
-import time
-import json
+from datetime import datetime
+from typing import Optional
 
 router = APIRouter()
 
@@ -14,14 +17,16 @@ templates = Jinja2Templates(directory="dockfleet/dashboard/templates")
 @router.get("/health")
 def health_check():
     return {"status": "ok"}
+
 class Service(BaseModel):
     name: str
     status: str
     health_status: str
     image: str
-    ports: str
+    ports: str | None
     restart_policy: str
     restart_count: int
+    last_health_check: Optional[datetime] = None
 
 @router.get("/", response_class=HTMLResponse)
 def dashboard_home(request: Request):
@@ -30,80 +35,79 @@ def dashboard_home(request: Request):
         {"request": request}
     )
 
-@router.get("/services", response_model=List[Service])
+@router.get("/services")
 def list_services():
+    """
+    Return services combining DB + Docker status.
+    """
     return get_services()
 
-def get_services() -> List[dict]:
+@router.post("/services/{name}/restart")
+def restart_service(name: str):
 
-    return [
+    container = f"dockfleet_{name}"
 
-        {
-            "name": "api",
-            "status": "running",
-            "health_status": "healthy",
-            "image": "dockfleet-api:latest",
-            "ports": "8000:8000",
-            "restart_policy": "always",
-            "restart_count": 1
-        },
-
-        {
-            "name": "worker",
-            "status": "restarting",
-            "health_status": "unhealthy",
-            "image": "dockfleet-worker:latest",
-            "ports": "-",
-            "restart_policy": "on-failure",
-            "restart_count": 5
-        },
-
-        {
-            "name": "scheduler",
-            "status": "stopped",
-            "health_status": "unknown",
-            "image": "dockfleet-scheduler:latest",
-            "ports": "-",
-            "restart_policy": "no",
-            "restart_count": 2
-        }
-
-    ]
-
-
-@router.get("/logs/{service}")
-def stream_service_logs(service: str):
-
-    def event_generator():
-        counter = 1
-        while True:
-            log_data = {
-                "service": service,
-                "message": f"Log entry {counter} from {service}",
-                "level": "INFO"
-            }
-
-            yield f"data: {json.dumps(log_data)}\n\n"
-            counter += 1
-            time.sleep(2)
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream"
+    subprocess.run(
+        ["docker", "restart", container],
+        capture_output=True
     )
 
+    return {"message": f"{name} restarted"}
+
+@router.post("/services/{name}/stop")
+def stop_service(name: str):
+
+    container = f"dockfleet_{name}"
+
+    subprocess.run(
+        ["docker", "stop", container],
+        capture_output=True
+    )
+
+    return {"message": f"{name} stopped"}
+    
 @router.get("/status")
 def system_status():
 
     services = get_services()
 
     total = len(services)
-    running = sum(1 for s in services if s["status"] == "running")
-    stopped = sum(1 for s in services if s["status"] == "stopped")
+
+    running = sum(
+        1 for s in services if s["health_status"] == "healthy"
+    )
+
+    restarting = sum(
+        1 for s in services if s["health_status"] == "restarting"
+    )
+    unhealthy = sum(
+    1 for s in services if s["health_status"] == "unhealthy"
+)
+
+    stopped = sum(
+        1 for s in services if s["health_status"] not in ["healthy", "restarting", "unhealthy"]
+    )
 
     return {
         "total_services": total,
         "running": running,
+        "restarting": restarting,
+        "unhealthy": unhealthy,
         "stopped": stopped
     }
+
+@router.get("/logs/{service}")
+async def stream_logs(service: str):
+    """
+    Stream container logs to browser using Server Sent Events (SSE)
+    """
+
+    # For now service name = container name
+    container_name = f"dockfleet_{service}"
+
+    def event_stream():
+        for line in stream_container_logs(container_name):
+            yield f"data: {line}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream") 
     
