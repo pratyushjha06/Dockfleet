@@ -34,17 +34,19 @@ Table: services
   - type: TEXT  
   - constraints: NOT NULL  
   - desc: Current service status (e.g., "running", "unhealthy", "restarting", "stopped").  
-  - note: Seed time: status is set to "stopped". Unknown / unhealthy states will only be used once the health engine is implemented in Week 2.
+  - note: Seed time: status is set to "stopped". Unknown / unhealthy states are used once the health engine runs.
 
 - restart_count  
   - type: INTEGER  
   - constraints: NOT NULL, DEFAULT 0  
-  - desc: Total number of times this service has been restarted by health engine.
+  - desc: Total number of times this service has been restarted  
+    (manual dashboard restart + auto self‑healing restarts).  
+    Health check failures alone do not change this.
 
 - last_health_check  
-  - type: DATETIME (or TEXT ISO string)  
+  - type: DATETIME (ISO string)  
   - constraints: NULL allowed  
-  - desc: Timestamp of last health check performed for this service.
+  - desc: Timestamp of the last health check performed for this service.
 
 - last_failure_reason  
   - type: TEXT  
@@ -55,4 +57,28 @@ Table: services
   - type: INTEGER  
   - constraints: NOT NULL, DEFAULT 0  
   - desc: Number of back‑to‑back failed health checks.  
-  - note: Used for "3 failed checks → restart" logic in later phases.
+  - note: Used for "3 failed checks → restart" logic in the health engine.
+
+- resources_memory  
+  - type: TEXT  
+  - constraints: NULL allowed  
+  - desc: Memory limit from config.resources.memory (e.g., "512m").  
+  - note: Stored for future dashboard display and crash analytics.
+
+- resources_cpu  
+  - type: REAL  
+  - constraints: NULL allowed  
+  - desc: CPU limit from config.resources.cpu (e.g., 0.5).  
+  - note: Stored for future dashboard display and crash analytics.
+
+- env_raw  
+  - type: TEXT  
+  - constraints: NULL allowed  
+  - desc: Serialized environment variables from config.environment  
+    (JSON array of strings, e.g., ["DB_URL=postgres://...", "REDIS_URL=..."]).  
+
+- depends_on_raw  
+  - type: TEXT  
+  - constraints: NULL allowed  
+  - desc: Serialized dependency list from config.depends_on  
+    (comma‑separated service names, e.g., "redis,db").

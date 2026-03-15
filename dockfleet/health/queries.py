@@ -36,6 +36,10 @@ def get_services_for_dashboard() -> list[dict[str, Any]]:
                 "image": svc.image,
                 "ports": svc.ports_raw,
                 "restart_policy": svc.restart_policy,
+                "resources_memory": svc.resources_memory,
+                "resources_cpu": svc.resources_cpu,
+                "env": svc.env_raw,
+                "depends_on": svc.depends_on_raw,
             }
         )
     return result

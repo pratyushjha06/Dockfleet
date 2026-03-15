@@ -1,22 +1,37 @@
-from sqlmodel import Field, Session, SQLModel, create_engine
 from datetime import datetime
+from sqlmodel import Field, SQLModel, create_engine
 
 """
 Service table model
-fields: id, name, image, restart_policy, ports_raw, healthcheck_raw, status, restart_count, last_health_check, last_failure_reason, consecutive_failures
+fields:
+- id, name, image, restart_policy
+- ports_raw, healthcheck_raw
+- status, restart_count, last_health_check, last_failure_reason, consecutive_failures
+- resources_memory, resources_cpu, env_raw, depends_on_raw
 """
 class Service(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(nullable=False, unique=True)
     image: str = Field(nullable=False)
     restart_policy: str = Field(nullable=False)
+    # Serialized config fields
     ports_raw: str | None = Field(default=None)
     healthcheck_raw: str | None = Field(default=None)
+    # Runtime state fields
     status: str = Field(default="unknown", nullable=False)
     restart_count: int = Field(default=0, nullable=False)
     last_health_check: datetime | None = Field(default=None)
     last_failure_reason: str | None = Field(default=None)
     consecutive_failures: int = Field(default=0, nullable=False)
+    # Extra config for future dashboard / analytics
+    # Example: resources.memory: "512m", resources.cpu: 0.5
+    resources_memory: str | None = Field(default=None)
+    resources_cpu: float | None = Field(default=None)
+    # environment and depends_on stored in serialized form
+    # env_raw: JSON string (e.g. '["DB_URL=postgres://...", "REDIS_URL=..."]')
+    # depends_on_raw: comma-separated service names (e.g. "redis,db")
+    env_raw: str | None = Field(default=None)
+    depends_on_raw: str | None = Field(default=None)
 
 # RestartEvent table model
 # fields: id, service_id, restarted_at, reason, previous_status, new_status
