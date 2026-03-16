@@ -10,7 +10,7 @@ from dockfleet.health.status import (
 )
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 router = APIRouter()
 
@@ -38,6 +38,15 @@ class Service(BaseModel):
     restart_count: int
     last_health_check: Optional[datetime] = None
 
+    cpu: Optional[str] = None
+    memory: Optional[str] = None
+    uptime: Optional[str] = None
+    cpu_limit: Optional[str] = None
+    memory_limit: Optional[str] = None
+
+class ActionResponse(BaseModel):
+    ok: bool
+    message: str
 
 # ------------------------------------------------
 # Dashboard homepage
@@ -54,15 +63,14 @@ def dashboard_home(request: Request):
 # List services
 # Combines DB state + Docker runtime stats
 # ------------------------------------------------
-@router.get("/services")
+@router.get("/services", response_model=List[Service])
 def list_services():
     return get_services()
-
 
 # ------------------------------------------------
 # Restart service
 # ------------------------------------------------
-@router.post("/services/{name}/restart")
+@router.post("/services/{name}/restart", response_model=ActionResponse)
 def restart_service(name: str):
 
     container = f"dockfleet_{name}"
@@ -87,7 +95,7 @@ def restart_service(name: str):
 # ------------------------------------------------
 # Stop service
 # ------------------------------------------------
-@router.post("/services/{name}/stop")
+@router.post("/services/{name}/stop", response_model=ActionResponse)
 def stop_service(name: str):
 
     container = f"dockfleet_{name}"
