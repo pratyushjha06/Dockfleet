@@ -3,6 +3,11 @@ from fastapi import HTTPException
 import subprocess
 import logging
 from dockfleet.core.orchestrator import get_container_name
+from sqlmodel import SQLModel, Field
+from typing import Optional
+from datetime import datetime
+from sqlmodel import Session
+from dockfleet.health.models import engine
 
 logger = logging.getLogger(__name__)
 
@@ -45,3 +50,23 @@ async def stream_container_logs(service_name: str):
         except subprocess.TimeoutExpired:
             proc.kill()
         logger.info(f"Logs stream for {container} cleaned up")
+
+class LogEntry(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    service_name: str
+    message: str
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+def store_log_line(service_name: str, message: str) -> None:
+    """Best-effort log storage (should never break streaming)."""
+    try:
+        with Session(engine) as session:
+            log = LogEntry(
+                service_name=service_name,
+                message=message
+            )
+            session.add(log)
+            session.commit()
+            
+    except Exception:
+        pass

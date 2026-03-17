@@ -20,6 +20,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional
 from dockfleet.cli.config import RestartPolicy
+from dockfleet.core.logs import store_log_line
 
 logger = logging.getLogger(__name__)
 
@@ -60,23 +61,43 @@ def get_container_name(service_name: str) -> str:
     """Shared container name helper for logs."""
     return f"dockfleet_{service_name}"
 
-def get_logs(service_name: str, lines: int = 100, follow: bool = False) -> str:
-    """ Docker logs wrapper for SSE layer."""
-    container_name = get_container_name(service_name)
+def get_logs( service_name: str, lines: int = 100, follow: bool = False, persist: bool = False):
+    """Docker logs wrapper for SSE layer with optional persistence."""
     
+    container_name = get_container_name(service_name)
+
     cmd = ["docker", "logs", container_name, "--tail", str(lines)]
     if follow:
         cmd.append("-f")
-    
+
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-        return result.stdout
-    except subprocess.TimeoutExpired:
-        logger.warning(f"Logs timeout for {container_name}")
-        return f"Timeout fetching logs for {container_name}"
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True
+        )
+
+        for line in iter(process.stdout.readline, ''):
+            clean_line = line.strip()
+
+            if not clean_line:
+                continue
+
+            yield clean_line
+
+            if persist:
+                try:
+                    store_log_line(service_name, clean_line)
+                except Exception as e:
+                    logger.warning(f"log store failed: {e}")
+
+        process.stdout.close()
+        process.wait()
+
     except Exception as e:
-        logger.error(f"Failed to get logs for {container_name}: {e}")
-        return f"Error: {e}"
+        logger.error(f"Failed to stream logs for {container_name}: {e}")
+        yield f"Error: {e}"
 
 
 class Orchestrator:
@@ -192,8 +213,6 @@ class Orchestrator:
             logger.error(f"{service_name} restart FAILED: {e}")
             return False
 
-
-
     def _increment_restart_count(self, service_name: str) -> None:
         try:
             with Session(engine) as session:
@@ -257,6 +276,32 @@ class Orchestrator:
                 session.commit()
                 logger.error(" %s marked CRASHED: %s", service_name, reason)
 
+    def _resolve_service_order(self):
+        """Return services in depends_on topological order."""
+
+        visited = set()
+        order = []
+
+        def visit(name):
+            if name in visited:
+                return
+
+            visited.add(name)
+
+            svc = self.config.services[name]
+            deps = getattr(svc, "depends_on", []) or []
+
+            for dep in deps:
+                if dep in self.config.services:
+                    visit(dep)
+
+            order.append(name)
+
+        for name in self.config.services:
+            visit(name)
+
+        return order
+
     def up(self):
         print("Starting services...\n")
         
@@ -264,7 +309,11 @@ class Orchestrator:
         print(" DB bootstrapped & services seeded")
        
         self.docker.create_network(self.network)
-        for name, svc in self.config.services.items():
+
+        order = self._resolve_service_order()
+
+        for name in order:
+            svc = self.config.services[name]
             self.start_service(name, svc)
 
     def down(self):
