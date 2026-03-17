@@ -1,6 +1,6 @@
 import subprocess
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 from dockfleet.dashboard.services import get_services
 from dockfleet.core.logs import stream_container_logs
@@ -9,7 +9,6 @@ from dockfleet.health.status import (
     record_manual_stop,
 )
 from fastapi import Query
-from .services import get_logs
 from sqlmodel import Session, select
 from dockfleet.health.models import LogEvent, engine
 from pydantic import BaseModel
@@ -158,11 +157,40 @@ def list_logs(
         ]
 
 @router.get("/logs")
-def fetch_logs(
-    service: str = Query("all"),
-    limit: int = Query(50)
+def get_logs(
+    service_name: Optional[str] = Query(None),
+    q: Optional[str] = Query(None),
+    limit: int = Query(100)
 ):
-    return get_logs(service, limit)
+    from dockfleet.core.logs import get_logs_for_service
+
+    # ❗ Prevent crash when no service selected
+    if not service_name:
+        return []
+
+    logs = get_logs_for_service(service_name, limit)
+
+    # 🔍 Search filter
+    if q:
+        logs = [log for log in logs if q.lower() in log.lower()]
+
+    return logs
+
+@router.get("/logs/download")
+def download_logs(service_name: str = Query(None)):
+    from dockfleet.core.logs import get_logs_for_service
+
+    logs = get_logs_for_service(service_name, limit=500)
+
+    content = "\n".join(logs)
+
+    return PlainTextResponse(
+        content,
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": f"attachment; filename={service_name or 'all'}_logs.txt"
+        }
+    )
 
 # ------------------------------------------------
 # System summary for dashboard
