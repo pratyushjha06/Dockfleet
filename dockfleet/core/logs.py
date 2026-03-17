@@ -6,7 +6,7 @@ from dockfleet.core.orchestrator import get_container_name
 from sqlmodel import SQLModel, Field
 from typing import Optional
 from datetime import datetime
-from sqlmodel import Session
+from sqlmodel import Session, select
 from dockfleet.health.models import engine
 
 logger = logging.getLogger(__name__)
@@ -58,15 +58,27 @@ class LogEntry(SQLModel, table=True):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 def store_log_line(service_name: str, message: str) -> None:
-    """Best-effort log storage (should never break streaming)."""
+    MAX_LOGS_PER_SERVICE = 1000
     try:
         with Session(engine) as session:
+
             log = LogEntry(
                 service_name=service_name,
                 message=message
             )
             session.add(log)
+
+            old_logs = session.exec(
+                select(LogEntry)
+                .where(LogEntry.service_name == service_name)
+                .order_by(LogEntry.timestamp.desc())
+                .offset(MAX_LOGS_PER_SERVICE)
+                ).all()
+
+            for old in old_logs:
+                session.delete(old)
+
             session.commit()
-            
+
     except Exception:
         pass
