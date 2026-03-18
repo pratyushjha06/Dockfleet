@@ -34,11 +34,13 @@ class Service(SQLModel, table=True):
     depends_on_raw: str | None = Field(default=None)
 
 # RestartEvent table model
-# fields: id, service_id, restarted_at, reason, previous_status, new_status
+# fields: id, service_id, service_name, restarted_at, reason, previous_status, new_status
 class RestartEvent(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     service_id: int = Field(nullable=False, foreign_key="service.id")
-    restarted_at: datetime = Field(nullable=False)
+    # Denormalized service name for easier analytics queries
+    service_name: str = Field(nullable=False, index=True)
+    restarted_at: datetime = Field(nullable=False, index=True)
     reason: str = Field(nullable=False)
     previous_status: str | None = Field(default=None)
     new_status: str | None = Field(default=None)
@@ -51,14 +53,12 @@ class LogEvent(SQLModel, table=True):
     Raw Docker logs will still be streamed separately; this table stores
     small, query-friendly summaries (who, when, what, where-from).
     """
-
     id: int | None = Field(default=None, primary_key=True)
-
     service_id: int = Field(nullable=False, foreign_key="service.id")
-    service_name: str = Field(nullable=False)
-
-    created_at: datetime = Field(nullable=False)
-
+    # Index on service_name for fast per-service queries
+    service_name: str = Field(nullable=False, index=True)
+    # Index on created_at for time-ordered scans
+    created_at: datetime = Field(nullable=False, index=True)
     # Optional metadata fields
     level: str | None = Field(default=None)  # e.g. "INFO", "WARN", "ERROR"
     message: str | None = Field(default=None)  # short summary / first line

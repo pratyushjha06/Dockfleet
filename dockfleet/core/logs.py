@@ -1,7 +1,9 @@
 import subprocess
 import logging
+import asyncio 
 
 logger = logging.getLogger(__name__)
+
 
 async def stream_container_logs(service_name: str):
     """Stream Docker logs → SSE with resilience."""
@@ -38,10 +40,11 @@ async def stream_container_logs(service_name: str):
             line = line.rstrip()
             if line:
                 yield f"data: {line}\n\n"
+            # optional: small sleep to be nicer in async loop
+            await asyncio.sleep(0)
     except GeneratorExit:
         logger.info("Client disconnected from %s logs", container)
     finally:
-        # Cleanup Popen on disconnect/timeout
         proc.terminate()
         try:
             proc.wait(timeout=5)
