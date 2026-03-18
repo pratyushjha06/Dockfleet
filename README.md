@@ -62,8 +62,6 @@ Each service specifies the Docker image, ports, restart policy, and optional hea
 DockFleet is similar to Docker Compose but focuses on lightweight local orchestration with built-in health monitoring and automatic recovery.  
 It is designed for small deployments and development environments where Kubernetes would be too complex.
 
-
-
 ---
 
 ## Advanced YAML Features
@@ -352,6 +350,20 @@ dockfleet logs api --follow
 ```
 
 The dashboard also supports live log streaming using Server-Sent Events (SSE).
+
+### Log Aggregation
+
+DockFleet provides a centralized log viewer across all services.
+
+- Logs from containers are stored in a SQLite database
+- View logs from all services in one place
+- Filter logs by service
+
+### CLI Example
+
+```bash
+dockfleet show-logs --service api --limit 50
+```
 
 ---
 

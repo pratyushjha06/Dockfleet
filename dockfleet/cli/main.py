@@ -146,7 +146,47 @@ def logs(
     except Exception:
         typer.echo(f"Service '{service}' not found or container not running.")
         raise typer.Exit(code=1)
-    
+@app.command("show-logs")
+def show_logs(
+    service: str = typer.Option(None, "--service", help="Filter by service name"),
+    limit: int = typer.Option(50, "--limit", help="Number of logs to show"),
+):
+    """
+    Show aggregated logs stored in DockFleet database.
+    """
+
+    try:
+        from sqlmodel import Session, select
+        from dockfleet.health.models import engine
+        from dockfleet.health.logs import LogEvent  # make sure this exists
+
+        with Session(engine) as session:
+            query = select(LogEvent).limit(limit)
+
+            if service:
+                query = query.where(LogEvent.service_name == service)
+
+            logs = session.exec(query).all()
+
+            if not logs:
+                typer.echo("No logs found.")
+                return
+
+            for log in logs:
+
+                ts = getattr(log, "timestamp", None) or getattr(log, "created_at", None)
+                if ts:
+
+                    ts = ts.strftime("%Y-%m-%d %H:%M:%S")
+                else:
+                    ts = "no-time"
+
+                typer.echo(f"[{ts}] [{log.service_name}] {log.message}")
+
+    except Exception as e:
+        typer.echo(f"Failed to fetch logs: {e}")
+        raise typer.Exit(code=1)
+       
 @app.command()
 def doctor():
     """Check system environment (Python version and Docker availability)."""
