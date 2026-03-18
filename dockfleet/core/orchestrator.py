@@ -26,6 +26,7 @@ from dockfleet.health.logs import store_log_line
 
 logger = logging.getLogger(__name__)
 
+
 class ServiceStat(BaseModel):
     service_name: str
     container_name: str
@@ -34,6 +35,7 @@ class ServiceStat(BaseModel):
     mem_percent: Optional[str] = None
     uptime: Optional[str] = None
     status: str = "unknown"  # running, stopped, missing
+
 
 _orchestrator_instance = None
 
