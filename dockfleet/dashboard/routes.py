@@ -67,6 +67,9 @@ class ActionResponse(BaseModel):
     message: str
 
 
+# ------------------------------------------------
+# Crash Analytics Pydantic models
+# ------------------------------------------------
 class UnstableService(BaseModel):
     service_name: str
     restarts: int
@@ -80,9 +83,41 @@ class RestartEventItem(BaseModel):
     new_status: Optional[str] = None
 
 
-class FailureReasonItem(BaseModel):
+class FailureReasonCount(BaseModel):
     reason: str
     count: int
+
+
+class AnalyticsSummary(BaseModel):
+    """
+    Top-level crash analytics summary.
+    Returned by /analytics/summary – gives a single snapshot
+    of system stability: most unstable services plus overall
+    restart and failure counts in the requested window.
+    """
+    window_hours: int
+    total_restarts: int
+    total_health_failures: int
+    most_unstable_services: List[UnstableService]
+
+
+# ------------------------------------------------
+# Metrics Pydantic model
+# ------------------------------------------------
+class MetricsSummary(BaseModel):
+    """
+    System-level metrics snapshot.
+    Returned by /metrics – gives a quick health overview of
+    the entire DockFleet deployment: service counts and
+    aggregate restart / failure totals.
+    """
+    total_services: int
+    running_services: int
+    unhealthy_services: int
+    stopped_services: int
+    total_restarts: int
+    health_failures: int
+    collected_at: datetime
 
 
 # ------------------------------------------------
@@ -120,7 +155,6 @@ def restart_service(name: str):
     ok = result.returncode == 0
 
     if ok:
-        # Update DB restart_count + insert RestartEvent
         record_manual_restart_event(name)
 
     return {
@@ -144,7 +178,6 @@ def stop_service(name: str):
     ok = result.returncode == 0
 
     if ok:
-        # Update DB status -> stopped
         record_manual_stop(name)
 
     return {
@@ -154,7 +187,7 @@ def stop_service(name: str):
 
 
 # ------------------------------------------------
-# DB-backed logs metadata API (for viewer + infinite scroll)
+# DB-backed logs metadata API
 # ------------------------------------------------
 @router.get("/logs/db")
 def list_logs(
@@ -163,12 +196,6 @@ def list_logs(
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ):
-    """
-    Return recent log events from DB.
-
-    - Optional filtering by service name and search text.
-    - limit/offset for pagination (dashboard infinite scroll).
-    """
     events = query_logs(
         service_name=service_name,
         q=q,
@@ -190,7 +217,7 @@ def list_logs(
 
 
 # ------------------------------------------------
-# Legacy /logs: live docker logs for a service (non-DB)
+# Legacy /logs: live docker logs for a service
 # ------------------------------------------------
 @router.get("/logs")
 def get_logs(
@@ -198,19 +225,13 @@ def get_logs(
     q: Optional[str] = Query(None),
     limit: int = Query(100),
 ):
-    """
-    Live docker logs for a service (non-persisted), with optional
-    substring filter, used by CLI / live views.
-    """
     from dockfleet.core.logs import get_logs_for_service
 
-    # Prevent crash when no service selected
     if not service_name:
         return []
 
     logs = get_logs_for_service(service_name, limit)
 
-    # Search filter in-memory
     if q:
         logs = [log for log in logs if q.lower() in log.lower()]
 
@@ -226,13 +247,6 @@ def download_logs(
     q: Optional[str] = Query(default=None),
     format: str = Query("text", pattern="^(text|csv)$"),
 ):
-    """
-    Download logs stored in DB.
-
-    - Uses same filters as /logs/db (service_name, q).
-    - format=text: plain text lines, good for quick view.
-    - format=csv: CSV for analysis.
-    """
     if format == "csv":
         return StreamingResponse(
             iter_logs_as_csv(service_name=service_name, q=q),
@@ -244,7 +258,6 @@ def download_logs(
             },
         )
 
-    # default: text
     return StreamingResponse(
         iter_logs_as_text(service_name=service_name, q=q),
         media_type="text/plain",
@@ -264,19 +277,9 @@ def system_status():
     services = get_services()
 
     total = len(services)
-
-    running = sum(
-        1 for s in services if s["health_status"] == "healthy"
-    )
-
-    restarting = sum(
-        1 for s in services if s["health_status"] == "restarting"
-    )
-
-    unhealthy = sum(
-        1 for s in services if s["health_status"] == "unhealthy"
-    )
-
+    running = sum(1 for s in services if s["health_status"] == "healthy")
+    restarting = sum(1 for s in services if s["health_status"] == "restarting")
+    unhealthy = sum(1 for s in services if s["health_status"] == "unhealthy")
     stopped = sum(
         1
         for s in services
@@ -306,9 +309,108 @@ async def stream_logs(service: str):
         media_type="text/event-stream",
     )
 
+
+# ------------------------------------------------
+# Metrics endpoint
+# ------------------------------------------------
+@router.get("/metrics", response_model=MetricsSummary)
+def get_metrics():
+    """
+    Return a system-level metrics snapshot for DockFleet.
+
+    Includes:
+    - total_services: all services registered in DB
+    - running_services: services currently healthy
+    - unhealthy_services: services currently unhealthy
+    - stopped_services: services that are stopped
+    - total_restarts: sum of restart_count across all services
+    - health_failures: count of RestartEvents in the last 24 hours
+    - collected_at: UTC timestamp of when metrics were collected
+    """
+    services = get_services()
+
+    total = len(services)
+    running = sum(1 for s in services if s["health_status"] == "healthy")
+    unhealthy = sum(1 for s in services if s["health_status"] == "unhealthy")
+    stopped = sum(
+        1
+        for s in services
+        if s["health_status"] not in ["healthy", "restarting", "unhealthy"]
+    )
+    total_restarts = sum(s.get("restart_count", 0) for s in services)
+
+    # Count restart events in last 24 hours as proxy for health failures
+    since = datetime.utcnow() - timedelta(hours=24)
+    with Session(engine) as session:
+        stmt = select(RestartEvent).where(RestartEvent.restarted_at >= since)
+        health_failures = len(session.exec(stmt).all())
+
+    return MetricsSummary(
+        total_services=total,
+        running_services=running,
+        unhealthy_services=unhealthy,
+        stopped_services=stopped,
+        total_restarts=total_restarts,
+        health_failures=health_failures,
+        collected_at=datetime.utcnow(),
+    )
+
+
 # ------------------------------------------------
 # Crash analytics endpoints
 # ------------------------------------------------
+@router.get(
+    "/analytics/summary",
+    response_model=AnalyticsSummary,
+)
+def analytics_summary(
+    limit: int = Query(5, ge=1, le=20),
+    window_hours: int = Query(24, ge=1, le=168),
+):
+    """
+    Return a top-level crash analytics summary.
+
+    Includes total restarts, total health failures, and the
+    most unstable services in the requested time window.
+    """
+    since = datetime.utcnow() - timedelta(hours=window_hours)
+
+    base = get_most_unstable_services(limit=limit, window_hours=window_hours)
+
+    with Session(engine) as session:
+        # Total restart events in window
+        stmt_total = select(RestartEvent).where(
+            RestartEvent.restarted_at >= since
+        )
+        all_events = session.exec(stmt_total).all()
+        total_restarts = len(all_events)
+
+        unstable: list[UnstableService] = []
+        for row in base:
+            name = row["service_name"]
+            stmt_last = (
+                select(RestartEvent)
+                .where(RestartEvent.service_name == name)
+                .order_by(RestartEvent.restarted_at.desc())
+                .limit(1)
+            )
+            last = session.exec(stmt_last).one_or_none()
+            unstable.append(
+                UnstableService(
+                    service_name=name,
+                    restarts=row["restarts"],
+                    last_restart_at=last.restarted_at if last else None,
+                )
+            )
+
+    return AnalyticsSummary(
+        window_hours=window_hours,
+        total_restarts=total_restarts,
+        total_health_failures=total_restarts,  # proxy: each restart = failure
+        most_unstable_services=unstable,
+    )
+
+
 @router.get(
     "/analytics/unstable-services",
     response_model=List[UnstableService],
@@ -323,7 +425,6 @@ def analytics_unstable_services(
     """
     base = get_most_unstable_services(limit=limit, window_hours=window_hours)
 
-    # Attach last_restart_at per service using RestartEvent table
     with Session(engine) as session:
         results: list[UnstableService] = []
         for row in base:
@@ -335,13 +436,11 @@ def analytics_unstable_services(
                 .limit(1)
             )
             last = session.exec(stmt).one_or_none()
-            last_ts = last.restarted_at if last is not None else None
-
             results.append(
                 UnstableService(
                     service_name=name,
                     restarts=row["restarts"],
-                    last_restart_at=last_ts,
+                    last_restart_at=last.restarted_at if last else None,
                 )
             )
 
@@ -375,7 +474,7 @@ def analytics_restart_history(
 
 @router.get(
     "/analytics/failure-reasons/{service_name}",
-    response_model=List[FailureReasonItem],
+    response_model=List[FailureReasonCount],
 )
 def analytics_failure_reasons(
     service_name: str,
@@ -398,6 +497,7 @@ def analytics_failure_reasons(
     )
 
     return [
-        FailureReasonItem(reason=reason, count=count)
+        FailureReasonCount(reason=reason, count=count)
         for reason, count in items
     ]
+    
