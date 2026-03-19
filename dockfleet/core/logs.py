@@ -1,20 +1,14 @@
 import subprocess
 import logging
 import asyncio
-from dockfleet.core.orchestrator import get_container_name
-from sqlmodel import SQLModel, Field, Session, select
-from typing import Optional
 from datetime import datetime
-from dockfleet.health.models import engine
-
+from typing import Optional
+from sqlmodel import Session, select
+from dockfleet.health.status import engine
+from dockfleet.core.orchestrator import get_container_name
+from dockfleet.health.logs import LogEntry
 logger = logging.getLogger(__name__)
 
-
-class LogEntry(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    service_name: str
-    message: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 async def stream_container_logs(service_name: str):
     """Stream Docker logs → SSE with resilience."""
@@ -90,7 +84,7 @@ def stream_logs(service_name: str):
         logger.error("Failed to stream logs (sync) for %s: %s", container, e)
         return []
     
-def get_logs(service_name: str, limit: int = 100):
+def get_logs_services(service_name: str, limit: int = 100):
     """Fetch last N logs (non-streaming)"""
 
     container = get_container_name(service_name)

@@ -64,6 +64,42 @@ It is designed for small deployments and development environments where Kubernet
 
 ---
 
+## Advanced YAML Features
+
+DockFleet supports advanced configuration for more control over services.
+
+### Example
+
+```
+```yaml
+services:
+  redis:
+    image: redis:7
+    restart: always
+```
+
+```
+  api:
+    image: nginx:latest
+    restart: always
+```
+
+    ports:
+      - "8000:8000"
+    
+    depends_on:
+      - redis
+    
+    environment:
+      - ENV=production
+      - DEBUG=false
+    
+    resources:
+      memory: "512m"
+      cpu: 0.5
+
+---
+
 ### <u>Setup (Python + Virtual Environment)</u>
 
 #### 1. Requirements
@@ -153,7 +189,7 @@ pip install -r requirements.txt
 
 This will install FastAPI, Typer, SQLModel/SQLAlchemy, and other libraries used by Dockfleet.
 
-### Install CLI locally
+#### 6.Install CLI locally
 
 DockFleet CLI (`dockfleet ...` commands) is provided by this repository itself.  
 For development, install it in editable mode inside your virtual environment.
@@ -301,6 +337,33 @@ dockfleet self-heal examples/dockfleet.yaml
 
 If a service fails health checks three times consecutively,
 DockFleet automatically restarts the container according to its restart policy.
+
+### Logs
+
+DockFleet allows viewing service logs directly from the CLI.
+
+Examples:
+
+```
+dockfleet logs api
+dockfleet logs api --follow
+```
+
+The dashboard also supports live log streaming using Server-Sent Events (SSE).
+
+### Log Aggregation
+
+DockFleet provides a centralized log viewer across all services.
+
+- Logs from containers are stored in a SQLite database
+- View logs from all services in one place
+- Filter logs by service
+
+### CLI Example
+
+```bash
+dockfleet show-logs --service api --limit 50
+```
 
 ---
 

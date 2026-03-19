@@ -1,8 +1,9 @@
 from __future__ import annotations
 from collections import Counter
-from typing import Any
-from sqlmodel import Session, select
-from .models import Service, engine
+from datetime import datetime, timedelta
+from typing import Any, Optional
+from sqlmodel import Session, select, func
+from .models import Service, RestartEvent, LogEvent, engine
 
 def get_all_services() -> list[Service]:
     """
@@ -36,6 +37,10 @@ def get_services_for_dashboard() -> list[dict[str, Any]]:
                 "image": svc.image,
                 "ports": svc.ports_raw,
                 "restart_policy": svc.restart_policy,
+                "resources_memory": svc.resources_memory,
+                "resources_cpu": svc.resources_cpu,
+                "env": svc.env_raw,
+                "depends_on": svc.depends_on_raw,
             }
         )
     return result
@@ -49,7 +54,7 @@ def get_services_for_dashboard_with_stats(
 
     stats_by_name example:
         {
-          "api": {"cpu": 0.12, "memory": 128_000_000, "uptime": 42},
+          "api":   {"cpu": 0.12, "memory": 128_000_000, "uptime": 42},
           "redis": {"cpu": 0.01, "memory": 32_000_000, "uptime": 120},
         }
 
@@ -89,3 +94,113 @@ def get_status_counts() -> dict[str, int]:
         counter[svc.status or "unknown"] += 1
 
     return dict(counter)
+
+def get_restart_history(
+    service_name: str,
+    since: Optional[datetime] = None,
+) -> list[dict[str, Any]]:
+    """
+    Return restart history for a service as list of dicts:
+    [
+      {
+        "timestamp": <datetime>,
+        "reason": "3_failed_health_checks" | "manual_dashboard_restart" | ...,
+        "previous_status": "...",
+        "new_status": "..."
+      },
+      ...
+    ]
+    """
+    with Session(engine) as session:
+        svc = session.exec(
+            select(Service).where(Service.name == service_name)
+        ).one_or_none()
+        if svc is None:
+            return []
+
+        stmt = select(RestartEvent).where(
+            RestartEvent.service_id == svc.id
+        )
+
+        if since is not None:
+            stmt = stmt.where(RestartEvent.restarted_at >= since)
+
+        stmt = stmt.order_by(RestartEvent.restarted_at.desc())
+        events = session.exec(stmt).all()
+
+        return [
+            {
+                "timestamp": ev.restarted_at,
+                "reason": ev.reason,
+                "previous_status": ev.previous_status,
+                "new_status": ev.new_status,
+            }
+            for ev in events
+        ]
+
+def get_most_unstable_services(
+    limit: int = 5,
+    window_hours: int = 24,
+) -> list[dict[str, Any]]:
+    """
+    Return services ordered by number of RestartEvent in the last `window_hours`.
+    Output example:
+      [
+        {"service_name": "api", "restarts": 3},
+        {"service_name": "worker", "restarts": 1},
+      ]
+    """
+    since = datetime.utcnow() - timedelta(hours=window_hours)
+
+    with Session(engine) as session:
+        stmt = (
+            select(Service.name, func.count(RestartEvent.id))
+            .join(RestartEvent, RestartEvent.service_id == Service.id)
+            .where(RestartEvent.restarted_at >= since)
+            .group_by(Service.id, Service.name)
+            .order_by(func.count(RestartEvent.id).desc())
+            .limit(limit)
+        )
+
+        rows = session.exec(stmt).all()
+
+        return [
+            {
+                "service_name": name,
+                "restarts": count,
+            }
+            for name, count in rows
+        ]
+
+def get_failure_reasons_breakdown(
+    service_name: str,
+    window_hours: int = 24,
+) -> dict[str, int]:
+    """
+    Aggregate restart reasons for a service in the last `window_hours`.
+
+    Output example:
+      {
+        "3_failed_health_checks": 5,
+        "manual_dashboard_restart": 2,
+      }
+    """
+    since = datetime.utcnow() - timedelta(hours=window_hours)
+
+    with Session(engine) as session:
+        svc = session.exec(
+            select(Service).where(Service.name == service_name)
+        ).one_or_none()
+        if svc is None:
+            return {}
+
+        stmt = (
+            select(RestartEvent.reason, func.count(RestartEvent.id))
+            .where(RestartEvent.service_id == svc.id)
+            .where(RestartEvent.restarted_at >= since)
+            .group_by(RestartEvent.reason)
+        )
+
+        rows = session.exec(stmt).all()
+
+        return {reason: count for reason, count in rows}

@@ -5,9 +5,9 @@
     <meta charset="UTF-8">
     <title>DockFleet Dashboard</title>
     <script>
-    if (localStorage.theme === 'dark') {
-    document.documentElement.classList.add('dark')
-    }
+        if (localStorage.theme === 'dark') {
+            document.documentElement.classList.add('dark')
+        }
     </script>
 
     <!-- Tailwind -->
@@ -64,6 +64,16 @@
                 </p>
             </div>
 
+            <button @click="activeTab = 'logs'; fetchLogs()"
+                :class="activeTab === 'logs' ? 'text-blue-400' : ''">
+                Logs
+            </button>
+
+            <button @click="activeTab = 'analytics'; fetchAnalytics()"
+                :class="activeTab === 'analytics' ? 'text-blue-400' : ''">
+                Analytics
+            </button>
+
             <button @click="toggleDarkMode()"
                 class="px-4 py-2 rounded-xl bg-gray-800 text-white dark:bg-gray-700 hover:scale-105 transition">
                 Toggle Theme
@@ -90,6 +100,46 @@
                 <span class="w-3 h-3 rounded-full bg-red-500"></span>
                 Stopped
             </span>
+
+        </div>
+
+        <!-- ADVANCED CONFIG FEATURES (Day 18) -->
+        <div class="mb-10 p-6 rounded-2xl
+            bg-blue-50 dark:bg-blue-900/20
+            border border-blue-200 dark:border-blue-800
+            shadow">
+
+            <h2 class="text-lg font-semibold mb-3">
+                DockFleet Configuration Features
+            </h2>
+
+            <ul class="list-disc ml-6 text-sm space-y-1">
+
+                <li>
+                    <strong>Resource Limits</strong> —
+                    Define CPU and memory limits for containers.
+                </li>
+
+                <li>
+                    <strong>Dependency Ordering</strong> —
+                    Ensure services start in the correct order.
+                </li>
+
+                <li>
+                    <strong>Environment Variables</strong> —
+                    Configure services with runtime environment values.
+                </li>
+
+                <li>
+                    <strong>YAML Configuration</strong> —
+                    All services are defined in a
+                    <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">
+                        dockfleet.yaml
+                    </code>
+                    file.
+                </li>
+
+            </ul>
 
         </div>
 
@@ -200,6 +250,17 @@
                             <strong>Memory Usage:</strong>
                             <span x-text="service.memory"></span>
                         </p>
+                        <!-- Day 18: Resource Limits -->
+                        <template x-if="service.cpu_limit || service.memory_limit">
+                            <p>
+                                <strong>Resource Limits:</strong>
+                                <span>
+                                    <span x-text="service.memory_limit || '—'"></span>
+                                    /
+                                    <span x-text="service.cpu_limit || '—'"></span> CPU
+                                </span>
+                            </p>
+                        </template>
 
                         <p>
                             <strong>Uptime:</strong>
@@ -257,6 +318,53 @@
 
         </div>
 
+        <div x-show="activeTab === 'logs'" class="mt-16">
+
+    <!-- Filters -->
+    <div class="flex gap-4 mb-4">
+
+        <!-- Service Filter -->
+        <select x-model="selectedService"
+                @change="fetchLogs()"
+                class="bg-gray-800 text-white p-2 rounded">
+
+            <option value="">All Services</option>
+
+            <template x-for="svc in services">
+                <option :value="svc.name"
+                        x-text="svc.name"></option>
+            </template>
+
+        </select>
+
+        <!-- Search -->
+        <input type="text"
+               placeholder="Search logs..."
+               x-model="searchQuery"
+               @input="fetchLogs()"
+               class="bg-gray-800 text-white p-2 rounded w-full"/>
+
+        <button 
+            @click="downloadLogs()"
+            class="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700">
+            Download Logs
+        </button>
+    </div>
+
+    <!-- Logs Viewer -->
+    <div class="bg-black text-green-400 font-mono text-sm p-4 rounded h-[400px] overflow-y-scroll">
+
+        <template x-for="log in filteredLogs" :key="log.message + Math.random()">
+            <div class="mb-1">
+                <span class="text-blue-400">[<span x-text="log.service"></span>]</span>
+                <span x-text="log.message"></span>
+            </div>
+        </template>
+
+    </div>
+
+</div>
+
         <!-- LOG VIEWER -->
         <div class="mt-16">
 
@@ -298,12 +406,49 @@
             <div x-ref="logBox" class="bg-black text-green-400 font-mono text-xs p-4 rounded-xl
                 h-60 md:h-72 overflow-y-auto border border-gray-700">
 
-                <template x-for="line in logs">
+                <template x-for="line in liveLogs">
                     <div x-text="line"></div>
                 </template>
             </div>
 
         </div>
+
+        <div x-show="activeTab === 'analytics'" class="mt-16">
+
+    <h2 class="text-2xl font-bold mb-6">Analytics</h2>
+
+    <!-- Most Unstable Services -->
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow mb-6">
+        <h3 class="text-lg font-semibold mb-3">Most Unstable Services</h3>
+
+        <template x-for="svc in analytics.unstable_services" :key="svc.name">
+            <div class="flex justify-between border-b py-2">
+                <span x-text="svc.name"></span>
+                <span class="font-bold text-red-500"
+                      x-text="svc.restart_count"></span>
+            </div>
+        </template>
+    </div>
+
+    <!-- Restart History Placeholder -->
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow mb-6">
+        <h3 class="text-lg font-semibold mb-3">Restart History</h3>
+
+        <div class="h-40 flex items-center justify-center text-gray-400">
+            📊 Chart coming tomorrow
+        </div>
+    </div>
+
+    <!-- Failure Breakdown Placeholder -->
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow">
+        <h3 class="text-lg font-semibold mb-3">Failure Breakdown</h3>
+
+        <div class="h-40 flex items-center justify-center text-gray-400">
+            📊 Pie chart coming tomorrow
+        </div>
+    </div>
+
+</div>
 
     </div>
 
@@ -320,8 +465,12 @@
 
                 selectedService: "",
                 logSource: null,
-                logs: [],
+                apiLogs: [],
+                liveLogs: [],
                 autoScroll: true,
+
+                activeTab: 'services',
+                searchQuery: '',
 
                 async init() {
 
@@ -336,11 +485,35 @@
                         document.documentElement.classList.add('dark')
                     } else {
                         document.documentElement.classList.remove('dark')
- 
+
                     }
 
                 },
+                analytics: {
+    unstable_services: [],
+    restart_history: [],
+    failure_breakdown: []
+},
 
+                async fetchLogs() {
+    let url = `/logs?service_name=${this.selectedService}`;
+
+    if (this.searchQuery) {
+        url += `&q=${this.searchQuery}`;
+    }
+
+    const res = await fetch(url);
+    this.apiLogs = await res.json();
+},
+                
+               get filteredLogs() {
+    return this.apiLogs.map(log => {
+        return {
+            service: this.selectedService || "all",
+            message: typeof log === "string" ? log : log.message
+        }
+    })
+},
                 async fetchServices() {
 
                     try {
@@ -357,6 +530,21 @@
 
 
                 },
+
+                async fetchAnalytics() {
+    try {
+        const res = await fetch("/analytics");
+        this.analytics = await res.json();
+    } catch (err) {
+        console.error("Analytics load failed", err);
+    }
+},
+                downloadLogs() {
+                    let url = `/logs/download?service_name=${this.selectedService}`;
+                    window.location = url;
+                },
+
+
 
                 async fetchSummary() {
 
@@ -428,13 +616,13 @@
                         this.logSource.close()
                     }
 
-                    this.logs = []
+                    this.liveLogs = []
 
                     this.logSource = new EventSource(`/logs/${this.selectedService}`)
 
                     this.logSource.onmessage = (event) => {
 
-                        this.logs.push(event.data)
+                        this.liveLogs.push(event.data)
                         this.$nextTick(() => {
                             if (this.autoScroll) {
                                 this.$refs.logBox.scrollTop =
@@ -454,7 +642,7 @@
                 },
 
                 clearLogs() {
-                    this.logs = []
+                    this.liveLogs = []
                 },
 
                 toggleScroll() {

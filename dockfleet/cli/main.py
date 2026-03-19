@@ -26,16 +26,32 @@ def validate(path: Path = typer.Argument("dockfleet.yaml")):
         typer.echo("✓ Config valid")
 
     except ValidationError as e:
-        typer.echo("✗ Config validation failed")
+        typer.echo("✗ Config validation failed\n")
+
         for err in e.errors():
             location = " -> ".join(str(x) for x in err["loc"])
-            typer.echo(f"{location}: {err['msg']}")
+            msg = err["msg"]
+
+            if "resources" in location and "memory" in location:
+                typer.echo(f"[ERROR] Invalid memory limit → {msg}")
+
+            elif "resources" in location and "cpu" in location:
+                typer.echo(f"[ERROR] Invalid CPU value → {msg}")
+
+            elif "depends_on" in location:
+                typer.echo(f"[ERROR] Dependency issue → {msg}")
+
+            elif "environment" in location:
+                typer.echo(f"[ERROR] Environment format issue → {msg}")
+
+            else:
+                typer.echo(f"[ERROR] {location}: {msg}")
+
         raise typer.Exit(code=1)
 
     except Exception as e:
         typer.echo(f"Unexpected error: {e}")
-        raise typer.Exit(code=1)
-
+        raise typer.Exit(code=1)   
 @app.command()
 def seed(path: Path = typer.Argument("dockfleet.yaml")):
     """Initialize the service database and register services from the configuration."""
@@ -100,22 +116,77 @@ def ps():
 @app.command()
 def logs(
     service: str = typer.Argument(..., help="Service name"),
-    lines: int = typer.Option(100, "--lines", help="Number of log lines to show"),
+    lines: int = typer.Option(100, "--lines", help="Number of log lines"),
     follow: bool = typer.Option(False, "--follow", "-f", help="Follow log output"),
 ):
     """
     Show logs for a DockFleet service container.
     """
-    try:
-        output = get_logs(service, lines=lines, follow=follow)
 
-        if output:
-            typer.echo(output)
+    container_name = f"dockfleet_{service}"
+
+    try:
+
+        if follow:
+            typer.echo(f"Streaming logs for {service} (Ctrl+C to stop)\n")
+
+            subprocess.run(
+                ["docker", "logs", "-f", "--tail", str(lines), container_name]
+            )
+
+        else:
+            result = subprocess.run(
+                ["docker", "logs", "--tail", str(lines), container_name],
+                capture_output=True,
+                text=True,
+            )
+
+            typer.echo(result.stdout)
+
+    except Exception:
+        typer.echo(f"Service '{service}' not found or container not running.")
+        raise typer.Exit(code=1)
+@app.command("show-logs")
+def show_logs(
+    service: str = typer.Option(None, "--service", help="Filter by service name"),
+    limit: int = typer.Option(50, "--limit", help="Number of logs to show"),
+):
+    """
+    Show aggregated logs stored in DockFleet database.
+    """
+
+    try:
+        from sqlmodel import Session, select
+        from dockfleet.health.models import engine
+        from dockfleet.health.logs import LogEvent  # make sure this exists
+
+        with Session(engine) as session:
+            query = select(LogEvent).limit(limit)
+
+            if service:
+                query = query.where(LogEvent.service_name == service)
+
+            logs = session.exec(query).all()
+
+            if not logs:
+                typer.echo("No logs found.")
+                return
+
+            for log in logs:
+
+                ts = getattr(log, "timestamp", None) or getattr(log, "created_at", None)
+                if ts:
+
+                    ts = ts.strftime("%Y-%m-%d %H:%M:%S")
+                else:
+                    ts = "no-time"
+
+                typer.echo(f"[{ts}] [{log.service_name}] {log.message}")
 
     except Exception as e:
-        typer.echo(f"Failed to fetch logs for {service}: {e}")
+        typer.echo(f"Failed to fetch logs: {e}")
         raise typer.Exit(code=1)
-    
+       
 @app.command()
 def doctor():
     """Check system environment (Python version and Docker availability)."""

@@ -18,7 +18,6 @@ def build_env_flags(config):
     flags = []
     env = config.get("env") or {}
 
-    # 🔥 Fix: list → dict
     if isinstance(env, list):
         env_dict = {}
         for item in env:
@@ -27,7 +26,6 @@ def build_env_flags(config):
                 env_dict[k] = v
         env = env_dict
 
-    # ✅ Now safe
     for key, value in env.items():
         flags.extend(["-e", f"{key}={value}"])
 
@@ -38,11 +36,9 @@ def build_port_flags(config):
     flags = []
     ports = config.get("ports") or []
 
-    # 🔥 Fix: dict → list
     if isinstance(ports, dict):
         ports = [f"{k}:{v}" for k, v in ports.items()]
 
-    # ✅ Now safe
     for port in ports:
         flags.extend(["-p", port])
 
