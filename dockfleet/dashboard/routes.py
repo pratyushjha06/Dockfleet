@@ -306,28 +306,6 @@ async def stream_logs(service: str):
         media_type="text/event-stream",
     )
 
-@router.get("/analytics")
-def get_analytics():
-
-    # ⚠️ MOCK DATA (replace with DB later - Day 23)
-    return {
-        "unstable_services": [
-            {"name": "auth", "restart_count": 5},
-            {"name": "db", "restart_count": 3},
-            {"name": "api", "restart_count": 2},
-        ],
-        "restart_history": [
-            {"time": "10:00", "count": 2},
-            {"time": "10:05", "count": 1},
-            {"time": "10:10", "count": 3},
-        ],
-        "failure_breakdown": [
-            {"reason": "timeout", "count": 4},
-            {"reason": "crash", "count": 2},
-            {"reason": "oom", "count": 1},
-        ]
-    }
-    
 # ------------------------------------------------
 # Crash analytics endpoints
 # ------------------------------------------------
@@ -336,8 +314,8 @@ def get_analytics():
     response_model=List[UnstableService],
 )
 def analytics_unstable_services(
-    limit: int = 5,
-    window_hours: int = 24,
+    limit: int = Query(5, ge=1, le=20),
+    window_hours: int = Query(24, ge=1, le=168),
 ):
     """
     Return top N most unstable services (by restart count in last window_hours)
@@ -376,7 +354,7 @@ def analytics_unstable_services(
 )
 def analytics_restart_history(
     service_name: str,
-    since_hours: int = 24,
+    since_hours: int = Query(24, ge=1, le=168),
 ):
     """
     Return recent restart events for a given service.
@@ -401,10 +379,12 @@ def analytics_restart_history(
 )
 def analytics_failure_reasons(
     service_name: str,
-    window_hours: int = 24,
+    window_hours: int = Query(24, ge=1, le=168),
 ):
     """
     Aggregate restart reasons for a service in the last window_hours.
+    Returns grouped categories like healthcheck_timeout, crash_loop,
+    manual_restart, other.
     """
     breakdown = get_failure_reasons_breakdown(
         service_name=service_name,

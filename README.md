@@ -64,6 +64,42 @@ It is designed for small deployments and development environments where Kubernet
 
 ---
 
+## Advanced YAML Features
+
+DockFleet supports advanced configuration for more control over services.
+
+### Example
+
+```
+```yaml
+services:
+  redis:
+    image: redis:7
+    restart: always
+```
+
+```
+  api:
+    image: nginx:latest
+    restart: always
+```
+
+    ports:
+      - "8000:8000"
+    
+    depends_on:
+      - redis
+    
+    environment:
+      - ENV=production
+      - DEBUG=false
+    
+    resources:
+      memory: "512m"
+      cpu: 0.5
+
+---
+
 ### <u>Setup (Python + Virtual Environment)</u>
 
 #### 1. Requirements
@@ -314,6 +350,49 @@ dockfleet logs api --follow
 ```
 
 The dashboard also supports live log streaming using Server-Sent Events (SSE).
+
+### Log Aggregation
+
+DockFleet provides centralized log aggregation across all services.  
+
+### How it works
+
+- Docker logs are captured from running containers  
+- Selected log lines are stored in the SQLite database (`LogEvent` table)  
+- Logs can be queried via CLI or API  
+
+### Querying Logs
+
+Logs can be filtered using:  
+
+- `service_name` → filter logs for a specific service    
+- `q` → search substring in log messages    
+- `limit` → restrict number of results    
+
+Example:  
+
+```
+GET /logs?service_name=api&q=error&limit=50
+```
+
+### Download Logs
+
+Logs can also be downloaded using:  
+
+```
+GET /logs/download?service_name=api
+```
+
+This returns logs as a plain text file.  
+
+### Notes
+
+- Log aggregation is local-only (no external services)  
+- Only recent logs may be stored depending on configuration
+
+```bash
+
+```
 
 ---
 
