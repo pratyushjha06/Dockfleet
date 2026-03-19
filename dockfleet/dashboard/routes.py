@@ -305,7 +305,7 @@ async def stream_logs(service: str):
         event_stream(),
         media_type="text/event-stream",
     )
-        
+
 # ------------------------------------------------
 # Crash analytics endpoints
 # ------------------------------------------------
@@ -314,8 +314,8 @@ async def stream_logs(service: str):
     response_model=List[UnstableService],
 )
 def analytics_unstable_services(
-    limit: int = 5,
-    window_hours: int = 24,
+    limit: int = Query(5, ge=1, le=20),
+    window_hours: int = Query(24, ge=1, le=168),
 ):
     """
     Return top N most unstable services (by restart count in last window_hours)
@@ -354,7 +354,7 @@ def analytics_unstable_services(
 )
 def analytics_restart_history(
     service_name: str,
-    since_hours: int = 24,
+    since_hours: int = Query(24, ge=1, le=168),
 ):
     """
     Return recent restart events for a given service.
@@ -379,10 +379,12 @@ def analytics_restart_history(
 )
 def analytics_failure_reasons(
     service_name: str,
-    window_hours: int = 24,
+    window_hours: int = Query(24, ge=1, le=168),
 ):
     """
     Aggregate restart reasons for a service in the last window_hours.
+    Returns grouped categories like healthcheck_timeout, crash_loop,
+    manual_restart, other.
     """
     breakdown = get_failure_reasons_breakdown(
         service_name=service_name,
