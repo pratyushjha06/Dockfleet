@@ -353,16 +353,45 @@ The dashboard also supports live log streaming using Server-Sent Events (SSE).
 
 ### Log Aggregation
 
-DockFleet provides a centralized log viewer across all services.
+DockFleet provides centralized log aggregation across all services.  
 
-- Logs from containers are stored in a SQLite database
-- View logs from all services in one place
-- Filter logs by service
+### How it works
 
-### CLI Example
+- Docker logs are captured from running containers  
+- Selected log lines are stored in the SQLite database (`LogEvent` table)  
+- Logs can be queried via CLI or API  
+
+### Querying Logs
+
+Logs can be filtered using:  
+
+- `service_name` → filter logs for a specific service    
+- `q` → search substring in log messages    
+- `limit` → restrict number of results    
+
+Example:  
+
+```
+GET /logs?service_name=api&q=error&limit=50
+```
+
+### Download Logs
+
+Logs can also be downloaded using:  
+
+```
+GET /logs/download?service_name=api
+```
+
+This returns logs as a plain text file.  
+
+### Notes
+
+- Log aggregation is local-only (no external services)  
+- Only recent logs may be stored depending on configuration
 
 ```bash
-dockfleet show-logs --service api --limit 50
+
 ```
 
 ---
