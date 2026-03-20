@@ -17,6 +17,7 @@ from dockfleet.health.status import (
     record_manual_restart_event,
     record_manual_stop,
 )
+from dockfleet.core.logs import get_logs_services
 from dockfleet.health.logs import (
     query_logs,
     iter_logs_as_text,
@@ -228,12 +229,11 @@ def get_logs(
     q: Optional[str] = Query(None),
     limit: int = Query(100),
 ):
-    from dockfleet.core.logs import get_logs_for_service
 
     if not service_name:
         return []
 
-    logs = get_logs_for_service(service_name, limit)
+    logs = get_logs_services(service_name, limit)
     if q:
         logs = [log for log in logs if q.lower() in log.lower()]
     return logs
