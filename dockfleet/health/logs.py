@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Any, Iterable, Optional
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 from .models import LogEvent, Service, engine
 
 def store_log_line(
@@ -50,7 +50,7 @@ def query_logs(
     High-level helper to fetch LogEvent rows with optional filters
     and pagination.
 
-    - service_name: exact match on LogEvent.service_name
+    - service_name: match on LogEvent.service_name (case-insensitive)
     - q: substring search on message (case-sensitive for now)
     - limit/offset: pagination for dashboard /logs/db and /logs/download
     """
@@ -62,15 +62,20 @@ def query_logs(
         stmt = select(LogEvent)
 
         if service_name:
-            stmt = stmt.where(LogEvent.service_name == service_name)
+            stmt = stmt.where(
+                func.lower(LogEvent.service_name) == service_name.lower()
+            )
 
         if q:
             pattern = f"%{q}%"
             # SQLite: LIKE (case-sensitive by default); can be tuned later.
             stmt = stmt.where(LogEvent.message.like(pattern))
 
-        stmt = stmt.order_by(LogEvent.created_at.desc())
-        stmt = stmt.offset(offset).limit(limit)
+        stmt = (
+            stmt.order_by(LogEvent.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
         events = session.exec(stmt).all()
 
     return list(events)
