@@ -4,22 +4,25 @@ from pathlib import Path
 import logging
 import time
 from datetime import datetime
-from dockfleet.health.status import update_service_health
+
 import typer
 from pydantic import ValidationError
+
 from dockfleet.cli.config import load_config
 from dockfleet.core.orchestrator import Orchestrator, get_logs
 from dockfleet.health.seed import bootstrap_from_path
 from dockfleet.health.scheduler import HealthScheduler
-from dockfleet.health.models import sqlite_file_name  
+from dockfleet.health.status import update_service_health
+from dockfleet.health.models import sqlite_file_name
 
 app = typer.Typer(help="DockFleet CLI - Manage Docker services from YAML configuration")
 
 validate_app = typer.Typer()
 app.add_typer(validate_app, name="validate")
 
+
 @validate_app.callback(invoke_without_command=True)
-def validate(path: Path = typer.Argument("dockfleet.yaml")):
+def validate(path: Path = typer.Argument("examples/dockfleet.yaml")):
     """Validate a DockFleet YAML configuration file before running services."""
     try:
         load_config(path)
@@ -34,16 +37,12 @@ def validate(path: Path = typer.Argument("dockfleet.yaml")):
 
             if "resources" in location and "memory" in location:
                 typer.echo(f"[ERROR] Invalid memory limit → {msg}")
-
             elif "resources" in location and "cpu" in location:
                 typer.echo(f"[ERROR] Invalid CPU value → {msg}")
-
             elif "depends_on" in location:
                 typer.echo(f"[ERROR] Dependency issue → {msg}")
-
             elif "environment" in location:
                 typer.echo(f"[ERROR] Environment format issue → {msg}")
-
             else:
                 typer.echo(f"[ERROR] {location}: {msg}")
 
@@ -51,23 +50,23 @@ def validate(path: Path = typer.Argument("dockfleet.yaml")):
 
     except Exception as e:
         typer.echo(f"Unexpected error: {e}")
-        raise typer.Exit(code=1)   
+        raise typer.Exit(code=1)
+
+
 @app.command()
-def seed(path: Path = typer.Argument("dockfleet.yaml")):
+def seed(path: Path = typer.Argument("examples/dockfleet.yaml")):
     """Initialize the service database and register services from the configuration."""
     try:
         typer.echo(f"Seeding services from {path}...")
-
         bootstrap_from_path(str(path))
-
         typer.echo("✓ Seeding complete")
-
     except Exception as e:
         typer.echo(f"Seeding failed: {e}")
         raise typer.Exit(code=1)
 
+
 @app.command()
-def up(path: Path = typer.Argument("dockfleet.yaml")):
+def up(path: Path = typer.Argument("examples/dockfleet.yaml")):
     """Start all services defined in the DockFleet configuration."""
     try:
         config = load_config(path)
@@ -83,8 +82,9 @@ def up(path: Path = typer.Argument("dockfleet.yaml")):
         typer.echo(f"Error starting services: {e}")
         raise typer.Exit(code=1)
 
+
 @app.command()
-def down(path: Path = typer.Argument("dockfleet.yaml")):
+def down(path: Path = typer.Argument("examples/dockfleet.yaml")):
     """Stop and remove all containers managed by DockFleet."""
     try:
         config = load_config(path)
@@ -100,18 +100,21 @@ def down(path: Path = typer.Argument("dockfleet.yaml")):
         typer.echo(f"Error stopping services: {e}")
         raise typer.Exit(code=1)
 
+
 @app.command()
-def ps():
+def ps(path: Path = typer.Argument("examples/dockfleet.yaml")):
     """Show currently running DockFleet containers."""
     try:
         typer.echo("Listing running containers...\n")
 
-        orch = Orchestrator(config=None)
+        config = load_config(path)
+        orch = Orchestrator(config)
         orch.ps()
 
     except Exception as e:
         typer.echo(f"Error listing containers: {e}")
         raise typer.Exit(code=1)
+
 
 @app.command()
 def logs(
@@ -122,30 +125,27 @@ def logs(
     """
     Show logs for a DockFleet service container.
     """
-
     container_name = f"dockfleet_{service}"
 
     try:
-
         if follow:
             typer.echo(f"Streaming logs for {service} (Ctrl+C to stop)\n")
-
             subprocess.run(
                 ["docker", "logs", "-f", "--tail", str(lines), container_name]
             )
-
         else:
             result = subprocess.run(
                 ["docker", "logs", "--tail", str(lines), container_name],
                 capture_output=True,
                 text=True,
             )
-
             typer.echo(result.stdout)
 
     except Exception:
         typer.echo(f"Service '{service}' not found or container not running.")
         raise typer.Exit(code=1)
+
+
 @app.command("show-logs")
 def show_logs(
     service: str = typer.Option(None, "--service", help="Filter by service name"),
@@ -154,7 +154,6 @@ def show_logs(
     """
     Show aggregated logs stored in DockFleet database.
     """
-
     try:
         from sqlmodel import Session, select
         from dockfleet.health.models import engine
@@ -173,10 +172,10 @@ def show_logs(
                 return
 
             for log in logs:
-
-                ts = getattr(log, "timestamp", None) or getattr(log, "created_at", None)
+                ts = getattr(log, "timestamp", None) or getattr(
+                    log, "created_at", None
+                )
                 if ts:
-
                     ts = ts.strftime("%Y-%m-%d %H:%M:%S")
                 else:
                     ts = "no-time"
@@ -186,7 +185,8 @@ def show_logs(
     except Exception as e:
         typer.echo(f"Failed to fetch logs: {e}")
         raise typer.Exit(code=1)
-       
+
+
 @app.command()
 def doctor():
     """Check system environment (Python version and Docker availability)."""
@@ -204,7 +204,6 @@ def doctor():
             text=True,
             check=True,
         )
-
         typer.echo(f"Docker detected: {result.stdout.strip()}")
         typer.echo("✓ Environment looks good")
 
@@ -212,9 +211,10 @@ def doctor():
         typer.echo("✗ Docker not found or not running")
         raise typer.Exit(code=1)
 
+
 @app.command("health-dev")
 def health_dev(
-    path: Path = typer.Argument("dockfleet.yaml"),
+    path: Path = typer.Argument("examples/dockfleet.yaml"),
     once: bool = typer.Option(
         False,
         "--once",
@@ -228,20 +228,18 @@ def health_dev(
 ):
     """
     Developer command to run the health check scheduler backed by SQLite DB.
-
-    - Initializes DB + seeds services if needed.
-    - Runs HealthScheduler which writes status into the Service table.
-    - By default runs in a loop until Ctrl+C; with --once runs one cycle and exits.
     """
     try:
         typer.echo("Starting DockFleet health check scheduler (DEV MODE)")
-        typer.echo("Press Ctrl+C to stop\n" if not once else "Running a single health pass\n")
+        typer.echo(
+            "Press Ctrl+C to stop\n" if not once else "Running a single health pass\n"
+        )
 
         config = load_config(path)
         if no_restart:
-         config.self_healing = False
-         for svc in config.services.values():
-          svc.self_healing = False
+            config.self_healing = False
+            for svc in config.services.values():
+                svc.self_healing = False
 
         # Ensure DB and Service rows are present
         typer.echo(f"Bootstrapping health DB from {path} ...")
@@ -253,7 +251,8 @@ def health_dev(
 
         # check if any service has healthcheck defined
         services_with_health = [
-            name for name, svc in config.services.items()
+            name
+            for name, svc in config.services.items()
             if svc.healthcheck is not None
         ]
 
@@ -279,8 +278,8 @@ def health_dev(
                     reason=None if ok else "health check failed",
                 )
                 scheduler._handle_post_health(name)
-        typer.echo("Single health pass complete.")
-        return
+            typer.echo("Single health pass complete.")
+            return
 
         # Normal long-running mode
         typer.echo("Health monitoring started...")
@@ -295,13 +294,14 @@ def health_dev(
     except Exception as e:
         typer.echo(f"Health scheduler failed: {e}")
         raise typer.Exit(code=1)
+
+
 @app.command("self-heal")
 def self_heal(
-    path: Path = typer.Argument("dockfleet.yaml")
+    path: Path = typer.Argument("examples/dockfleet.yaml"),
 ):
     """
     Run DockFleet in continuous self-healing mode.
-    Health checks run continuously and unhealthy services are restarted automatically.
     """
     try:
         typer.echo("Starting DockFleet self-healing loop...\n")
@@ -327,6 +327,7 @@ def self_heal(
     except Exception as e:
         typer.echo(f"Self-heal command failed: {e}")
         raise typer.Exit(code=1)
-    
+
+
 if __name__ == "__main__":
     app()
