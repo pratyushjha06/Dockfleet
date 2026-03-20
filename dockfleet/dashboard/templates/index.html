@@ -407,53 +407,50 @@
 
         <div x-show="activeTab === 'analytics'" class="mt-16">
 
+            <template x-if="!loadingAnalytics && analytics.unstable_services.length === 0">
+                <p class="text-center text-gray-400">No analytics data available</p>
+            </template>
+
+            <!-- Loading -->
+            <div x-show="loadingAnalytics" class="text-center text-blue-400 mb-4">
+                Loading analytics...
+            </div>
+
+            <!-- Error -->
+            <div x-show="analyticsError" class="text-center text-red-400 mb-4">
+                <span x-text="analyticsError"></span>
+            </div>
+
             <h2 class="text-2xl font-bold mb-6">Analytics</h2>
+
+            <div class="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-xl mb-6">
+                <template x-if="analytics.unstable_services.length > 0">
+                    <p>
+                        <strong x-text="analytics.unstable_services[0].service_name"></strong>
+                        restarted
+                        <strong x-text="analytics.unstable_services[0].restarts"></strong>
+                        times in last 24h.
+                    </p>
+                </template>
+            </div>
 
             <!-- Most Unstable Services -->
             <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow mb-6">
                 <h3 class="text-lg font-semibold mb-3">Most Unstable Services</h3>
 
-                <template x-for="svc in analytics.unstable_services" :key="svc.service_name">
-                    <div class="flex justify-between border-b py-2 cursor-pointer"
-                        @click="selectServiceAnalytics(svc.service_name)">
-
-                        <span x-text="svc.service_name"></span>
-
-                        <span class="font-bold text-red-500" x-text="svc.restarts"></span>
-                    </div>
-                </template>
+                <canvas id="unstableChart"></canvas>
             </div>
 
-            <!-- Restart History Placeholder -->
             <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow mb-6">
-                <h3 class="text-lg font-semibold mb-3">Restart History</h3>
+                <h3 class="text-lg font-semibold mb-3">Restart Trend</h3>
 
-                <div class="h-40 flex items-center justify-center text-gray-400">
-                    <template x-if="analytics.restart_history.length === 0">
-                        <p class="text-gray-400">No restart history</p>
-                    </template>
-
-                    <template x-for="item in analytics.restart_history">
-                        <div class="flex justify-between text-sm border-b py-1">
-                            <span x-text="new Date(item.timestamp).toLocaleTimeString()"></span>
-                            <span x-text="item.reason"></span>
-                        </div>
-                    </template>
-                </div>
+                <canvas id="restartChart"></canvas>
             </div>
 
-            <!-- Failure Breakdown Placeholder -->
             <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow">
                 <h3 class="text-lg font-semibold mb-3">Failure Breakdown</h3>
 
-                <div class="h-40 flex items-center justify-center text-gray-400">
-                    <template x-for="item in analytics.failure_breakdown">
-                        <div class="flex justify-between text-sm border-b py-1">
-                            <span x-text="item.reason"></span>
-                            <span class="font-bold text-red-500" x-text="item.count"></span>
-                        </div>
-                    </template>
-                </div>
+                <canvas id="failureChart"></canvas>
             </div>
 
         </div>
@@ -479,6 +476,11 @@
 
                 activeTab: 'services',
                 searchQuery: '',
+                loadingAnalytics: false,
+                analyticsError: null,
+                unstableChart: null,
+                restartChart: null,
+                failureChart: null,
 
                 async init() {
 
@@ -488,6 +490,12 @@
                         this.fetchServices()
                         this.fetchSummary()
                     }, 5000)
+
+                    setInterval(() => {
+                        if (this.activeTab === 'analytics') {
+                            this.fetchAnalytics();
+                        }
+                    }, 10000);
 
                     if (localStorage.theme === 'dark') {
                         document.documentElement.classList.add('dark')
@@ -540,20 +548,96 @@
                 },
 
                 async fetchAnalytics() {
+                    this.loadingAnalytics = true;
+                    this.analyticsError = null;
+
                     try {
                         const res = await fetch("/analytics/unstable-services");
                         this.analytics.unstable_services = await res.json();
 
-                        // auto-select first service
                         if (this.analytics.unstable_services.length > 0) {
                             const first = this.analytics.unstable_services[0].service_name;
-                            this.selectServiceAnalytics(first);
+                            await this.selectServiceAnalytics(first);
+
+                            this.$nextTick(() => {
+                                this.renderUnstableChart();
+                                this.renderRestartChart();
+                                this.renderFailureChart();
+                            });
                         }
 
                     } catch (err) {
                         console.error("Analytics load failed", err);
+                        this.analyticsError = "Failed to load analytics";
+                    } finally {
+                        this.loadingAnalytics = false;
                     }
                 },
+
+                renderRestartChart() {
+                    const ctx = document.getElementById('restartChart');
+                    if (!ctx) return;
+
+                    if (this.restartChart) this.restartChart.destroy();
+
+                    this.restartChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: this.analytics.restart_history.map(i =>
+                                new Date(i.timestamp).toLocaleTimeString()
+                            ),
+                            datasets: [{
+                                label: 'Restarts Over Time',
+                                data: this.analytics.restart_history.map(() => 1),
+                                borderColor: '#3b82f6',
+                                fill: false
+                            }]
+                        }
+                    });
+                },
+
+                renderFailureChart() {
+                    const ctx = document.getElementById('failureChart');
+                    if (!ctx) return;
+
+                    if (this.failureChart) this.failureChart.destroy();
+
+                    this.failureChart = new Chart(ctx, {
+                        type: 'pie',
+                        data: {
+                            labels: this.analytics.failure_breakdown.map(i => i.reason),
+                            datasets: [{
+                                data: this.analytics.failure_breakdown.map(i => i.count),
+                                backgroundColor: [
+                                    '#ef4444',
+                                    '#f59e0b',
+                                    '#3b82f6',
+                                    '#10b981'
+                                ]
+                            }]
+                        }
+                    });
+                },
+
+                renderUnstableChart() {
+                    const ctx = document.getElementById('unstableChart');
+                    if (!ctx) return;
+
+                    if (this.unstableChart) this.unstableChart.destroy();
+
+                    this.unstableChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: this.analytics.unstable_services.map(s => s.service_name),
+                            datasets: [{
+                                label: 'Restarts',
+                                data: this.analytics.unstable_services.map(s => s.restarts),
+                                backgroundColor: '#ef4444'
+                            }]
+                        }
+                    });
+                },
+
                 downloadLogs() {
                     let url = `/logs/download?service_name=${this.selectedService}`;
                     window.location = url;

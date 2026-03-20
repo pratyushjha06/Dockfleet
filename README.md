@@ -390,9 +390,99 @@ This returns logs as a plain text file.
 - Log aggregation is local-only (no external services)  
 - Only recent logs may be stored depending on configuration
 
-```bash
+---
+
+### <u>Standout Features</u>
+
+Adds two production-grade observability features that set DockFleet apart from basic container managers: **Crash Analytics** and a **Metrics Endpoint**.
+
+### Crash Analytics
+
+DockFleet tracks every service restart and health failure, giving you deep visibility into which services are unstable and why.
+
+**What it gives you:** Instead of just knowing a service is down, you can see its full restart history, identify the most failure-prone services across your stack, and understand the breakdown of failure reasons (healthcheck timeout, crash loop, manual restart, etc.).
+
+### API Endpoints
+
+| Endpoint                                   | Description                                                                  |
+| ------------------------------------------ | ---------------------------------------------------------------------------- |
+| `GET /analytics/summary`                   | Overall stability snapshot — total restarts, failures, top unstable services |
+| `GET /analytics/unstable-services`         | Top N services ranked by restart count                                       |
+| `GET /analytics/restart-history/{service}` | Full restart timeline for a specific service                                 |
+| `GET /analytics/failure-reasons/{service}` | Grouped failure reason breakdown for a service                               |
+
+### Query Parameters
+
+All analytics endpoints accept:
+
+- `window_hours` — look back window in hours (default: 24, max: 168)
+- `limit` — number of results to return (where applicable)
+
+#### Example
 
 ```
+GET /analytics/summary?window_hours=48&limit=5
+```
+
+```json
+{
+  "window_hours": 48,
+  "total_restarts": 12,
+  "total_health_failures": 12,
+  "most_unstable_services": [
+    {
+      "service_name": "api",
+      "restarts": 9,
+      "last_restart_at": "2026-03-19T14:32:00"
+    },
+    {
+      "service_name": "redis",
+      "restarts": 3,
+      "last_restart_at": "2026-03-18T22:10:00"
+    }
+  ]
+}
+```
+
+---
+
+### Metrics Endpoint
+
+DockFleet exposes a `/metrics` endpoint that returns a real-time system health snapshot — useful for dashboards, alerting, or quick status checks.
+
+**What it gives you:** A single API call that tells you how many services are running, how many are unhealthy, the total number of restarts across the entire stack, and how many health failures occurred in the last 24 hours.
+
+#### Endpoint
+
+```
+GET /metrics
+```
+
+#### Example Response
+
+```json
+{
+  "total_services": 4,
+  "running_services": 3,
+  "unhealthy_services": 1,
+  "stopped_services": 0,
+  "total_restarts": 17,
+  "health_failures": 5,
+  "collected_at": "2026-03-19T15:00:00"
+}
+```
+
+#### Response Fields
+
+| Field                | Description                                  |
+| -------------------- | -------------------------------------------- |
+| `total_services`     | All services registered in DockFleet         |
+| `running_services`   | Services currently in healthy state          |
+| `unhealthy_services` | Services currently failing health checks     |
+| `stopped_services`   | Services that have been stopped              |
+| `total_restarts`     | Cumulative restart count across all services |
+| `health_failures`    | Restart events recorded in the last 24 hours |
+| `collected_at`       | UTC timestamp of when metrics were collected |
 
 ---
 
