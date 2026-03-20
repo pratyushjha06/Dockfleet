@@ -95,6 +95,12 @@ def get_status_counts() -> dict[str, int]:
 
     return dict(counter)
 
+
+# -------------------------------------------------------------------
+# Crash analytics helpers
+# -------------------------------------------------------------------
+
+
 def get_restart_history(
     service_name: str,
     since: Optional[datetime] = None,
@@ -172,18 +178,32 @@ def get_most_unstable_services(
             for name, count in rows
         ]
 
+def normalize_failure_reason(raw: str | None) -> str:
+    """
+    Map raw RestartEvent.reason into a small set of categories
+    for clearer crash analytics.
+    """
+    text = (raw or "").lower()
+
+    if "3_failed_health_checks" in text or "health_check" in text:
+        return "healthcheck_timeout"
+
+    if "auto-restart failed" in text or "crash" in text:
+        return "crash_loop"
+
+    if "manual_dashboard_restart" in text or "manual" in text:
+        return "manual_restart"
+
+    return "other"
+
+
 def get_failure_reasons_breakdown(
     service_name: str,
     window_hours: int = 24,
 ) -> dict[str, int]:
     """
-    Aggregate restart reasons for a service in the last `window_hours`.
-
-    Output example:
-      {
-        "3_failed_health_checks": 5,
-        "manual_dashboard_restart": 2,
-      }
+    Aggregate restart reasons (grouped into categories) for a service
+    in the last `window_hours`.
     """
     since = datetime.utcnow() - timedelta(hours=window_hours)
 
@@ -195,12 +215,16 @@ def get_failure_reasons_breakdown(
             return {}
 
         stmt = (
-            select(RestartEvent.reason, func.count(RestartEvent.id))
+            select(RestartEvent.reason)
             .where(RestartEvent.service_id == svc.id)
             .where(RestartEvent.restarted_at >= since)
-            .group_by(RestartEvent.reason)
         )
 
         rows = session.exec(stmt).all()
 
-        return {reason: count for reason, count in rows}
+    counts: dict[str, int] = {}
+    for raw_reason in rows:
+        category = normalize_failure_reason(raw_reason)
+        counts[category] = counts.get(category, 0) + 1
+
+    return counts

@@ -1,14 +1,14 @@
-# tests/test_crash_analytics_queries.py
+# tests/test_analytics_endpoints_light.py
 
 from datetime import datetime, timedelta
 
 from sqlmodel import Session
 
 from dockfleet.health.models import Service, RestartEvent, engine, init_db
-from dockfleet.health.queries import (
-    get_restart_history,
-    get_most_unstable_services,
-    get_failure_reasons_breakdown,
+from dockfleet.dashboard.routes import (
+    analytics_unstable_services,
+    analytics_restart_history,
+    analytics_failure_reasons,
 )
 
 
@@ -16,9 +16,6 @@ def setup_function(_func):
     # Fresh DB state before each test
     init_db()
     with Session(engine) as session:
-        # ensure tables exist and clear them
-        session.query(RestartEvent).all()
-        session.query(Service).all()
         session.query(RestartEvent).delete()
         session.query(Service).delete()
         session.commit()
@@ -40,22 +37,13 @@ def _seed_restarts():
             image="worker:latest",
             restart_policy="always",
         )
-        session.add(api)
-        session.add(worker)
+        session.add_all([api, worker])
         session.commit()
         session.refresh(api)
         session.refresh(worker)
 
         events = [
-            # api: 3 restarts with different reasons/times
-            RestartEvent(
-                service_id=api.id,
-                service_name="api",
-                restarted_at=now - timedelta(hours=1),
-                reason="3_failed_health_checks",
-                previous_status="unhealthy",
-                new_status="running",
-            ),
+            # api: 2 restarts
             RestartEvent(
                 service_id=api.id,
                 service_name="api",
@@ -86,36 +74,32 @@ def _seed_restarts():
         session.commit()
 
 
-def test_get_restart_history():
-    history = get_restart_history("api")
-    assert len(history) == 3
+def test_analytics_unstable_services_basic():
+    res = analytics_unstable_services(limit=2, window_hours=24)
+    # should return at least api and worker
+    assert len(res) >= 2
 
-    # sorted desc by timestamp
-    assert history[0]["timestamp"] >= history[-1]["timestamp"]
+    # api should be most unstable (2 restarts)
+    assert res[0].service_name == "api"
+    assert res[0].restarts == 2
+    assert res[0].last_restart_at is not None
 
-    reasons = {h["reason"] for h in history}
+
+def test_analytics_restart_history_endpoint():
+    res = analytics_restart_history("api", since_hours=24)
+    assert len(res) == 2
+    reasons = {r.reason for r in res}
     assert "3_failed_health_checks" in reasons
     assert "manual_dashboard_restart" in reasons
 
 
-def test_get_most_unstable_services():
-    unstable = get_most_unstable_services(limit=2, window_hours=24)
-    assert len(unstable) >= 2
+def test_analytics_failure_reasons_endpoint():
+    res = analytics_failure_reasons("api", window_hours=24)
+    # convert to dict for easy assertions
+    reasons = {item.reason: item.count for item in res}
+    assert reasons["3_failed_health_checks"] == 1
+    assert reasons["manual_dashboard_restart"] == 1
 
-    # api should come before worker (3 vs 1 restarts)
-    assert unstable[0]["service_name"] == "api"
-    assert unstable[0]["restarts"] == 3
-
-    names = {row["service_name"] for row in unstable}
-    assert {"api", "worker"} <= names
-
-
-def test_get_failure_reasons_breakdown():
-    breakdown = get_failure_reasons_breakdown("api", window_hours=24)
-    # api: 2 health_check + 1 manual → grouped categories
-    assert breakdown["healthcheck_timeout"] == 2
-    assert breakdown["manual_restart"] == 1
-
-    # worker ke liye bhi sanity check (only healthcheck_timeout)
-    worker_breakdown = get_failure_reasons_breakdown("worker", window_hours=24)
-    assert worker_breakdown["healthcheck_timeout"] == 1
+    worker_res = analytics_failure_reasons("worker", window_hours=24)
+    worker_reasons = {item.reason: item.count for item in worker_res}
+    assert worker_reasons["3_failed_health_checks"] == 1
