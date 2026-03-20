@@ -85,6 +85,7 @@
             </div>
         </div>
         <div x-show="activeTab === 'services'" class="space-y-10">
+            <h2 class="text-2xl font-bold mb-4">Services Overview</h2>
 
             <!-- STATUS LEGEND -->
             <div class="flex gap-6 mb-8 text-sm items-center">
@@ -325,14 +326,15 @@
 
             </div>
         </div>
-
-        <div x-show="activeTab === 'logs'" class="mt-10">
+        <div x-show="activeTab === 'logs'" class="mt-12">
+            <h2 class="text-2xl font-bold mb-4">Logs Explorer</h2>
 
             <!-- Filters -->
             <div class="flex gap-4 mb-4">
 
                 <!-- Service Filter -->
-                <select x-model="selectedService" @change="fetchLogs()" class="bg-gray-800 text-white p-2 rounded">
+                <select x-model="selectedService" @change="fetchLogs()"
+                    class="bg-gray-200 text-black dark:bg-gray-800 dark:text-white p-2 rounded">
 
                     <option value="">All Services</option>
 
@@ -344,7 +346,7 @@
 
                 <!-- Search -->
                 <input type="text" placeholder="Search logs..." x-model="searchQuery" @input="fetchLogs()"
-                    class="bg-gray-800 text-white p-2 rounded w-full" />
+                    class="bg-gray-200 text-black dark:bg-gray-800 dark:text-white p-2 rounded w-full" />
 
                 <button @click="downloadLogs()" class="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700">
                     Download Logs
@@ -352,7 +354,8 @@
             </div>
 
             <!-- Logs Viewer -->
-            <div class="bg-black text-green-400 font-mono text-sm p-4 rounded h-[400px] overflow-y-scroll">
+            <div
+                class="bg-gray-900 text-green-400 dark:bg-black font-mono text-sm p-4 rounded h-[400px] overflow-y-scroll">
 
                 <template x-for="log in filteredLogs" :key="log.message + Math.random()">
                     <div class="mb-1">
@@ -363,57 +366,61 @@
 
             </div>
 
-        </div>
 
-        <!-- LOG VIEWER -->
-        <div class="mt-16">
 
-            <h2 class="text-2xl font-bold mb-4">Live Service Logs</h2>
+            <!-- LOG VIEWER -->
+            <div class="mt-16">
 
-            <div class="flex gap-4 mb-4">
+                <h2 class="text-2xl font-bold mb-4">Live Service Logs</h2>
 
-                <!-- Service Selector -->
-                <select x-model="selectedService" class="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700">
+                <div class="flex gap-4 mb-4">
 
-                    <option value="">Select Service</option>
+                    <!-- Service Selector -->
+                    <select x-model="selectedService" class="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700">
 
-                    <template x-for="service in services">
-                        <option :value="service.name" x-text="service.name"></option>
-                    </template>
+                        <option value="">Select Service</option>
 
-                </select>
+                        <template x-for="service in services">
+                            <option :value="service.name" x-text="service.name"></option>
+                        </template>
 
-                <button @click="connectLogs()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
+                    </select>
 
-                    Start Logs
-                </button>
+                    <button @click="connectLogs()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
 
-                <button @click="disconnectLogs()" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-500">
-                    Stop
-                </button>
+                        Start Logs
+                    </button>
 
-                <button @click="clearLogs()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-500">
+                    <button @click="disconnectLogs()"
+                        class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-500">
+                        Stop
+                    </button>
 
-                    Clear Logs
-                </button>
+                    <button @click="clearLogs()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-500">
 
-                <button @click="toggleScroll()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-500">
-                    Toggle Auto Scroll
-                </button>
+                        Clear Logs
+                    </button>
 
-            </div>
+                    <button @click="toggleScroll()"
+                        class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-500">
+                        Toggle Auto Scroll
+                    </button>
 
-            <div x-ref="logBox" class="bg-black text-green-400 font-mono text-xs p-4 rounded-xl
+                </div>
+
+                <div x-ref="logBox" class="bg-gray-900 text-green-400 dark:bg-black font-mono text-xs p-4 rounded-xl
                 h-60 md:h-72 overflow-y-auto border border-gray-700">
 
-                <template x-for="line in liveLogs">
-                    <div x-text="line"></div>
-                </template>
-            </div>
+                    <template x-for="line in liveLogs">
+                        <div x-text="line"></div>
+                    </template>
+                </div>
 
+            </div>
         </div>
 
-        <div x-show="activeTab === 'analytics'" class="mt-10">
+        <div x-show="activeTab === 'analytics'" class="mt-12">
+
 
             <template x-if="!loadingAnalytics && analytics.unstable_services.length === 0">
                 <p class="text-center text-gray-400">No analytics data available</p>
@@ -526,8 +533,12 @@
                         url += `&q=${this.searchQuery}`;
                     }
 
-                    const res = await fetch(url);
-                    this.apiLogs = await res.json();
+                    try {
+                        const res = await fetch(url);
+                        this.apiLogs = await res.json();
+                    } catch (err) {
+                        console.error("Logs fetch failed", err);
+                    }
                 },
 
                 get filteredLogs() {
@@ -583,27 +594,28 @@
                 },
 
                 renderRestartChart() {
-                    const ctx = document.getElementById('restartChart');
-                    if (!ctx) return;
+                    this.$nextTick(() => {
+                        const ctx = document.getElementById('restartChart');
+                        if (!ctx) return;
 
-                    if (this.restartChart) this.restartChart.destroy();
+                        if (this.restartChart) this.restartChart.destroy();
 
-                    this.restartChart = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: this.analytics.restart_history.map(i =>
-                                new Date(i.timestamp).toLocaleTimeString()
-                            ),
-                            datasets: [{
-                                label: 'Restarts Over Time',
-                                data: this.analytics.restart_history.map(() => 1),
-                                borderColor: '#3b82f6',
-                                fill: false
-                            }]
-                        }
+                        this.restartChart = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: this.analytics.restart_history.map(i =>
+                                    new Date(i.timestamp).toLocaleTimeString()
+                                ),
+                                datasets: [{
+                                    label: 'Restarts Over Time',
+                                    data: this.analytics.restart_history.map(() => 1),
+                                    borderColor: '#3b82f6',
+                                    fill: false
+                                }]
+                            }
+                        });
                     });
                 },
-
                 renderFailureChart() {
                     const ctx = document.getElementById('failureChart');
                     if (!ctx) return;
