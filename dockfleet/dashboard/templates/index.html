@@ -65,20 +65,24 @@
                 </p>
             </div>
 
-            <button @click="activeTab = 'logs'; fetchLogs()" :class="activeTab === 'logs' ? 'text-blue-400' : ''">
-                Logs
-            </button>
+            <div class="flex gap-6 items-center">
 
-            <button @click="activeTab = 'analytics'; fetchAnalytics()"
-                :class="activeTab === 'analytics' ? 'text-blue-400' : ''">
-                Analytics
-            </button>
+                <button @click="activeTab = 'services'"
+                    :class="activeTab === 'services' ? 'text-blue-500 font-semibold border-b-2 border-blue-500 pb-1' : 'text-gray-500'">
+                    Services
+                </button>
 
-            <button @click="toggleDarkMode()"
-                class="px-4 py-2 rounded-xl bg-gray-800 text-white dark:bg-gray-700 hover:scale-105 transition">
-                Toggle Theme
-            </button>
+                <button @click="activeTab = 'logs'; fetchLogs()"
+                    :class="activeTab === 'logs' ? 'text-blue-500 font-semibold border-b-2 border-blue-500 pb-1' : 'text-gray-500'">
+                    Logs
+                </button>
 
+                <button @click="activeTab = 'analytics'; fetchAnalytics()"
+                    :class="activeTab === 'analytics' ? 'text-blue-500 font-semibold border-b-2 border-blue-500 pb-1' : 'text-gray-500'">
+                    Analytics
+                </button>
+
+            </div>
         </div>
         <div x-show="activeTab === 'services'" class="space-y-10">
 
