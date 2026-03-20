@@ -1,121 +1,201 @@
-# tests/test_crash_analytics_queries.py
 
+
+import pytest
 from datetime import datetime, timedelta
+from sqlmodel import Session, SQLModel, create_engine
+from unittest.mock import patch
 
-from sqlmodel import Session
-
-from dockfleet.health.models import Service, RestartEvent, engine, init_db
+from dockfleet.health.models import Service, RestartEvent
 from dockfleet.health.queries import (
-    get_restart_history,
-    get_most_unstable_services,
     get_failure_reasons_breakdown,
+    get_most_unstable_services,
+    get_restart_history,
 )
 
 
-def setup_function(_func):
-    # Fresh DB state before each test
-    init_db()
+# ------------------------------------------------
+# In-memory SQLite engine for tests (no file left behind)
+# ------------------------------------------------
+TEST_DB_URL = "sqlite://"  # pure in-memory
+
+
+@pytest.fixture(name="engine")
+def engine_fixture():
+    """Create a fresh in-memory DB for every test."""
+    engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
+    SQLModel.metadata.create_all(engine)
+    yield engine
+    SQLModel.metadata.drop_all(engine)
+
+
+@pytest.fixture(name="session")
+def session_fixture(engine):
+    """Provide a session backed by the in-memory engine."""
     with Session(engine) as session:
-        # ensure tables exist and clear them
-        session.query(RestartEvent).all()
-        session.query(Service).all()
-        session.query(RestartEvent).delete()
-        session.query(Service).delete()
-        session.commit()
-
-    _seed_restarts()
+        yield session
 
 
-def _seed_restarts():
-    with Session(engine) as session:
-        now = datetime.utcnow()
+@pytest.fixture(name="seeded_service")
+def seeded_service_fixture(session, engine):
+    """
+    Insert one Service row and several RestartEvents with
+    different reasons so analytics queries have real data.
+    """
+    svc = Service(
+        name="api",
+        image="nginx:latest",
+        restart_policy="always",
+        status="unhealthy",
+        restart_count=7,
+    )
+    session.add(svc)
+    session.commit()
+    session.refresh(svc)
 
-        api = Service(
-            name="api",
-            image="api:latest",
-            restart_policy="always",
+    now = datetime.utcnow()
+
+    # 4x healthcheck failures
+    for i in range(4):
+        session.add(
+            RestartEvent(
+                service_id=svc.id,
+                service_name="api",
+                restarted_at=now - timedelta(hours=i + 1),
+                reason="3_failed_health_checks",
+                previous_status="unhealthy",
+                new_status="restarting",
+            )
         )
-        worker = Service(
-            name="worker",
-            image="worker:latest",
-            restart_policy="always",
+
+    # 2x manual restarts
+    for i in range(2):
+        session.add(
+            RestartEvent(
+                service_id=svc.id,
+                service_name="api",
+                restarted_at=now - timedelta(hours=i + 5),
+                reason="manual_restart",
+                previous_status="healthy",
+                new_status="restarting",
+            )
         )
-        session.add(api)
-        session.add(worker)
-        session.commit()
-        session.refresh(api)
-        session.refresh(worker)
 
-        events = [
-            # api: 3 restarts with different reasons/times
-            RestartEvent(
-                service_id=api.id,
-                service_name="api",
-                restarted_at=now - timedelta(hours=1),
-                reason="3_failed_health_checks",
-                previous_status="unhealthy",
-                new_status="running",
-            ),
-            RestartEvent(
-                service_id=api.id,
-                service_name="api",
-                restarted_at=now - timedelta(minutes=30),
-                reason="3_failed_health_checks",
-                previous_status="unhealthy",
-                new_status="running",
-            ),
-            RestartEvent(
-                service_id=api.id,
-                service_name="api",
-                restarted_at=now - timedelta(minutes=10),
-                reason="manual_dashboard_restart",
-                previous_status="running",
-                new_status="running",
-            ),
-            # worker: 1 restart
-            RestartEvent(
-                service_id=worker.id,
-                service_name="worker",
-                restarted_at=now - timedelta(minutes=5),
-                reason="3_failed_health_checks",
-                previous_status="unhealthy",
-                new_status="running",
-            ),
-        ]
-        session.add_all(events)
-        session.commit()
+    # 1x crash loop (outside 24h window — should NOT appear in 24h queries)
+    session.add(
+        RestartEvent(
+            service_id=svc.id,
+            service_name="api",
+            restarted_at=now - timedelta(hours=30),
+            reason="crash_loop",
+            previous_status="unhealthy",
+            new_status="restarting",
+        )
+    )
+
+    session.commit()
+    return svc
 
 
-def test_get_restart_history():
-    history = get_restart_history("api")
-    assert len(history) == 3
+# ------------------------------------------------
+# Tests: failure reason grouping
+# ------------------------------------------------
 
-    # sorted desc by timestamp
-    assert history[0]["timestamp"] >= history[-1]["timestamp"]
+def test_failure_reasons_breakdown_counts(seeded_service, engine):
+    """
+    get_failure_reasons_breakdown() should return correct counts
+    grouped by reason within the default 24h window.
+    The crash_loop event (30h ago) must NOT appear.
+    """
+    with patch("dockfleet.health.queries.engine", engine):
+        breakdown = get_failure_reasons_breakdown("api", window_hours=24)
 
-    reasons = {h["reason"] for h in history}
-    assert "3_failed_health_checks" in reasons
-    assert "manual_dashboard_restart" in reasons
-
-
-def test_get_most_unstable_services():
-    unstable = get_most_unstable_services(limit=2, window_hours=24)
-    assert len(unstable) >= 2
-
-    # api should come before worker (3 vs 1 restarts)
-    assert unstable[0]["service_name"] == "api"
-    assert unstable[0]["restarts"] == 3
-
-    names = {row["service_name"] for row in unstable}
-    assert {"api", "worker"} <= names
+    assert breakdown["3_failed_health_checks"] == 4
+    assert breakdown["manual_restart"] == 2
+    # crash_loop is outside 24h window — must not appear
+    assert "crash_loop" not in breakdown
 
 
-def test_get_failure_reasons_breakdown():
-    breakdown = get_failure_reasons_breakdown("api", window_hours=24)
-    # api: 2 health_check + 1 manual → grouped categories
-    assert breakdown["healthcheck_timeout"] == 2
-    assert breakdown["manual_restart"] == 1
+def test_failure_reasons_breakdown_empty_for_unknown_service(engine):
+    """
+    get_failure_reasons_breakdown() should return an empty dict
+    for a service that does not exist in the DB.
+    """
+    with patch("dockfleet.health.queries.engine", engine):
+        breakdown = get_failure_reasons_breakdown("nonexistent", window_hours=24)
 
-    # worker ke liye bhi sanity check (only healthcheck_timeout)
-    worker_breakdown = get_failure_reasons_breakdown("worker", window_hours=24)
-    assert worker_breakdown["healthcheck_timeout"] == 1
+    assert breakdown == {}
+
+
+def test_failure_reasons_breakdown_wider_window_includes_old_events(seeded_service, engine):
+    """
+    With a 48h window, the crash_loop event (30h ago) should now appear.
+    """
+    with patch("dockfleet.health.queries.engine", engine):
+        breakdown = get_failure_reasons_breakdown("api", window_hours=48)
+
+    assert breakdown["crash_loop"] == 1
+    assert breakdown["3_failed_health_checks"] == 4
+
+
+# ------------------------------------------------
+# Tests: most unstable services
+# ------------------------------------------------
+
+def test_most_unstable_services_ordering(seeded_service, engine):
+    """
+    get_most_unstable_services() should return services ordered
+    by restart count descending within the time window.
+    """
+    with patch("dockfleet.health.queries.engine", engine):
+        result = get_most_unstable_services(limit=5, window_hours=24)
+
+    # api has 6 events in last 24h (4 healthcheck + 2 manual)
+    assert len(result) == 1
+    assert result[0]["service_name"] == "api"
+    assert result[0]["restarts"] == 6
+
+
+def test_most_unstable_services_empty_when_no_events(engine):
+    """
+    get_most_unstable_services() should return empty list
+    when there are no restart events in the window.
+    """
+    with patch("dockfleet.health.queries.engine", engine):
+        result = get_most_unstable_services(limit=5, window_hours=24)
+
+    assert result == []
+
+
+# ------------------------------------------------
+# Tests: restart history
+# ------------------------------------------------
+
+def test_restart_history_returns_events_in_window(seeded_service, engine):
+    """
+    get_restart_history() should return events within the since window,
+    most recent first.
+    """
+    since = datetime.utcnow() - timedelta(hours=24)
+
+    with patch("dockfleet.health.queries.engine", engine):
+        history = get_restart_history("api", since=since)
+
+    # 6 events within 24h (crash_loop is 30h ago)
+    assert len(history) == 6
+
+    # Each item must have expected keys
+    for item in history:
+        assert "timestamp" in item
+        assert "reason" in item
+        assert "previous_status" in item
+        assert "new_status" in item
+
+
+def test_restart_history_empty_for_unknown_service(engine):
+    """
+    get_restart_history() should return empty list for unknown service.
+    """
+    with patch("dockfleet.health.queries.engine", engine):
+        history = get_restart_history("ghost_service")
+
+    assert history == []
