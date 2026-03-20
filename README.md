@@ -484,6 +484,36 @@ GET /metrics
 | `health_failures`    | Restart events recorded in the last 24 hours |
 | `collected_at`       | UTC timestamp of when metrics were collected |
 
+Using `/metrics` with External Monitoring
+
+Because `/metrics` returns plain JSON, it can be consumed by any HTTP-capable monitoring tool without any special client library.
+
+**Example: poll with curl**
+
+```bash
+curl http://localhost:8080/metrics
+```
+
+**Example: simple shell alert script**
+
+```bash
+#!/bin/bash
+FAILURES=$(curl -s http://localhost:8080/metrics | python3 -c "import sys,json; print(json.load(sys.stdin)['health_failures'])")
+if [ "$FAILURES" -gt 3 ]; then
+  echo "WARNING: $FAILURES health failures in the last 24h"
+fi
+```
+
+**Example: fetch in a custom dashboard**
+
+```javascript
+const res = await fetch("http://localhost:8080/metrics");
+const data = await res.json();
+console.log(`Running: ${data.running_services}/${data.total_services}`);
+```
+
+> **Note:** For teams wanting Prometheus-compatible scraping, the `/metrics` JSON structure maps cleanly to gauge metrics (`running_services`, `unhealthy_services`, `total_restarts`) and can be wrapped with `prometheus-client` in a future iteration without any API changes.
+
 ---
 
 ### <u>Tech Stack</u>

@@ -46,7 +46,7 @@
            text-gray-900 dark:text-white
            min-h-screen transition-all duration-300" x-data="dashboard()" x-init="init()">
 
-    <div class="container mx-auto px-6 py-10">
+    <div class="container mx-auto px-6 py-10 space-y-12">
 
         <!-- NAVBAR -->
         <div class="flex justify-between items-center mb-10">
@@ -65,266 +65,276 @@
                 </p>
             </div>
 
-            <button @click="activeTab = 'logs'; fetchLogs()" :class="activeTab === 'logs' ? 'text-blue-400' : ''">
-                Logs
-            </button>
+            <div class="flex gap-6 items-center">
 
-            <button @click="activeTab = 'analytics'; fetchAnalytics()"
-                :class="activeTab === 'analytics' ? 'text-blue-400' : ''">
-                Analytics
-            </button>
+                <button @click="activeTab = 'services'"
+                    :class="activeTab === 'services' ? 'text-blue-500 font-semibold border-b-2 border-blue-500 pb-1' : 'text-gray-500'">
+                    Services
+                </button>
 
-            <button @click="toggleDarkMode()"
-                class="px-4 py-2 rounded-xl bg-gray-800 text-white dark:bg-gray-700 hover:scale-105 transition">
-                Toggle Theme
-            </button>
+                <button @click="activeTab = 'logs'; fetchLogs()"
+                    :class="activeTab === 'logs' ? 'text-blue-500 font-semibold border-b-2 border-blue-500 pb-1' : 'text-gray-500'">
+                    Logs
+                </button>
 
+                <button @click="activeTab = 'analytics'; fetchAnalytics()"
+                    :class="activeTab === 'analytics' ? 'text-blue-500 font-semibold border-b-2 border-blue-500 pb-1' : 'text-gray-500'">
+                    Analytics
+                </button>
+
+            </div>
         </div>
+        <div x-show="activeTab === 'services'" class="space-y-10">
+            <h2 class="text-2xl font-bold mb-4">Services Overview</h2>
 
-        <!-- STATUS LEGEND -->
-        <div class="flex gap-6 mb-8 text-sm items-center">
+            <!-- STATUS LEGEND -->
+            <div class="flex gap-6 mb-8 text-sm items-center">
 
-            <span class="font-semibold">Status Legend:</span>
+                <span class="font-semibold">Status Legend:</span>
 
-            <span class="flex items-center gap-2">
-                <span class="w-3 h-3 rounded-full bg-green-500"></span>
-                Healthy
-            </span>
+                <span class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-green-500"></span>
+                    Healthy
+                </span>
 
-            <span class="flex items-center gap-2">
-                <span class="w-3 h-3 rounded-full bg-orange-500"></span>
-                Restarting
-            </span>
+                <span class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-orange-500"></span>
+                    Restarting
+                </span>
 
-            <span class="flex items-center gap-2">
-                <span class="w-3 h-3 rounded-full bg-red-500"></span>
-                Stopped
-            </span>
+                <span class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                    Stopped
+                </span>
 
-        </div>
+            </div>
 
-        <!-- ADVANCED CONFIG FEATURES (Day 18) -->
-        <div class="mb-10 p-6 rounded-2xl
+            <!-- ADVANCED CONFIG FEATURES (Day 18) -->
+            <div class="mb-10 p-6 rounded-2xl
             bg-blue-50 dark:bg-blue-900/20
             border border-blue-200 dark:border-blue-800
             shadow">
 
-            <h2 class="text-lg font-semibold mb-3">
-                DockFleet Configuration Features
-            </h2>
+                <h2 class="text-lg font-semibold mb-3">
+                    DockFleet Configuration Features
+                </h2>
 
-            <ul class="list-disc ml-6 text-sm space-y-1">
+                <ul class="list-disc ml-6 text-sm space-y-1">
 
-                <li>
-                    <strong>Resource Limits</strong> —
-                    Define CPU and memory limits for containers.
-                </li>
+                    <li>
+                        <strong>Resource Limits</strong> —
+                        Define CPU and memory limits for containers.
+                    </li>
 
-                <li>
-                    <strong>Dependency Ordering</strong> —
-                    Ensure services start in the correct order.
-                </li>
+                    <li>
+                        <strong>Dependency Ordering</strong> —
+                        Ensure services start in the correct order.
+                    </li>
 
-                <li>
-                    <strong>Environment Variables</strong> —
-                    Configure services with runtime environment values.
-                </li>
+                    <li>
+                        <strong>Environment Variables</strong> —
+                        Configure services with runtime environment values.
+                    </li>
 
-                <li>
-                    <strong>YAML Configuration</strong> —
-                    All services are defined in a
-                    <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">
+                    <li>
+                        <strong>YAML Configuration</strong> —
+                        All services are defined in a
+                        <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">
                         dockfleet.yaml
                     </code>
-                    file.
-                </li>
+                        file.
+                    </li>
 
-            </ul>
+                </ul>
 
-        </div>
-
-        <!-- SUMMARY STRIP -->
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-6 mb-10 text-center">
-
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
-                <p class="text-sm text-gray-500">Total Services</p>
-                <p class="text-3xl font-bold mt-1" x-text="summary.total_services"></p>
             </div>
 
-            <div class="bg-green-100 dark:bg-green-900/40 p-6 rounded-2xl shadow-lg">
-                <p class="text-sm">Running</p>
-                <p class="text-3xl font-bold text-green-600 dark:text-green-300 mt-1" x-text="summary.running"></p>
+            <!-- SUMMARY STRIP -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-6 mb-10 text-center">
+
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
+                    <p class="text-sm text-gray-500">Total Services</p>
+                    <p class="text-3xl font-bold mt-1" x-text="summary.total_services"></p>
+                </div>
+
+                <div class="bg-green-100 dark:bg-green-900/40 p-6 rounded-2xl shadow-lg">
+                    <p class="text-sm">Running</p>
+                    <p class="text-3xl font-bold text-green-600 dark:text-green-300 mt-1" x-text="summary.running"></p>
+                </div>
+
+                <div class="bg-red-200 dark:bg-red-900/40 p-6 rounded-2xl shadow-lg">
+                    <p class="text-sm">Unhealthy</p>
+                    <p class="text-3xl font-bold text-red-700 dark:text-red-300 mt-1" x-text="summary.unhealthy"></p>
+                </div>
+
+                <div class="bg-red-100 dark:bg-red-900/40 p-6 rounded-2xl shadow-lg">
+                    <p class="text-sm">Stopped</p>
+                    <p class="text-3xl font-bold text-red-600 dark:text-red-300 mt-1" x-text="summary.stopped"></p>
+                </div>
+
+                <div class="bg-orange-100 dark:bg-orange-900/40 p-6 rounded-2xl shadow-lg">
+                    <p class="text-sm">Restarting</p>
+                    <p class="text-3xl font-bold text-orange-600 dark:text-orange-300 mt-1" x-text="summary.restarting">
+                    </p>
+                </div>
+
             </div>
 
-            <div class="bg-red-200 dark:bg-red-900/40 p-6 rounded-2xl shadow-lg">
-                <p class="text-sm">Unhealthy</p>
-                <p class="text-3xl font-bold text-red-700 dark:text-red-300 mt-1" x-text="summary.unhealthy"></p>
-            </div>
 
-            <div class="bg-red-100 dark:bg-red-900/40 p-6 rounded-2xl shadow-lg">
-                <p class="text-sm">Stopped</p>
-                <p class="text-3xl font-bold text-red-600 dark:text-red-300 mt-1" x-text="summary.stopped"></p>
-            </div>
+            <!-- SERVICES GRID -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
-            <div class="bg-orange-100 dark:bg-orange-900/40 p-6 rounded-2xl shadow-lg">
-                <p class="text-sm">Restarting</p>
-                <p class="text-3xl font-bold text-orange-600 dark:text-orange-300 mt-1" x-text="summary.restarting"></p>
-            </div>
+                <template x-for="service in services" :key="service.name">
 
-        </div>
-
-
-        <!-- SERVICES GRID -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-
-            <template x-for="service in services" :key="service.name">
-
-                <div class="bg-white dark:bg-gray-800
+                    <div class="bg-white dark:bg-gray-800
                     p-6 rounded-2xl shadow-lg
                     border border-gray-200 dark:border-gray-700
                     hover:shadow-2xl hover:-translate-y-1
                     transition duration-300">
 
-                    <!-- Header -->
-                    <div class="flex justify-between items-center mb-4">
+                        <!-- Header -->
+                        <div class="flex justify-between items-center mb-4">
 
-                        <h2 class="text-xl font-semibold capitalize" x-text="service.name"></h2>
+                            <h2 class="text-xl font-semibold capitalize" x-text="service.name"></h2>
 
-                        <template x-if="service.restart_count > 0 && service.health_status === 'healthy'">
-                            <span class="ml-2 text-xs px-2 py-1 rounded
+                            <template x-if="service.restart_count > 0 && service.health_status === 'healthy'">
+                                <span class="ml-2 text-xs px-2 py-1 rounded
              bg-purple-200 text-purple-800
              dark:bg-purple-900 dark:text-purple-200">
 
-                                Recently Restarted
+                                    Recently Restarted
 
-                            </span>
-                        </template>
+                                </span>
+                            </template>
 
-                        <span class="px-2 py-1 rounded text-xs font-semibold capitalize" :class="{
+                            <span class="px-2 py-1 rounded text-xs font-semibold capitalize" :class="{
                             'bg-green-600 text-white': service.status === 'running',
                             'bg-red-600 text-white': service.status === 'stopped',
                             'bg-blue-500 hover:bg-blue-400 text-black': service.status === 'restarting',
                             'bg-gray-500 text-white': service.status === 'unknown'
                         }" x-text="service.status"></span>
 
-                        <span class="px-3 py-1 rounded-full text-xs font-semibold capitalize flex items-center gap-1"
-                            :class="{
+                            <span
+                                class="px-3 py-1 rounded-full text-xs font-semibold capitalize flex items-center gap-1"
+                                :class="{
 'bg-green-500 text-white': service.health_status === 'healthy',
 'bg-orange-500 text-white animate-pulse': service.health_status === 'restarting',
 'bg-red-600 text-white animate-pulse': service.health_status === 'unhealthy',
 'bg-gray-500 text-white': service.health_status === 'unknown'
 }">
 
-                            <span x-text="service.health_status"></span>
+                                <span x-text="service.health_status"></span>
 
-                            <template x-if="service.health_status === 'restarting'">
-                                <span class="spinner"></span>
-                            </template>
+                                <template x-if="service.health_status === 'restarting'">
+                                    <span class="spinner"></span>
+                                </template>
 
-                        </span>
-
-                    </div>
-
-
-                    <!-- SERVICE DETAILS -->
-                    <div class="space-y-2 text-sm">
-
-
-
-                        <p>
-                            <strong>Image:</strong>
-                            <span x-text="service.image"></span>
-                        </p>
-
-                        <p>
-                            <strong>Ports:</strong>
-                            <span x-text="service.ports"></span>
-                        </p>
-
-                        <p>
-                            <strong>CPU Usage:</strong>
-                            <span x-text="service.cpu"></span>
-                        </p>
-
-                        <p>
-                            <strong>Memory Usage:</strong>
-                            <span x-text="service.memory"></span>
-                        </p>
-                        <!-- Day 18: Resource Limits -->
-                        <template x-if="service.cpu_limit || service.memory_limit">
-                            <p>
-                                <strong>Resource Limits:</strong>
-                                <span>
-                                    <span x-text="service.memory_limit || '—'"></span>
-                                    /
-                                    <span x-text="service.cpu_limit || '—'"></span> CPU
-                                </span>
-                            </p>
-                        </template>
-
-                        <p>
-                            <strong>Uptime:</strong>
-                            <span x-text="service.uptime"></span>
-                        </p>
-
-                        <p>
-                            <strong>Restart Policy:</strong>
-
-                            <span class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-xs"
-                                x-text="service.restart_policy">
                             </span>
 
-                        </p>
+                        </div>
 
-                        <p>
-                            <strong>Restart Count:</strong>
-                            <span class="px-3 py-1 rounded text-sm font-bold" :class="{
+
+                        <!-- SERVICE DETAILS -->
+                        <div class="space-y-2 text-sm">
+
+
+
+                            <p>
+                                <strong>Image:</strong>
+                                <span x-text="service.image"></span>
+                            </p>
+
+                            <p>
+                                <strong>Ports:</strong>
+                                <span x-text="service.ports"></span>
+                            </p>
+
+                            <p>
+                                <strong>CPU Usage:</strong>
+                                <span x-text="service.cpu"></span>
+                            </p>
+
+                            <p>
+                                <strong>Memory Usage:</strong>
+                                <span x-text="service.memory"></span>
+                            </p>
+                            <!-- Day 18: Resource Limits -->
+                            <template x-if="service.cpu_limit || service.memory_limit">
+                                <p>
+                                    <strong>Resource Limits:</strong>
+                                    <span>
+                                        <span x-text="service.memory_limit || '—'"></span>
+                                        /
+                                        <span x-text="service.cpu_limit || '—'"></span> CPU
+                                    </span>
+                                </p>
+                            </template>
+
+                            <p>
+                                <strong>Uptime:</strong>
+                                <span x-text="service.uptime"></span>
+                            </p>
+
+                            <p>
+                                <strong>Restart Policy:</strong>
+
+                                <span class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-xs"
+                                    x-text="service.restart_policy">
+                                </span>
+
+                            </p>
+
+                            <p>
+                                <strong>Restart Count:</strong>
+                                <span class="px-3 py-1 rounded text-sm font-bold" :class="{
 'bg-gray-200 dark:bg-gray-700': service.restart_count == 0,
 'bg-yellow-400 text-black animate-pulse': service.restart_count > 0
 }" x-text="service.restart_count">
-                            </span>
-                        </p>
+                                </span>
+                            </p>
 
-                        <p class="text-xs text-gray-500 dark:text-gray-400">
-                            Last Check:
-                            <span x-text="formatTime(service.last_health_check)"></span>
-                        </p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                Last Check:
+                                <span x-text="formatTime(service.last_health_check)"></span>
+                            </p>
 
-                    </div>
+                        </div>
 
 
-                    <!-- ACTION BUTTONS -->
-                    <div class="mt-6 flex gap-4">
+                        <!-- ACTION BUTTONS -->
+                        <div class="mt-6 flex gap-4">
 
-                        <button @click="restartService(service.name)" class="flex-1 bg-yellow-500 text-black px-3 py-2
+                            <button @click="restartService(service.name)" class="flex-1 bg-yellow-500 text-black px-3 py-2
                                rounded-lg hover:bg-yellow-400 transition">
 
-                            Restart
+                                Restart
 
-                        </button>
+                            </button>
 
-                        <button @click="stopService(service.name)" class="flex-1 bg-red-600 text-white px-3 py-2
+                            <button @click="stopService(service.name)" class="flex-1 bg-red-600 text-white px-3 py-2
                                rounded-lg hover:bg-red-500 transition">
 
-                            Stop
+                                Stop
 
-                        </button>
+                            </button>
+
+                        </div>
 
                     </div>
 
-                </div>
+                </template>
 
-            </template>
-
+            </div>
         </div>
-
-        <div x-show="activeTab === 'logs'" class="mt-16">
+        <div x-show="activeTab === 'logs'" class="mt-12">
+            <h2 class="text-2xl font-bold mb-4">Logs Explorer</h2>
 
             <!-- Filters -->
             <div class="flex gap-4 mb-4">
 
                 <!-- Service Filter -->
-                <select x-model="selectedService" @change="fetchLogs()" class="bg-gray-800 text-white p-2 rounded">
+                <select x-model="selectedService" @change="fetchLogs()"
+                    class="bg-gray-200 text-black dark:bg-gray-800 dark:text-white p-2 rounded">
 
                     <option value="">All Services</option>
 
@@ -336,7 +346,7 @@
 
                 <!-- Search -->
                 <input type="text" placeholder="Search logs..." x-model="searchQuery" @input="fetchLogs()"
-                    class="bg-gray-800 text-white p-2 rounded w-full" />
+                    class="bg-gray-200 text-black dark:bg-gray-800 dark:text-white p-2 rounded w-full" />
 
                 <button @click="downloadLogs()" class="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700">
                     Download Logs
@@ -344,7 +354,8 @@
             </div>
 
             <!-- Logs Viewer -->
-            <div class="bg-black text-green-400 font-mono text-sm p-4 rounded h-[400px] overflow-y-scroll">
+            <div
+                class="bg-gray-900 text-green-400 dark:bg-black font-mono text-sm p-4 rounded h-[400px] overflow-y-scroll">
 
                 <template x-for="log in filteredLogs" :key="log.message + Math.random()">
                     <div class="mb-1">
@@ -355,57 +366,61 @@
 
             </div>
 
-        </div>
 
-        <!-- LOG VIEWER -->
-        <div class="mt-16">
 
-            <h2 class="text-2xl font-bold mb-4">Live Service Logs</h2>
+            <!-- LOG VIEWER -->
+            <div class="mt-16">
 
-            <div class="flex gap-4 mb-4">
+                <h2 class="text-2xl font-bold mb-4">Live Service Logs</h2>
 
-                <!-- Service Selector -->
-                <select x-model="selectedService" class="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700">
+                <div class="flex gap-4 mb-4">
 
-                    <option value="">Select Service</option>
+                    <!-- Service Selector -->
+                    <select x-model="selectedService" class="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700">
 
-                    <template x-for="service in services">
-                        <option :value="service.name" x-text="service.name"></option>
-                    </template>
+                        <option value="">Select Service</option>
 
-                </select>
+                        <template x-for="service in services">
+                            <option :value="service.name" x-text="service.name"></option>
+                        </template>
 
-                <button @click="connectLogs()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
+                    </select>
 
-                    Start Logs
-                </button>
+                    <button @click="connectLogs()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
 
-                <button @click="disconnectLogs()" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-500">
-                    Stop
-                </button>
+                        Start Logs
+                    </button>
 
-                <button @click="clearLogs()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-500">
+                    <button @click="disconnectLogs()"
+                        class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-500">
+                        Stop
+                    </button>
 
-                    Clear Logs
-                </button>
+                    <button @click="clearLogs()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-500">
 
-                <button @click="toggleScroll()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-500">
-                    Toggle Auto Scroll
-                </button>
+                        Clear Logs
+                    </button>
 
-            </div>
+                    <button @click="toggleScroll()"
+                        class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-500">
+                        Toggle Auto Scroll
+                    </button>
 
-            <div x-ref="logBox" class="bg-black text-green-400 font-mono text-xs p-4 rounded-xl
+                </div>
+
+                <div x-ref="logBox" class="bg-gray-900 text-green-400 dark:bg-black font-mono text-xs p-4 rounded-xl
                 h-60 md:h-72 overflow-y-auto border border-gray-700">
 
-                <template x-for="line in liveLogs">
-                    <div x-text="line"></div>
-                </template>
-            </div>
+                    <template x-for="line in liveLogs">
+                        <div x-text="line"></div>
+                    </template>
+                </div>
 
+            </div>
         </div>
 
-        <div x-show="activeTab === 'analytics'" class="mt-16">
+        <div x-show="activeTab === 'analytics'" class="mt-12">
+
 
             <template x-if="!loadingAnalytics && analytics.unstable_services.length === 0">
                 <p class="text-center text-gray-400">No analytics data available</p>
@@ -518,8 +533,12 @@
                         url += `&q=${this.searchQuery}`;
                     }
 
-                    const res = await fetch(url);
-                    this.apiLogs = await res.json();
+                    try {
+                        const res = await fetch(url);
+                        this.apiLogs = await res.json();
+                    } catch (err) {
+                        console.error("Logs fetch failed", err);
+                    }
                 },
 
                 get filteredLogs() {
@@ -575,27 +594,28 @@
                 },
 
                 renderRestartChart() {
-                    const ctx = document.getElementById('restartChart');
-                    if (!ctx) return;
+                    this.$nextTick(() => {
+                        const ctx = document.getElementById('restartChart');
+                        if (!ctx) return;
 
-                    if (this.restartChart) this.restartChart.destroy();
+                        if (this.restartChart) this.restartChart.destroy();
 
-                    this.restartChart = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: this.analytics.restart_history.map(i =>
-                                new Date(i.timestamp).toLocaleTimeString()
-                            ),
-                            datasets: [{
-                                label: 'Restarts Over Time',
-                                data: this.analytics.restart_history.map(() => 1),
-                                borderColor: '#3b82f6',
-                                fill: false
-                            }]
-                        }
+                        this.restartChart = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: this.analytics.restart_history.map(i =>
+                                    new Date(i.timestamp).toLocaleTimeString()
+                                ),
+                                datasets: [{
+                                    label: 'Restarts Over Time',
+                                    data: this.analytics.restart_history.map(() => 1),
+                                    borderColor: '#3b82f6',
+                                    fill: false
+                                }]
+                            }
+                        });
                     });
                 },
-
                 renderFailureChart() {
                     const ctx = document.getElementById('failureChart');
                     if (!ctx) return;
