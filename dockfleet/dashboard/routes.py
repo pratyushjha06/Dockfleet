@@ -3,21 +3,18 @@ from datetime import datetime, timedelta
 from typing import Optional, List
 
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import (
-    HTMLResponse,
-    StreamingResponse,
-)
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
+from sqlmodel import Session, select
 
 from dockfleet.dashboard.services import get_services
 from dockfleet.core.orchestrator import get_orchestrator
-from dockfleet.core.logs import stream_container_logs
+from dockfleet.core.logs import stream_container_logs, get_logs_services
 from dockfleet.health.status import (
     record_manual_restart_event,
     record_manual_stop,
 )
-from dockfleet.core.logs import get_logs_services
 from dockfleet.health.logs import (
     query_logs,
     iter_logs_as_text,
@@ -29,7 +26,7 @@ from dockfleet.health.queries import (
     get_failure_reasons_breakdown,
 )
 from dockfleet.health.models import RestartEvent, engine
-from sqlmodel import Session, select
+
 
 router = APIRouter()
 
@@ -52,18 +49,35 @@ class Service(BaseModel):
 
     name: str = Field(..., description="Service name as defined in dockfleet.yaml")
     status: str = Field(..., description="Raw container status from Docker")
-    health_status: str = Field(..., description="DockFleet health state: healthy | unhealthy | restarting | stopped | unknown")
+    health_status: str = Field(
+        ...,
+        description=(
+            "DockFleet health state: healthy | unhealthy | restarting | stopped | unknown"
+        ),
+    )
     image: str = Field(..., description="Docker image used by this service")
     ports: Optional[str] = Field(None, description="Port mappings, e.g. 8000:80")
-    restart_policy: str = Field(..., description="Restart policy: always | on-failure | never")
-    restart_count: int = Field(..., description="Total number of times this service has been restarted")
-    last_health_check: Optional[datetime] = Field(None, description="UTC timestamp of the last health check")
+    restart_policy: str = Field(
+        ..., description="Restart policy: always | on-failure | never"
+    )
+    restart_count: int = Field(
+        ..., description="Total number of times this service has been restarted"
+    )
+    last_health_check: Optional[datetime] = Field(
+        None, description="UTC timestamp of the last health check"
+    )
 
     cpu: Optional[str] = Field(None, description="Current CPU usage percentage")
     memory: Optional[str] = Field(None, description="Current memory usage")
-    uptime: Optional[str] = Field(None, description="How long the container has been running")
-    cpu_limit: Optional[str] = Field(None, description="CPU limit defined in YAML resources")
-    memory_limit: Optional[str] = Field(None, description="Memory limit defined in YAML resources")
+    uptime: Optional[str] = Field(
+        None, description="How long the container has been running"
+    )
+    cpu_limit: Optional[str] = Field(
+        None, description="CPU limit defined in YAML resources"
+    )
+    memory_limit: Optional[str] = Field(
+        None, description="Memory limit defined in YAML resources"
+    )
 
 
 class ActionResponse(BaseModel):
@@ -83,7 +97,9 @@ class UnstableService(BaseModel):
     """
 
     service_name: str = Field(..., description="Name of the service")
-    restarts: int = Field(..., description="Number of restarts in the requested time window")
+    restarts: int = Field(
+        ..., description="Number of restarts in the requested time window"
+    )
     last_restart_at: Optional[datetime] = Field(
         None, description="UTC timestamp of the most recent restart, if any"
     )
@@ -96,9 +112,18 @@ class RestartEventItem(BaseModel):
     """
 
     timestamp: datetime = Field(..., description="UTC time when the restart occurred")
-    reason: str = Field(..., description="Why the restart was triggered, e.g. 3_failed_health_checks, manual")
-    previous_status: Optional[str] = Field(None, description="Health status before the restart")
-    new_status: Optional[str] = Field(None, description="Health status after the restart")
+    reason: str = Field(
+        ...,
+        description=(
+            "Why the restart was triggered, e.g. 3_failed_health_checks, manual"
+        ),
+    )
+    previous_status: Optional[str] = Field(
+        None, description="Health status before the restart"
+    )
+    new_status: Optional[str] = Field(
+        None, description="Health status after the restart"
+    )
 
 
 class FailureReasonCount(BaseModel):
@@ -107,25 +132,36 @@ class FailureReasonCount(BaseModel):
     Used in /analytics/failure-reasons/{service_name}.
     """
 
-    reason: str = Field(..., description="Failure reason category, e.g. healthcheck_timeout, crash_loop, manual_restart, other")
-    count: int = Field(..., description="Number of times this reason occurred in the time window")
+    reason: str = Field(
+        ...,
+        description=(
+            "Failure reason category, e.g. healthcheck_timeout, "
+            "crash_loop, manual_restart, other"
+        ),
+    )
+    count: int = Field(
+        ..., description="Number of times this reason occurred in the time window"
+    )
 
 
 class AnalyticsSummary(BaseModel):
     """
     Top-level crash analytics summary for the entire DockFleet stack.
     Returned by /analytics/summary.
-
-    Gives a single snapshot of system stability: which services are
-    most unstable, and overall restart and failure totals in the
-    requested time window.
     """
 
-    window_hours: int = Field(..., description="Time window used for aggregation, in hours")
-    total_restarts: int = Field(..., description="Total restart events across all services in the window")
-    total_health_failures: int = Field(..., description="Total health check failures that triggered restarts")
+    window_hours: int = Field(
+        ..., description="Time window used for aggregation, in hours"
+    )
+    total_restarts: int = Field(
+        ..., description="Total restart events across all services in the window"
+    )
+    total_health_failures: int = Field(
+        ..., description="Total health check failures that triggered restarts"
+    )
     most_unstable_services: List[UnstableService] = Field(
-        ..., description="Top services ranked by restart count, most unstable first"
+        ...,
+        description="Top services ranked by restart count, most unstable first",
     )
 
 
@@ -136,19 +172,27 @@ class MetricsSummary(BaseModel):
     """
     System-level metrics snapshot for the entire DockFleet deployment.
     Returned by /metrics.
-
-    Designed to be consumed by dashboards, alerting tools, or any
-    external monitoring system that can poll a JSON HTTP endpoint.
-    All counts reflect the state at collected_at.
     """
 
-    total_services: int = Field(..., description="Total services registered in DockFleet")
-    running_services: int = Field(..., description="Services currently in healthy state")
-    unhealthy_services: int = Field(..., description="Services currently failing health checks")
+    total_services: int = Field(
+        ..., description="Total services registered in DockFleet"
+    )
+    running_services: int = Field(
+        ..., description="Services currently in healthy state"
+    )
+    unhealthy_services: int = Field(
+        ..., description="Services currently failing health checks"
+    )
     stopped_services: int = Field(..., description="Services that are stopped")
-    total_restarts: int = Field(..., description="Cumulative restart count across all services (all time)")
-    health_failures: int = Field(..., description="Restart events recorded in the last 24 hours (proxy for recent failures)")
-    collected_at: datetime = Field(..., description="UTC timestamp when these metrics were collected")
+    total_restarts: int = Field(
+        ..., description="Cumulative restart count across all services (all time)"
+    )
+    health_failures: int = Field(
+        ..., description="Restart events recorded in the last 24 hours"
+    )
+    collected_at: datetime = Field(
+        ..., description="UTC timestamp when these metrics were collected"
+    )
 
 
 # ------------------------------------------------
@@ -197,7 +241,7 @@ def stop_service(name: str):
 
 
 # ------------------------------------------------
-# DB-backed logs API
+# DB-backed logs API (history)
 # ------------------------------------------------
 @router.get("/logs/db")
 def list_logs(
@@ -221,7 +265,7 @@ def list_logs(
 
 
 # ------------------------------------------------
-# Legacy /logs: live docker logs
+# Legacy /logs: live docker logs (non-DB)
 # ------------------------------------------------
 @router.get("/logs")
 def get_logs(
@@ -229,7 +273,6 @@ def get_logs(
     q: Optional[str] = Query(None),
     limit: int = Query(100),
 ):
-
     if not service_name:
         return []
 
@@ -252,12 +295,20 @@ def download_logs(
         return StreamingResponse(
             iter_logs_as_csv(service_name=service_name, q=q),
             media_type="text/csv",
-            headers={"Content-Disposition": f'attachment; filename="{service_name or "all"}_logs.csv"'},
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="{service_name or "all"}_logs.csv"'
+                )
+            },
         )
     return StreamingResponse(
         iter_logs_as_text(service_name=service_name, q=q),
         media_type="text/plain",
-        headers={"Content-Disposition": f'attachment; filename="{service_name or "all"}_logs.txt"'},
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{service_name or "all"}_logs.txt"'
+            )
+        },
     )
 
 
@@ -267,14 +318,15 @@ def download_logs(
 @router.get("/status")
 def system_status():
     services = get_services()
+
     total = len(services)
-    running = sum(1 for s in services if s["health_status"] == "healthy")
-    restarting = sum(1 for s in services if s["health_status"] == "restarting")
+
+    running = sum(1 for s in services if s["status"] == "running")
+    restarting = sum(1 for s in services if s["status"] == "restarting")
+    stopped = sum(1 for s in services if s["status"] == "stopped")
+
     unhealthy = sum(1 for s in services if s["health_status"] == "unhealthy")
-    stopped = sum(
-        1 for s in services
-        if s["health_status"] not in ["healthy", "restarting", "unhealthy"]
-    )
+
     return {
         "total_services": total,
         "running": running,
@@ -283,17 +335,34 @@ def system_status():
         "stopped": stopped,
     }
 
-
 # ------------------------------------------------
-# Stream container logs (SSE)
+# Stream container logs (SSE) – NEW PATH
 # ------------------------------------------------
-@router.get("/logs/{service}")
+@router.get("/logs/stream/{service}")
 async def stream_logs(service: str):
     async def event_stream():
-        async for line in stream_container_logs(service):
-            yield line
+        try:
+            async for line in stream_container_logs(service):
+                # stream_container_logs already yields "data: ...\n\n"
+                yield line
+        except Exception as exc:
+            # Never let exception bubble as JSON; send it as SSE lines
+            import traceback
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+            msg = f"[dockfleet] error streaming logs for {service}: {exc}"
+            yield f"data: {msg}\n\n"
+            tb = traceback.format_exc()
+            for line in tb.splitlines():
+                yield f"data: {line}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 # ------------------------------------------------
@@ -316,7 +385,8 @@ def get_metrics():
     running = sum(1 for s in services if s["health_status"] == "healthy")
     unhealthy = sum(1 for s in services if s["health_status"] == "unhealthy")
     stopped = sum(
-        1 for s in services
+        1
+        for s in services
         if s["health_status"] not in ["healthy", "restarting", "unhealthy"]
     )
     total_restarts = sum(s.get("restart_count", 0) for s in services)
@@ -344,11 +414,18 @@ def get_metrics():
     "/analytics/summary",
     response_model=AnalyticsSummary,
     summary="Crash analytics summary",
-    description="Overall stability snapshot — total restarts, failures, and top unstable services in the requested window.",
+    description=(
+        "Overall stability snapshot — total restarts, failures, and "
+        "top unstable services in the requested window."
+    ),
 )
 def analytics_summary(
-    limit: int = Query(5, ge=1, le=20, description="Max number of unstable services to return"),
-    window_hours: int = Query(24, ge=1, le=168, description="Look-back window in hours (max 168 = 7 days)"),
+    limit: int = Query(
+        5, ge=1, le=20, description="Max number of unstable services to return"
+    ),
+    window_hours: int = Query(
+        24, ge=1, le=168, description="Look-back window in hours (max 168 = 7 days)"
+    ),
 ):
     since = datetime.utcnow() - timedelta(hours=window_hours)
     base = get_most_unstable_services(limit=limit, window_hours=window_hours)
@@ -393,8 +470,12 @@ def analytics_summary(
     description="Top N services ranked by restart count within the requested time window.",
 )
 def analytics_unstable_services(
-    limit: int = Query(5, ge=1, le=20, description="Max number of services to return"),
-    window_hours: int = Query(24, ge=1, le=168, description="Look-back window in hours"),
+    limit: int = Query(
+        5, ge=1, le=20, description="Max number of services to return"
+    ),
+    window_hours: int = Query(
+        24, ge=1, le=168, description="Look-back window in hours"
+    ),
 ):
     base = get_most_unstable_services(limit=limit, window_hours=window_hours)
 
@@ -431,7 +512,9 @@ def analytics_unstable_services(
 )
 def analytics_restart_history(
     service_name: str,
-    since_hours: int = Query(24, ge=1, le=168, description="Look-back window in hours"),
+    since_hours: int = Query(
+        24, ge=1, le=168, description="Look-back window in hours"
+    ),
 ):
     since = datetime.utcnow() - timedelta(hours=since_hours)
     history = get_restart_history(service_name, since=since)
@@ -446,12 +529,15 @@ def analytics_restart_history(
         for item in history
     ]
 
+
+# ------------------------------------------------
+# Settings endpoint (self-healing toggle state)
+# ------------------------------------------------
 @router.get("/settings")
 def settings():
     orch = get_orchestrator()
-    return {
-        "self_healing_enabled": orch.self_healing
-    }
+    return {"self_healing_enabled": orch.self_healing}
+
 
 # ------------------------------------------------
 # Analytics: failure reason breakdown
@@ -461,13 +547,16 @@ def settings():
     response_model=List[FailureReasonCount],
     summary="Failure reason breakdown for a service",
     description=(
-        "Returns aggregated restart reason counts for a service in the requested window. "
-        "Reasons include: healthcheck_timeout, crash_loop, manual_restart, other."
+        "Returns aggregated restart reason counts for a service in the requested "
+        "window. Reasons include: healthcheck_timeout, crash_loop, "
+        "manual_restart, other."
     ),
 )
 def analytics_failure_reasons(
     service_name: str,
-    window_hours: int = Query(24, ge=1, le=168, description="Look-back window in hours"),
+    window_hours: int = Query(
+        24, ge=1, le=168, description="Look-back window in hours"
+    ),
 ):
     breakdown = get_failure_reasons_breakdown(
         service_name=service_name,
@@ -480,4 +569,3 @@ def analytics_failure_reasons(
         FailureReasonCount(reason=reason, count=count)
         for reason, count in items
     ]
-    
