@@ -99,6 +99,7 @@ def record_restart_event(service: Service, reason: str) -> None:
     """
     event = RestartEvent(
         service_id=service.id,
+        service_name=service.name,
         restarted_at=datetime.utcnow(),
         reason=reason,
         previous_status=service.status,
@@ -155,6 +156,7 @@ def record_manual_restart_event(service_name: str) -> None:
 
         event = RestartEvent(
             service_id=svc.id,
+            service_name=svc.name,
             restarted_at=datetime.utcnow(),
             reason="manual_dashboard_restart",
             previous_status=previous_status,
