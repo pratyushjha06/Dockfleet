@@ -544,7 +544,7 @@ def settings():
 # ------------------------------------------------
 @router.get(
     "/analytics/failure-reasons/{service_name}",
-    response_model=List[FailureReasonCount],
+    response_model=dict[str, int],
     summary="Failure reason breakdown for a service",
     description=(
         "Returns aggregated restart reason counts for a service in the requested "
@@ -563,9 +563,4 @@ def analytics_failure_reasons(
         window_hours=window_hours,
     )
 
-    items = sorted(breakdown.items(), key=lambda kv: kv[1], reverse=True)
-
-    return [
-        FailureReasonCount(reason=reason, count=count)
-        for reason, count in items
-    ]
+    return breakdown
