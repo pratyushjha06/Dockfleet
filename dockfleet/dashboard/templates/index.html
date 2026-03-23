@@ -376,7 +376,6 @@
                 </div>
             </div>
         </div>
-
         <!-- MAIN CONTENT WRAPPER -->
 <div x-show="!loadingAnalytics && analytics.unstable_services.length > 0"
      class="space-y-8">
@@ -387,34 +386,38 @@
         <span class="text-sm text-gray-400">Last 24 hours</span>
     </div>
 
-    <!-- 🧠 INSIGHT -->
+    <!-- INSIGHT -->
     <div class="bg-gradient-to-r from-indigo-500 to-blue-600 text-white p-6 rounded-2xl shadow flex justify-between items-center">
+
         <div class="space-y-1">
             <p class="text-sm opacity-80">System Insight</p>
 
+            <!-- SAFE ACCESS -->
             <p class="text-lg font-semibold leading-snug">
-                <span x-text="analytics.unstable_services[0].service_name"></span>
+                <span x-text="topService?.service_name || 'Loading...'"></span>
                 restarted
-                <span x-text="analytics.unstable_services[0].restarts"></span>
+                <span x-text="topService?.restarts || 0"></span>
                 times
             </p>
 
+            <!--  SAFE CLASS -->
             <p class="text-sm"
                :class="{
-                    'text-green-200': analytics.unstable_services[0].restarts <= 1,
-                    'text-yellow-200': analytics.unstable_services[0].restarts <= 4 && analytics.unstable_services[0].restarts > 1,
-                    'text-red-200': analytics.unstable_services[0].restarts > 4
+                    'text-green-200': (topService?.restarts || 0) <= 1,
+                    'text-yellow-200': (topService?.restarts || 0) > 1 && (topService?.restarts || 0) <= 4,
+                    'text-red-200': (topService?.restarts || 0) > 4
                }">
-                <span x-show="analytics.unstable_services[0].restarts <= 1">✅ Stable</span>
-                <span x-show="analytics.unstable_services[0].restarts > 1 && analytics.unstable_services[0].restarts <= 4">⚠️ Moderate</span>
-                <span x-show="analytics.unstable_services[0].restarts > 4">🚨 Critical</span>
+
+                <span x-show="(topService?.restarts || 0) <= 1">Stable</span>
+                <span x-show="(topService?.restarts || 0) > 1 && (topService?.restarts || 0) <= 4"  Moderate</span>
+                <span x-show="(topService?.restarts || 0) > 4">Critical</span>
             </p>
         </div>
 
         <div class="text-4xl">⚡</div>
     </div>
 
-    <!-- 📊 KPI -->
+    <!--  KPI -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
         <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
@@ -432,32 +435,29 @@
         <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
             <p class="text-sm text-gray-400 mb-1">Most Affected</p>
             <p class="text-lg font-semibold"
-               x-text="analytics.unstable_services[0].service_name"></p>
+               x-text="topService?.service_name || 'N/A'"></p>
         </div>
 
     </div>
 
-    <!-- 📈 CHARTS (FIXED HEIGHT + BALANCED GRID) -->
+    <!--  CHARTS -->
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
-        <!-- Unstable -->
-        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm flex flex-col">
+        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
             <h3 class="text-md font-semibold mb-4">Most Unstable</h3>
             <div class="h-64">
                 <canvas id="unstableChart"></canvas>
             </div>
         </div>
 
-        <!-- Trend -->
-        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm flex flex-col">
+        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
             <h3 class="text-md font-semibold mb-4">Restart Trend</h3>
             <div class="h-64">
                 <canvas id="restartChart"></canvas>
             </div>
         </div>
 
-        <!-- Pie (NOW SAME SIZE) -->
-        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm flex flex-col">
+        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
             <h3 class="text-md font-semibold mb-4">Failure Breakdown</h3>
             <div class="h-64">
                 <canvas id="failureChart"></canvas>
@@ -466,13 +466,13 @@
 
     </div>
 
-    <!-- 🔁 ACTIVITY -->
+    <!--  ACTIVITY -->
     <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm">
         <h3 class="text-lg font-semibold mb-4">Recent Healing Actions</h3>
 
         <ul class="space-y-3 text-sm">
             <template x-for="event in analytics.recent_events || []" :key="event.id">
-                <li class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2">
+                <li class="flex justify-between border-b pb-2">
                     <span x-text="event.message"></span>
                     <span class="text-xs text-gray-400" x-text="event.time"></span>
                 </li>
@@ -485,8 +485,7 @@
     </div>
 
 </div>
-
-    <script>
+   <script>
 function dashboard() {
     return {
         services: [],
@@ -514,27 +513,29 @@ function dashboard() {
         },
 
         async init() {
-            await this.fetchServices()
-            await this.fetchSummary()
+            await this.fetchServices();
+            await this.fetchSummary();
 
             setInterval(() => {
-                this.fetchServices()
-                this.fetchSummary()
-            }, 5000)
+                this.fetchServices();
+                this.fetchSummary();
+            }, 5000);
 
             setInterval(() => {
-    if (this.activeTab === 'analytics') {
-        this.fetchAnalytics();
-    }
-}, 15000);
-
-          
+                if (this.activeTab === 'analytics') {
+                    this.fetchAnalytics();
+                }
+            }, 60000);
         },
-        // =========================
-// ✅ FIXED ANALYTICS FLOW (FINAL STABLE)
-// =========================
+        get topService() {
+    return this.analytics.unstable_services?.[0] || null;
+},
 
-async fetchAnalytics() {
+        // =========================
+        //  ANALYTICS (FULLY FIXED)
+        // =========================
+
+        async fetchAnalytics() {
     if (this.loadingAnalytics) return;
 
     this.loadingAnalytics = true;
@@ -543,17 +544,17 @@ async fetchAnalytics() {
         const res = await fetch("/analytics/unstable-services");
         const data = await res.json();
 
-        // ✅ Never clear old data if empty response comes
-        if (data && data.length > 0) {
-            this.analytics.unstable_services = data;
+        this.analytics.unstable_services = Array.isArray(data) ? data : [];
 
-            const first = data[0].service_name;
+        if (this.analytics.unstable_services.length > 0) {
+            const first = this.analytics.unstable_services[0].service_name;
             await this.selectServiceAnalytics(first);
-
-            this.$nextTick(() => {
-                this.renderAllCharts();
-            });
         }
+
+        // WAIT UNTIL DOM IS RENDERED
+        this.$nextTick(() => {
+            this.renderAllCharts();
+        });
 
     } catch (err) {
         console.error("Analytics load failed", err);
@@ -561,142 +562,133 @@ async fetchAnalytics() {
         this.loadingAnalytics = false;
     }
 },
+        async selectServiceAnalytics(service) {
+            this.selectedAnalyticsService = service;
 
-async selectServiceAnalytics(service) {
-    this.selectedAnalyticsService = service;
+            try {
+                const historyRes = await fetch(`/analytics/restart-history/${service}`);
+                const historyData = await historyRes.json();
 
-    try {
-        const historyRes = await fetch(`/analytics/restart-history/${service}`);
-        const historyData = await historyRes.json();
+                this.analytics.restart_history = Array.isArray(historyData) ? historyData : [];
 
-        if (historyData && historyData.length > 0) {
-            this.analytics.restart_history = historyData;
-        }
+                const failureRes = await fetch(`/analytics/failure-reasons/${service}`);
+                const raw = await failureRes.json();
 
-        const failureRes = await fetch(`/analytics/failure-reasons/${service}`);
-        const raw = await failureRes.json();
+                if (Array.isArray(raw)) {
+                    this.analytics.failure_breakdown = raw;
+                } else {
+                    this.analytics.failure_breakdown = Object.entries(raw || {}).map(
+                        ([reason, count]) => ({ reason, count })
+                    );
+                }
 
-        // ✅ Normalize data safely
-        if (Array.isArray(raw)) {
-            this.analytics.failure_breakdown = raw;
-        } else {
-            this.analytics.failure_breakdown = Object.entries(raw || {}).map(
-                ([reason, count]) => ({ reason, count })
-            );
-        }
+            } catch (err) {
+                console.error("Analytics detail fetch failed", err);
+            }
+        },
 
-    } catch (err) {
-        console.error("Analytics detail fetch failed", err);
-    }
-},
+        renderAllCharts() {
+            this.renderUnstableChart();
+            this.renderRestartChart();
+            this.renderFailureChart();
+        },
 
-renderAllCharts() {
-    this.renderUnstableChart();
-    this.renderRestartChart();
-    this.renderFailureChart();
-},
-
-// ✅ BAR CHART (NO DESTROY, ONLY UPDATE)
-renderUnstableChart() {
-    const ctx = document.getElementById('unstableChart');
-    if (!ctx || this.analytics.unstable_services.length === 0) return;
-
-    const labels = this.analytics.unstable_services.map(s => s.service_name);
-    const data = this.analytics.unstable_services.map(s => s.restarts);
-
-    if (this.unstableChart) {
-        this.unstableChart.data.labels = labels;
-        this.unstableChart.data.datasets[0].data = data;
-        this.unstableChart.update();
-        return;
-    }
-
-    this.unstableChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Restarts',
-                data,
-                backgroundColor: '#ef4444'
-            }]
-        }
-    });
-},
-
-// ✅ LINE CHART (SAFE UPDATE)
-renderRestartChart() {
-    const ctx = document.getElementById('restartChart');
-    if (!ctx || this.analytics.restart_history.length === 0) return;
-
-    let count = 0;
-    const trend = this.analytics.restart_history.map(() => ++count);
-
-    const labels = this.analytics.restart_history.map(i =>
-        new Date(i.timestamp).toLocaleTimeString()
-    );
-
-    if (this.restartChart) {
-        this.restartChart.data.labels = labels;
-        this.restartChart.data.datasets[0].data = trend;
-        this.restartChart.update();
-        return;
-    }
-
-    this.restartChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Restart Trend',
-                data: trend,
-                borderColor: '#3b82f6',
-                fill: false,
-                tension: 0.3
-            }]
-        }
-    });
-},
-
-// ✅ PIE CHART (SAFE UPDATE)
-renderFailureChart() {
-    const ctx = document.getElementById('failureChart');
-    if (!ctx || this.analytics.failure_breakdown.length === 0) return;
-
-    const labels = this.analytics.failure_breakdown.map(i => i.reason);
-    const data = this.analytics.failure_breakdown.map(i => i.count);
-
-    if (this.failureChart) {
-        this.failureChart.data.labels = labels;
-        this.failureChart.data.datasets[0].data = data;
-        this.failureChart.update();
-        return;
-    }
-
-    this.failureChart = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels,
-            datasets: [{
-                data,
-                backgroundColor: [
-                    '#ef4444',
-                    '#f59e0b',
-                    '#3b82f6',
-                    '#10b981'
-                ]
-            }]
-        }
-    });
-},
-
-
-       
-
-       
-      
         // =========================
-        // (REST CODE UNCHANGED)
+        // CHART FIXES (SAFE + STABLE)
+        // =========================
+
+        renderUnstableChart() {
+            const canvas = document.getElementById('unstableChart');
+if (!canvas) return;
+
+const ctx = canvas.getContext('2d');
+if (!ctx) return;
+
+            const labels = this.analytics.unstable_services.map(s => s.service_name);
+            const data = this.analytics.unstable_services.map(s => s.restarts);
+
+            if (!labels.length || !data.length) return;
+
+            if (this.unstableChart) {
+                this.unstableChart.destroy();
+            }
+
+            this.unstableChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Restarts',
+                        data,
+                        backgroundColor: '#ef4444'
+                    }]
+                }
+            });
+        },
+
+        renderRestartChart() {
+            const ctx = document.getElementById('restartChart');
+            if (!ctx || !ctx.getContext) return;
+
+            const labels = this.analytics.restart_history.map(i =>
+                new Date(i.timestamp).toLocaleTimeString()
+            );
+
+            const data = this.analytics.restart_history.map((_, i) => i + 1);
+
+            if (!labels.length || !data.length) return;
+
+            if (this.restartChart) {
+                this.restartChart.destroy();
+            }
+
+            this.restartChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Restart Trend',
+                        data,
+                        borderColor: '#3b82f6',
+                        fill: false,
+                        tension: 0.3
+                    }]
+                }
+            });
+        },
+
+        renderFailureChart() {
+            const ctx = document.getElementById('failureChart');
+            if (!ctx || !ctx.getContext) return;
+
+            const labels = this.analytics.failure_breakdown.map(i => i.reason);
+            const data = this.analytics.failure_breakdown.map(i => i.count);
+
+            if (!labels.length || !data.length) return;
+
+            if (this.failureChart) {
+                this.failureChart.destroy();
+            }
+
+            this.failureChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels,
+                    datasets: [{
+                        data,
+                        backgroundColor: [
+                            '#ef4444',
+                            '#f59e0b',
+                            '#3b82f6',
+                            '#10b981'
+                        ]
+                    }]
+                }
+            });
+        },
+
+        // =========================
+        // REST CODE (UNCHANGED)
         // =========================
 
         async fetchLogs() {
@@ -715,48 +707,48 @@ renderFailureChart() {
             return this.apiLogs.map(log => ({
                 service: this.selectedService || "all",
                 message: typeof log === "string" ? log : log.message
-            }))
+            }));
         },
 
         async fetchServices() {
             try {
-                const res = await fetch("/services")
-                this.services = await res.json()
+                const res = await fetch("/services");
+                this.services = await res.json();
             } catch (err) {
-                console.error("Failed loading services", err)
+                console.error("Failed loading services", err);
             }
         },
 
         async fetchSummary() {
             try {
-                const res = await fetch("/status")
-                this.summary = await res.json()
+                const res = await fetch("/status");
+                this.summary = await res.json();
             } catch (err) {
-                console.error("Failed loading summary", err)
+                console.error("Failed loading summary", err);
             }
         },
 
         async restartService(name) {
             try {
-                const res = await fetch(`/services/${name}/restart`, { method: "POST" })
-                const data = await res.json()
-                alert(data.message)
-                await this.fetchServices()
-                await this.fetchSummary()
+                const res = await fetch(`/services/${name}/restart`, { method: "POST" });
+                const data = await res.json();
+                alert(data.message);
+                await this.fetchServices();
+                await this.fetchSummary();
             } catch (err) {
-                console.error("Restart failed", err)
+                console.error("Restart failed", err);
             }
         },
 
         async stopService(name) {
             try {
-                const res = await fetch(`/services/${name}/stop`, { method: "POST" })
-                const data = await res.json()
-                alert(data.message)
-                await this.fetchServices()
-                await this.fetchSummary()
+                const res = await fetch(`/services/${name}/stop`, { method: "POST" });
+                const data = await res.json();
+                alert(data.message);
+                await this.fetchServices();
+                await this.fetchSummary();
             } catch (err) {
-                console.error("Stop failed", err)
+                console.error("Stop failed", err);
             }
         },
 
@@ -777,7 +769,7 @@ renderFailureChart() {
                             this.$refs.logBox.scrollHeight;
                     }
                 });
-            }
+            };
         },
 
         disconnectLogs() {
@@ -788,24 +780,24 @@ renderFailureChart() {
         },
 
         clearLogs() {
-            this.liveLogs = []
+            this.liveLogs = [];
         },
 
         toggleScroll() {
-            this.autoScroll = !this.autoScroll
+            this.autoScroll = !this.autoScroll;
         },
 
         toggleDarkMode() {
-            document.documentElement.classList.toggle('dark')
+            document.documentElement.classList.toggle('dark');
             localStorage.theme =
                 document.documentElement.classList.contains('dark')
                     ? 'dark'
-                    : 'light'
+                    : 'light';
         },
 
         formatTime(timestamp) {
-            if (!timestamp) return "Never"
-            return new Date(timestamp).toLocaleTimeString()
+            if (!timestamp) return "Never";
+            return new Date(timestamp).toLocaleTimeString();
         }
     }
 }
