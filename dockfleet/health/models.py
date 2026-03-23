@@ -1,4 +1,6 @@
 from datetime import datetime
+from pathlib import Path
+
 from sqlmodel import Field, SQLModel, create_engine
 
 """
@@ -9,6 +11,8 @@ fields:
 - status, restart_count, last_health_check, last_failure_reason, consecutive_failures
 - resources_memory, resources_cpu, env_raw, depends_on_raw
 """
+
+
 class Service(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(nullable=False, unique=True)
@@ -32,6 +36,7 @@ class Service(SQLModel, table=True):
     # depends_on_raw: comma-separated service names (e.g. "redis,db")
     env_raw: str | None = Field(default=None)
     depends_on_raw: str | None = Field(default=None)
+
 
 # RestartEvent table model
 # fields: id, service_id, service_name, restarted_at, reason, previous_status, new_status
@@ -68,7 +73,10 @@ class LogEvent(SQLModel, table=True):
 
 # init_db() function
 # work: engine + tables create
-sqlite_file_name = "dockfleet.db"
+# Always use a project-root absolute path so CLI and FastAPI share one DB
+PROJECT_ROOT = Path(__file__).resolve().parents[2]  # .../Projects/Dockfleet
+DB_PATH = PROJECT_ROOT / "dockfleet.db"
+sqlite_file_name = str(DB_PATH)
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 engine = create_engine(sqlite_url)
 
