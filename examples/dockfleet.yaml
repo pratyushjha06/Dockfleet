@@ -13,9 +13,19 @@ services:
       POSTGRES_DB: dockfleet
       POSTGRES_USER: postgres
 
+    healthcheck:
+      type: tcp
+      endpoint: localhost:5432
+      interval: 10
+
   api:
-    image: nginx:latest
+    image: nginx
     restart: always
+
+    healthcheck:
+      type: http
+      endpoint: http://localhost:8080
+      interval: 5
 
     depends_on:
       - db
@@ -26,3 +36,12 @@ services:
     environment:
       DB_HOST: db
       DEBUG: "true"
+
+  crash_test:
+    image: busybox
+    restart: always
+
+    healthcheck:
+      type: process
+      endpoint: ""      # not used for process type
+      interval: 10
