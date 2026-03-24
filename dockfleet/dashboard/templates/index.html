@@ -44,8 +44,7 @@
 <body class="bg-gradient-to-br from-gray-100 to-gray-200
            dark:from-gray-900 dark:to-gray-800
            text-gray-900 dark:text-white
-           min-h-screen transition-all duration-300"
-      x-data="dashboard()" x-init="init()">
+           min-h-screen transition-all duration-300" x-data="dashboard()" x-init="init()">
 
     <div class="container mx-auto px-6 py-10 space-y-12">
 
@@ -65,17 +64,17 @@
 
             <div class="flex gap-6 items-center">
                 <button @click="activeTab = 'services'"
-                        :class="activeTab === 'services' ? 'text-blue-500 font-semibold border-b-2 border-blue-500 pb-1' : 'text-gray-500'">
+                    :class="activeTab === 'services' ? 'text-blue-500 font-semibold border-b-2 border-blue-500 pb-1' : 'text-gray-500'">
                     Services
                 </button>
 
                 <button @click="activeTab = 'logs'; fetchLogs()"
-                        :class="activeTab === 'logs' ? 'text-blue-500 font-semibold border-b-2 border-blue-500 pb-1' : 'text-gray-500'">
+                    :class="activeTab === 'logs' ? 'text-blue-500 font-semibold border-b-2 border-blue-500 pb-1' : 'text-gray-500'">
                     Logs
                 </button>
 
                 <button @click="activeTab = 'analytics'; fetchAnalytics()"
-                        :class="activeTab === 'analytics' ? 'text-blue-500 font-semibold border-b-2 border-blue-500 pb-1' : 'text-gray-500'">
+                    :class="activeTab === 'analytics' ? 'text-blue-500 font-semibold border-b-2 border-blue-500 pb-1' : 'text-gray-500'">
                     Analytics
                 </button>
             </div>
@@ -150,26 +149,23 @@
 
                 <div class="bg-green-100 dark:bg-green-900/40 p-6 rounded-2xl shadow-lg">
                     <p class="text-sm">Running</p>
-                    <p class="text-3xl font-bold text-green-600 dark:text-green-300 mt-1"
-                       x-text="summary.running"></p>
+                    <p class="text-3xl font-bold text-green-600 dark:text-green-300 mt-1" x-text="summary.running"></p>
                 </div>
 
                 <div class="bg-red-200 dark:bg-red-900/40 p-6 rounded-2xl shadow-lg">
                     <p class="text-sm">Unhealthy</p>
-                    <p class="text-3xl font-bold text-red-700 dark:text-red-300 mt-1"
-                       x-text="summary.unhealthy"></p>
+                    <p class="text-3xl font-bold text-red-700 dark:text-red-300 mt-1" x-text="summary.unhealthy"></p>
                 </div>
 
                 <div class="bg-red-100 dark:bg-red-900/40 p-6 rounded-2xl shadow-lg">
                     <p class="text-sm">Stopped</p>
-                    <p class="text-3xl font-bold text-red-600 dark:text-red-300 mt-1"
-                       x-text="summary.stopped"></p>
+                    <p class="text-3xl font-bold text-red-600 dark:text-red-300 mt-1" x-text="summary.stopped"></p>
                 </div>
 
                 <div class="bg-orange-100 dark:bg-orange-900/40 p-6 rounded-2xl shadow-lg">
                     <p class="text-sm">Restarting</p>
-                    <p class="text-3xl font-bold text-orange-600 dark:text-orange-300 mt-1"
-                       x-text="summary.restarting"></p>
+                    <p class="text-3xl font-bold text-orange-600 dark:text-orange-300 mt-1" x-text="summary.restarting">
+                    </p>
                 </div>
             </div>
 
@@ -184,8 +180,7 @@
 
                         <!-- Header -->
                         <div class="flex justify-between items-center mb-4">
-                            <h2 class="text-xl font-semibold capitalize"
-                                x-text="service.name"></h2>
+                            <h2 class="text-xl font-semibold capitalize" x-text="service.name"></h2>
 
                             <template x-if="service.restart_count > 0 && service.health_status === 'healthy'">
                                 <span class="ml-2 text-xs px-2 py-1 rounded
@@ -195,14 +190,12 @@
                                 </span>
                             </template>
 
-                            <span class="px-2 py-1 rounded text-xs font-semibold capitalize"
-                                  :class="{
+                            <span class="px-2 py-1 rounded text-xs font-semibold capitalize" :class="{
                                   'bg-green-600 text-white': service.status === 'running',
                                   'bg-red-600 text-white': service.status === 'stopped',
                                   'bg-blue-500 hover:bg-blue-400 text-black': service.status === 'restarting',
                                   'bg-gray-500 text-white': service.status === 'unknown'
-                              }"
-                                  x-text="service.status"></span>
+                              }" x-text="service.status"></span>
 
                             <span
                                 class="px-3 py-1 rounded-full text-xs font-semibold capitalize flex items-center gap-1"
@@ -261,18 +254,16 @@
                             <p>
                                 <strong>Restart Policy:</strong>
                                 <span class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-xs"
-                                      x-text="service.restart_policy">
+                                    x-text="service.restart_policy">
                                 </span>
                             </p>
 
                             <p>
                                 <strong>Restart Count:</strong>
-                                <span class="px-3 py-1 rounded text-sm font-bold"
-                                      :class="{
+                                <span class="px-3 py-1 rounded text-sm font-bold" :class="{
                                       'bg-gray-200 dark:bg-gray-700': service.restart_count == 0,
                                       'bg-yellow-400 text-black animate-pulse': service.restart_count > 0
-                                  }"
-                                      x-text="service.restart_count">
+                                  }" x-text="service.restart_count">
                                 </span>
                             </p>
 
@@ -284,14 +275,12 @@
 
                         <!-- ACTION BUTTONS -->
                         <div class="mt-6 flex gap-4">
-                            <button @click="restartService(service.name)"
-                                    class="flex-1 bg-yellow-500 text-black px-3 py-2
+                            <button @click="restartService(service.name)" class="flex-1 bg-yellow-500 text-black px-3 py-2
                                      rounded-lg hover:bg-yellow-400 transition">
                                 Restart
                             </button>
 
-                            <button @click="stopService(service.name)"
-                                    class="flex-1 bg-red-600 text-white px-3 py-2
+                            <button @click="stopService(service.name)" class="flex-1 bg-red-600 text-white px-3 py-2
                                      rounded-lg hover:bg-red-500 transition">
                                 Stop
                             </button>
@@ -308,7 +297,7 @@
             <!-- Filters -->
             <div class="flex gap-4 mb-4">
                 <select x-model="selectedService" @change="fetchLogs()"
-                        class="bg-gray-200 text-black dark:bg-gray-800 dark:text-white p-2 rounded">
+                    class="bg-gray-200 text-black dark:bg-gray-800 dark:text-white p-2 rounded">
                     <option value="">All Services</option>
                     <template x-for="svc in services">
                         <option :value="svc.name" x-text="svc.name"></option>
@@ -316,7 +305,7 @@
                 </select>
 
                 <input type="text" placeholder="Search logs..." x-model="searchQuery" @input="fetchLogs()"
-                       class="bg-gray-200 text-black dark:bg-gray-800 dark:text-white p-2 rounded w-full" />
+                    class="bg-gray-200 text-black dark:bg-gray-800 dark:text-white p-2 rounded w-full" />
 
                 <button @click="downloadLogs()" class="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700">
                     Download Logs
@@ -339,31 +328,28 @@
                 <h2 class="text-2xl font-bold mb-4">Live Service Logs</h2>
 
                 <div class="flex gap-4 mb-4">
-                    <select x-model="selectedService"
-                            class="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700">
+                    <select x-model="selectedService" class="px-3 py-2 rounded bg-gray-200 dark:bg-gray-700">
                         <option value="">Select Service</option>
                         <template x-for="service in services">
                             <option :value="service.name" x-text="service.name"></option>
                         </template>
                     </select>
 
-                    <button @click="connectLogs()"
-                            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
+                    <button @click="connectLogs()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
                         Start Logs
                     </button>
 
                     <button @click="disconnectLogs()"
-                            class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-500">
+                        class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-500">
                         Stop
                     </button>
 
-                    <button @click="clearLogs()"
-                            class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-500">
+                    <button @click="clearLogs()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-500">
                         Clear Logs
                     </button>
 
                     <button @click="toggleScroll()"
-                            class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-500">
+                        class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-500">
                         Toggle Auto Scroll
                     </button>
                 </div>
@@ -376,431 +362,458 @@
                 </div>
             </div>
         </div>
+
         <!-- MAIN CONTENT WRAPPER -->
-<div x-show="!loadingAnalytics && analytics.unstable_services.length > 0"
-     class="space-y-8">
+        <div x-show="!loadingAnalytics && analytics.unstable_services.length > 0" class="space-y-8">
 
-    <!-- HEADER -->
-    <div class="flex items-center justify-between">
-        <h2 class="text-2xl font-bold">Analytics</h2>
-        <span class="text-sm text-gray-400">Last 24 hours</span>
-    </div>
+            <!-- HEADER -->
+            <div class="flex items-center justify-between">
+                <h2 class="text-2xl font-bold">Analytics</h2>
+                <span class="text-sm text-gray-400">Last 24 hours</span>
+            </div>
 
-    <!-- INSIGHT -->
-    <div class="bg-gradient-to-r from-indigo-500 to-blue-600 text-white p-6 rounded-2xl shadow flex justify-between items-center">
+            <!-- 🧠 INSIGHT -->
+            <div
+                class="bg-gradient-to-r from-indigo-500 to-blue-600 text-white p-6 rounded-2xl shadow flex justify-between items-center">
+                <div class="space-y-1">
+                    <p class="text-sm opacity-80">System Insight</p>
 
-        <div class="space-y-1">
-            <p class="text-sm opacity-80">System Insight</p>
+                    <p class="text-lg font-semibold leading-snug">
+                        <span x-text="analytics.unstable_services[0].service_name"></span>
+                        restarted
+                        <span x-text="analytics.unstable_services[0].restarts"></span>
+                        times
+                    </p>
 
-            <!-- SAFE ACCESS -->
-            <p class="text-lg font-semibold leading-snug">
-                <span x-text="topService?.service_name || 'Loading...'"></span>
-                restarted
-                <span x-text="topService?.restarts || 0"></span>
-                times
-            </p>
-
-            <!--  SAFE CLASS -->
-            <p class="text-sm"
-               :class="{
-                    'text-green-200': (topService?.restarts || 0) <= 1,
-                    'text-yellow-200': (topService?.restarts || 0) > 1 && (topService?.restarts || 0) <= 4,
-                    'text-red-200': (topService?.restarts || 0) > 4
+                    <p class="text-sm" :class="{
+                    'text-green-200': analytics.unstable_services[0].restarts <= 1,
+                    'text-yellow-200': analytics.unstable_services[0].restarts <= 4 && analytics.unstable_services[0].restarts > 1,
+                    'text-red-200': analytics.unstable_services[0].restarts > 4
                }">
+                        <span x-show="analytics.unstable_services[0].restarts <= 1">✅ Stable</span>
+                        <span
+                            x-show="analytics.unstable_services[0].restarts > 1 && analytics.unstable_services[0].restarts <= 4">⚠️
+                            Moderate</span>
+                        <span x-show="analytics.unstable_services[0].restarts > 4">🚨 Critical</span>
+                    </p>
+                </div>
 
-                <span x-show="(topService?.restarts || 0) <= 1">Stable</span>
-                <span x-show="(topService?.restarts || 0) > 1 && (topService?.restarts || 0) <= 4"  Moderate</span>
-                <span x-show="(topService?.restarts || 0) > 4">Critical</span>
-            </p>
-        </div>
-
-        <div class="text-4xl">⚡</div>
-    </div>
-
-    <!--  KPI -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
-            <p class="text-sm text-gray-400 mb-1">Total Restarts</p>
-            <p class="text-3xl font-bold text-blue-500"
-               x-text="analytics.total_restarts || 0"></p>
-        </div>
-
-        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
-            <p class="text-sm text-gray-400 mb-1">Unstable Services</p>
-            <p class="text-3xl font-bold text-red-500"
-               x-text="analytics.unstable_services.length"></p>
-        </div>
-
-        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
-            <p class="text-sm text-gray-400 mb-1">Most Affected</p>
-            <p class="text-lg font-semibold"
-               x-text="topService?.service_name || 'N/A'"></p>
-        </div>
-
-    </div>
-
-    <!--  CHARTS -->
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-
-        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
-            <h3 class="text-md font-semibold mb-4">Most Unstable</h3>
-            <div class="h-64">
-                <canvas id="unstableChart"></canvas>
+                <div class="text-4xl">⚡</div>
             </div>
-        </div>
 
-        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
-            <h3 class="text-md font-semibold mb-4">Restart Trend</h3>
-            <div class="h-64">
-                <canvas id="restartChart"></canvas>
+            <!-- 📊 KPI -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
+                    <p class="text-sm text-gray-400 mb-1">Total Restarts</p>
+                    <p class="text-3xl font-bold text-blue-500" x-text="analytics.total_restarts || 0"></p>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
+                    <p class="text-sm text-gray-400 mb-1">Unstable Services</p>
+                    <p class="text-3xl font-bold text-red-500" x-text="analytics.unstable_services.length"></p>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
+                    <p class="text-sm text-gray-400 mb-1">Most Affected</p>
+                    <p class="text-lg font-semibold" x-text="analytics.unstable_services[0].service_name"></p>
+                </div>
+
             </div>
-        </div>
 
-        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm">
-            <h3 class="text-md font-semibold mb-4">Failure Breakdown</h3>
-            <div class="h-64">
-                <canvas id="failureChart"></canvas>
+            <!-- 📈 CHARTS (FIXED HEIGHT + BALANCED GRID) -->
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+                <!-- Unstable -->
+                <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm flex flex-col">
+                    <h3 class="text-md font-semibold mb-4">Most Unstable</h3>
+                    <div class="h-64">
+                        <canvas id="unstableChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Trend -->
+                <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm flex flex-col">
+                    <h3 class="text-md font-semibold mb-4">Restart Trend</h3>
+                    <div class="h-64">
+                        <canvas id="restartChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Pie (NOW SAME SIZE) -->
+                <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm flex flex-col">
+                    <h3 class="text-md font-semibold mb-4">Failure Breakdown</h3>
+                    <div class="h-64">
+                        <canvas id="failureChart"></canvas>
+                    </div>
+                </div>
+
             </div>
+
+            <!-- 🔁 ACTIVITY -->
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm">
+                <h3 class="text-lg font-semibold mb-4">Recent Healing Actions</h3>
+
+                <ul class="space-y-3 text-sm">
+                    <template x-for="event in analytics.recent_events || []" :key="event.id">
+                        <li
+                            class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2">
+                            <span x-text="event.message"></span>
+                            <span class="text-xs text-gray-400" x-text="event.time"></span>
+                        </li>
+                    </template>
+
+                    <template x-if="!analytics.recent_events || analytics.recent_events.length === 0">
+                        <li class="text-gray-400">No recent healing activity</li>
+                    </template>
+                </ul>
+            </div>
+
         </div>
 
-    </div>
+        <script>
+            function dashboard() {
+                return {
+                    services: [],
+                    summary: {},
 
-    <!--  ACTIVITY -->
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm">
-        <h3 class="text-lg font-semibold mb-4">Recent Healing Actions</h3>
+                    selectedService: "",
+                    logSource: null,
+                    apiLogs: [],
+                    liveLogs: [],
+                    autoScroll: true,
 
-        <ul class="space-y-3 text-sm">
-            <template x-for="event in analytics.recent_events || []" :key="event.id">
-                <li class="flex justify-between border-b pb-2">
-                    <span x-text="event.message"></span>
-                    <span class="text-xs text-gray-400" x-text="event.time"></span>
-                </li>
-            </template>
+                    activeTab: 'services',
+                    searchQuery: '',
+                    loadingAnalytics: false,
+                    analyticsError: null,
 
-            <template x-if="!analytics.recent_events || analytics.recent_events.length === 0">
-                <li class="text-gray-400">No recent healing activity</li>
-            </template>
-        </ul>
-    </div>
+                    unstableChart: null,
+                    restartChart: null,
+                    failureChart: null,
 
-</div>
-   <script>
-function dashboard() {
-    return {
-        services: [],
-        summary: {},
+                    analytics: {
+                        unstable_services: [],
+                        restart_history: [],
+                        failure_breakdown: []
+                    },
 
-        selectedService: "",
-        logSource: null,
-        apiLogs: [],
-        liveLogs: [],
-        autoScroll: true,
+                    async init() {
+                        await this.fetchServices()
+                        await this.fetchSummary()
 
-        activeTab: 'services',
-        searchQuery: '',
-        loadingAnalytics: false,
-        analyticsError: null,
+                        setInterval(() => {
+                            this.fetchServices()
+                            this.fetchSummary()
+                        }, 5000)
 
-        unstableChart: null,
-        restartChart: null,
-        failureChart: null,
+                        setInterval(() => {
+                            if (this.activeTab === 'analytics') {
+                                this.fetchAnalytics();
+                            }
+                        }, 15000);
 
-        analytics: {
-            unstable_services: [],
-            restart_history: [],
-            failure_breakdown: []
-        },
 
-        async init() {
-            await this.fetchServices();
-            await this.fetchSummary();
+                    },
+                    // =========================
+                    // ✅ FIXED ANALYTICS FLOW (FINAL STABLE)
+                    // =========================
 
-            setInterval(() => {
-                this.fetchServices();
-                this.fetchSummary();
-            }, 5000);
+                    async fetchAnalytics() {
+                        if (this.loadingAnalytics) return;
 
-            setInterval(() => {
-                if (this.activeTab === 'analytics') {
-                    this.fetchAnalytics();
-                }
-            }, 60000);
-        },
-        get topService() {
-    return this.analytics.unstable_services?.[0] || null;
-},
+                        this.loadingAnalytics = true;
 
-        // =========================
-        //  ANALYTICS (FULLY FIXED)
-        // =========================
+                        try {
+                            const res = await fetch("/analytics/unstable-services");
+                            const data = await res.json();
 
-        async fetchAnalytics() {
-    if (this.loadingAnalytics) return;
+                            // ✅ Never clear old data if empty response comes
+                            if (data && data.length > 0) {
+                                this.analytics.unstable_services = data;
 
-    this.loadingAnalytics = true;
+                                const first = data[0].service_name;
+                                await this.selectServiceAnalytics(first);
 
-    try {
-        const res = await fetch("/analytics/unstable-services");
-        const data = await res.json();
+                                this.$nextTick(() => {
+                                    this.renderAllCharts();
+                                });
+                            }
 
-        this.analytics.unstable_services = Array.isArray(data) ? data : [];
+                        } catch (err) {
+                            console.error("Analytics load failed", err);
+                        } finally {
+                            this.loadingAnalytics = false;
+                        }
+                    },
 
-        if (this.analytics.unstable_services.length > 0) {
-            const first = this.analytics.unstable_services[0].service_name;
-            await this.selectServiceAnalytics(first);
-        }
+                    async selectServiceAnalytics(service) {
+                        this.selectedAnalyticsService = service;
 
-        // WAIT UNTIL DOM IS RENDERED
-        this.$nextTick(() => {
-            this.renderAllCharts();
-        });
+                        try {
+                            const historyRes = await fetch(`/analytics/restart-history/${service}`);
+                            const historyData = await historyRes.json();
 
-    } catch (err) {
-        console.error("Analytics load failed", err);
-    } finally {
-        this.loadingAnalytics = false;
-    }
-},
-        async selectServiceAnalytics(service) {
-            this.selectedAnalyticsService = service;
+                            if (historyData && historyData.length > 0) {
+                                this.analytics.restart_history = historyData;
+                            }
 
-            try {
-                const historyRes = await fetch(`/analytics/restart-history/${service}`);
-                const historyData = await historyRes.json();
+                            const failureRes = await fetch(`/analytics/failure-reasons/${service}`);
+                            const raw = await failureRes.json();
 
-                this.analytics.restart_history = Array.isArray(historyData) ? historyData : [];
+                            // ✅ Normalize data safely
+                            if (Array.isArray(raw)) {
+                                this.analytics.failure_breakdown = raw;
+                            } else {
+                                this.analytics.failure_breakdown = Object.entries(raw || {}).map(
+                                    ([reason, count]) => ({ reason, count })
+                                );
+                            }
 
-                const failureRes = await fetch(`/analytics/failure-reasons/${service}`);
-                const raw = await failureRes.json();
+                        } catch (err) {
+                            console.error("Analytics detail fetch failed", err);
+                        }
+                    },
 
-                if (Array.isArray(raw)) {
-                    this.analytics.failure_breakdown = raw;
-                } else {
-                    this.analytics.failure_breakdown = Object.entries(raw || {}).map(
-                        ([reason, count]) => ({ reason, count })
-                    );
-                }
+                    renderAllCharts() {
+                        this.renderUnstableChart();
+                        this.renderRestartChart();
+                        this.renderFailureChart();
+                    },
 
-            } catch (err) {
-                console.error("Analytics detail fetch failed", err);
-            }
-        },
+                    // ✅ BAR CHART (NO DESTROY, ONLY UPDATE)
+                    renderUnstableChart() {
+                        const ctx = document.getElementById('unstableChart');
+                        if (!ctx || this.analytics.unstable_services.length === 0) return;
 
-        renderAllCharts() {
-            this.renderUnstableChart();
-            this.renderRestartChart();
-            this.renderFailureChart();
-        },
+                        const labels = this.analytics.unstable_services.map(s => s.service_name);
+                        const data = this.analytics.unstable_services.map(s => s.restarts);
 
-        // =========================
-        // CHART FIXES (SAFE + STABLE)
-        // =========================
+                        if (this.unstableChart) {
+                            this.unstableChart.data.labels = labels;
+                            this.unstableChart.data.datasets[0].data = data;
+                            this.unstableChart.update();
+                            return;
+                        }
 
-        renderUnstableChart() {
-            const canvas = document.getElementById('unstableChart');
-if (!canvas) return;
+                        this.unstableChart = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels,
+                                datasets: [{
+                                    label: 'Restarts',
+                                    data,
+                                    backgroundColor: '#ef4444'
+                                }]
+                            }
+                        });
+                    },
 
-const ctx = canvas.getContext('2d');
-if (!ctx) return;
+                    // ✅ LINE CHART (SAFE UPDATE)
+                    renderRestartChart() {
+                        const ctx = document.getElementById('restartChart');
+                        if (!ctx || this.analytics.restart_history.length === 0) return;
 
-            const labels = this.analytics.unstable_services.map(s => s.service_name);
-            const data = this.analytics.unstable_services.map(s => s.restarts);
+                        let count = 0;
+                        const trend = this.analytics.restart_history.map(() => ++count);
 
-            if (!labels.length || !data.length) return;
+                        const labels = this.analytics.restart_history.map(i =>
+                            new Date(i.timestamp).toLocaleTimeString()
+                        );
 
-            if (this.unstableChart) {
-                this.unstableChart.destroy();
-            }
+                        if (this.restartChart) {
+                            this.restartChart.data.labels = labels;
+                            this.restartChart.data.datasets[0].data = trend;
+                            this.restartChart.update();
+                            return;
+                        }
 
-            this.unstableChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: 'Restarts',
-                        data,
-                        backgroundColor: '#ef4444'
-                    }]
-                }
-            });
-        },
+                        this.restartChart = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels,
+                                datasets: [{
+                                    label: 'Restart Trend',
+                                    data: trend,
+                                    borderColor: '#3b82f6',
+                                    fill: false,
+                                    tension: 0.3
+                                }]
+                            }
+                        });
+                    },
 
-        renderRestartChart() {
-            const ctx = document.getElementById('restartChart');
-            if (!ctx || !ctx.getContext) return;
+                    // ✅ PIE CHART (SAFE UPDATE)
+                    renderFailureChart() {
+                        const ctx = document.getElementById('failureChart');
+                        if (!ctx || this.analytics.failure_breakdown.length === 0) return;
 
-            const labels = this.analytics.restart_history.map(i =>
-                new Date(i.timestamp).toLocaleTimeString()
-            );
+                        const labels = this.analytics.failure_breakdown.map(i => i.reason);
+                        const data = this.analytics.failure_breakdown.map(i => i.count);
 
-            const data = this.analytics.restart_history.map((_, i) => i + 1);
+                        if (this.failureChart) {
+                            this.failureChart.data.labels = labels;
+                            this.failureChart.data.datasets[0].data = data;
+                            this.failureChart.update();
+                            return;
+                        }
 
-            if (!labels.length || !data.length) return;
+                        this.failureChart = new Chart(ctx, {
+                            type: 'pie',
+                            data: {
+                                labels,
+                                datasets: [{
+                                    data,
+                                    backgroundColor: [
+                                        '#ef4444',
+                                        '#f59e0b',
+                                        '#3b82f6',
+                                        '#10b981'
+                                    ]
+                                }]
+                            }
+                        });
+                    },
 
-            if (this.restartChart) {
-                this.restartChart.destroy();
-            }
 
-            this.restartChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: 'Restart Trend',
-                        data,
-                        borderColor: '#3b82f6',
-                        fill: false,
-                        tension: 0.3
-                    }]
-                }
-            });
-        },
 
-        renderFailureChart() {
-            const ctx = document.getElementById('failureChart');
-            if (!ctx || !ctx.getContext) return;
 
-            const labels = this.analytics.failure_breakdown.map(i => i.reason);
-            const data = this.analytics.failure_breakdown.map(i => i.count);
 
-            if (!labels.length || !data.length) return;
 
-            if (this.failureChart) {
-                this.failureChart.destroy();
-            }
+                    // =========================
+                    // (REST CODE UNCHANGED)
+                    // =========================
 
-            this.failureChart = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels,
-                    datasets: [{
-                        data,
-                        backgroundColor: [
-                            '#ef4444',
-                            '#f59e0b',
-                            '#3b82f6',
-                            '#10b981'
-                        ]
-                    }]
-                }
-            });
-        },
+                    async fetchLogs() {
+                        let url = `/logs/db?service_name=${this.selectedService}`;
+                        if (this.searchQuery) url += `&q=${this.searchQuery}`;
 
-        // =========================
-        // REST CODE (UNCHANGED)
-        // =========================
+                        try {
+                            const res = await fetch(url);
+                            this.apiLogs = await res.json();
+                        } catch (err) {
+                            console.error("Logs fetch failed", err);
+                        }
+                    },
 
-        async fetchLogs() {
-            let url = `/logs/db?service_name=${this.selectedService}`;
-            if (this.searchQuery) url += `&q=${this.searchQuery}`;
+                    get filteredLogs() {
+                        return this.apiLogs.map(log => ({
+                            service: this.selectedService || "all",
+                            message: typeof log === "string" ? log : log.message
+                        }))
+                    },
 
-            try {
-                const res = await fetch(url);
-                this.apiLogs = await res.json();
-            } catch (err) {
-                console.error("Logs fetch failed", err);
-            }
-        },
+                    async fetchServices() {
+                        try {
+                            const res = await fetch("/services")
+                            this.services = await res.json()
+                        } catch (err) {
+                            console.error("Failed loading services", err)
+                        }
+                    },
 
-        get filteredLogs() {
-            return this.apiLogs.map(log => ({
-                service: this.selectedService || "all",
-                message: typeof log === "string" ? log : log.message
-            }));
-        },
+                    async fetchSummary() {
+                        try {
+                            const res = await fetch("/status")
+                            this.summary = await res.json()
+                        } catch (err) {
+                            console.error("Failed loading summary", err)
+                        }
+                    },
 
-        async fetchServices() {
-            try {
-                const res = await fetch("/services");
-                this.services = await res.json();
-            } catch (err) {
-                console.error("Failed loading services", err);
-            }
-        },
+                    async restartService(name) {
+                        try {
+                            const res = await fetch(`/services/${name}/restart`, { method: "POST" })
+                            const data = await res.json()
+                            alert(data.message)
+                            await this.fetchServices()
+                            await this.fetchSummary()
+                        } catch (err) {
+                            console.error("Restart failed", err)
+                        }
+                    },
 
-        async fetchSummary() {
-            try {
-                const res = await fetch("/status");
-                this.summary = await res.json();
-            } catch (err) {
-                console.error("Failed loading summary", err);
-            }
-        },
+                    async stopService(name) {
+                        try {
+                            const res = await fetch(`/services/${name}/stop`, { method: "POST" })
+                            const data = await res.json()
+                            alert(data.message)
+                            await this.fetchServices()
+                            await this.fetchSummary()
+                        } catch (err) {
+                            console.error("Stop failed", err)
+                        }
+                    },
 
-        async restartService(name) {
-            try {
-                const res = await fetch(`/services/${name}/restart`, { method: "POST" });
-                const data = await res.json();
-                alert(data.message);
-                await this.fetchServices();
-                await this.fetchSummary();
-            } catch (err) {
-                console.error("Restart failed", err);
-            }
-        },
+                    connectLogs() {
+                        if (!this.selectedService) return;
 
-        async stopService(name) {
-            try {
-                const res = await fetch(`/services/${name}/stop`, { method: "POST" });
-                const data = await res.json();
-                alert(data.message);
-                await this.fetchServices();
-                await this.fetchSummary();
-            } catch (err) {
-                console.error("Stop failed", err);
-            }
-        },
+                        if (this.logSource) this.logSource.close();
 
-        connectLogs() {
-            if (!this.selectedService) return;
+                        this.liveLogs = [];
 
-            if (this.logSource) this.logSource.close();
+                        this.logSource = new EventSource(`/logs/stream/${this.selectedService}`);
 
-            this.liveLogs = [];
+                        this.logSource.onmessage = (event) => {
+                            this.liveLogs.push(event.data);
+                            this.$nextTick(() => {
+                                if (this.autoScroll) {
+                                    this.$refs.logBox.scrollTop =
+                                        this.$refs.logBox.scrollHeight;
+                                }
+                            });
+                        }
+                    },
 
-            this.logSource = new EventSource(`/logs/stream/${this.selectedService}`);
+                    disconnectLogs() {
+                        if (this.logSource) {
+                            this.logSource.close();
+                            this.logSource = null;
+                        }
+                    },
 
-            this.logSource.onmessage = (event) => {
-                this.liveLogs.push(event.data);
-                this.$nextTick(() => {
-                    if (this.autoScroll) {
-                        this.$refs.logBox.scrollTop =
-                            this.$refs.logBox.scrollHeight;
+                    clearLogs() {
+                        this.liveLogs = []
+                    },
+
+                    toggleScroll() {
+                        this.autoScroll = !this.autoScroll
+                    },
+
+                    toggleDarkMode() {
+                        document.documentElement.classList.toggle('dark')
+                        localStorage.theme =
+                            document.documentElement.classList.contains('dark')
+                                ? 'dark'
+                                : 'light'
+                    },
+
+                    formatTime(timestamp) {
+                        if (!timestamp) return "Never";
+
+                        const t = new Date(timestamp);
+                        if (isNaN(t.getTime())) return "Unknown";
+
+                        const now = new Date();
+                        const diffMs = now - t;
+                        const diffSec = Math.floor(diffMs / 1000);
+
+                        if (diffSec < 10) return "Just now";
+                        if (diffSec < 60) return `${diffSec} secs ago`;
+
+                        const diffMin = Math.floor(diffSec / 60);
+                        if (diffMin < 60) return `${diffMin} mins ago`;
+
+                        const diffHr = Math.floor(diffMin / 60);
+                        if (diffHr < 24) return `${diffHr} hrs ago`;
+
+                        const diffDay = Math.floor(diffHr / 24);
+                        return `${diffDay} day${diffDay > 1 ? "s" : ""} ago`;
                     }
-                });
-            };
-        },
 
-        disconnectLogs() {
-            if (this.logSource) {
-                this.logSource.close();
-                this.logSource = null;
+                }
             }
-        },
-
-        clearLogs() {
-            this.liveLogs = [];
-        },
-
-        toggleScroll() {
-            this.autoScroll = !this.autoScroll;
-        },
-
-        toggleDarkMode() {
-            document.documentElement.classList.toggle('dark');
-            localStorage.theme =
-                document.documentElement.classList.contains('dark')
-                    ? 'dark'
-                    : 'light';
-        },
-
-        formatTime(timestamp) {
-            if (!timestamp) return "Never";
-            return new Date(timestamp).toLocaleTimeString();
-        }
-    }
-}
-</script>
+        </script>
 </body>
+
 </html>

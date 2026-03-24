@@ -1,5 +1,5 @@
 import subprocess
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 
 from fastapi import APIRouter, Query, Request
@@ -27,10 +27,20 @@ from dockfleet.health.queries import (
 )
 from dockfleet.health.models import RestartEvent, engine
 
-
 router = APIRouter()
-
 templates = Jinja2Templates(directory="dockfleet/dashboard/templates")
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def to_ist_iso(dt: Optional[datetime]) -> Optional[str]:
+    """Convert naive UTC datetime to IST ISO string."""
+    if dt is None:
+        return None
+    # stored as naive UTC
+    dt_utc = dt.replace(tzinfo=timezone.utc)
+    dt_ist = dt_utc.astimezone(IST)
+    return dt_ist.isoformat()
 
 
 # ------------------------------------------------
@@ -63,8 +73,9 @@ class Service(BaseModel):
     restart_count: int = Field(
         ..., description="Total number of times this service has been restarted"
     )
-    last_health_check: Optional[datetime] = Field(
-        None, description="UTC timestamp of the last health check"
+    # Now serialized as IST ISO string
+    last_health_check: Optional[str] = Field(
+        None, description="IST timestamp of the last health check (ISO string)"
     )
 
     cpu: Optional[str] = Field(None, description="Current CPU usage percentage")
@@ -211,7 +222,19 @@ def dashboard_home(request: Request):
 # ------------------------------------------------
 @router.get("/services", response_model=List[Service])
 def list_services():
-    return get_services()
+    # get_services() currently returns list[dict] with a datetime last_health_check
+    raw_services = get_services()
+
+    converted: list[dict] = []
+    for svc in raw_services:
+        svc = dict(svc)  # in case it is not a plain dict
+        if "last_health_check" in svc and isinstance(
+            svc["last_health_check"], datetime
+        ):
+            svc["last_health_check"] = to_ist_iso(svc["last_health_check"])
+        converted.append(svc)
+
+    return converted
 
 
 # ------------------------------------------------
@@ -320,11 +343,9 @@ def system_status():
     services = get_services()
 
     total = len(services)
-
     running = sum(1 for s in services if s["status"] == "running")
     restarting = sum(1 for s in services if s["status"] == "restarting")
     stopped = sum(1 for s in services if s["status"] == "stopped")
-
     unhealthy = sum(1 for s in services if s["health_status"] == "unhealthy")
 
     return {
@@ -334,6 +355,7 @@ def system_status():
         "unhealthy": unhealthy,
         "stopped": stopped,
     }
+
 
 # ------------------------------------------------
 # Stream container logs (SSE) – NEW PATH
@@ -564,3 +586,4 @@ def analytics_failure_reasons(
     )
 
     return breakdown
+    
