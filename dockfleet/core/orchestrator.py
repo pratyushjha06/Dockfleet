@@ -3,7 +3,7 @@ import re
 import subprocess
 from datetime import datetime
 from typing import Optional
-import time
+
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -303,35 +303,6 @@ class Orchestrator:
 
         except Exception as e:
             logger.error("DB increment failed for %s: %s", service_name, e)
-    
-    def monitor_services(self):
-
-        try:
-            result = subprocess.run(
-                ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}"],
-                capture_output=True,
-                text=True,
-            )
-
-            for line in result.stdout.splitlines():
-                name, status = line.split("\t")
-
-                if not name.startswith("dockfleet_"):
-                    continue
-
-                service_name = name.replace("dockfleet_", "")
-
-                # detect crashed containers
-                if "Exited" in status:
-                    logger.warning("%s detected as crashed (%s)", service_name, status)
-
-                    self.handle_unhealthy_service(
-                        service_name,
-                        reason="health failure",
-                    )
-
-        except Exception as e:
-            logger.error("Monitor failed: %s", e)
 
     def handle_unhealthy_service(
         self,
@@ -432,10 +403,6 @@ class Orchestrator:
         for name in order:
             svc = self.config.services[name]
             self.start_service(name, svc)
-
-        while True:
-            self.monitor_services()
-            time.sleep(30)
 
     def down(self):
         print("Stopping services...\n")
