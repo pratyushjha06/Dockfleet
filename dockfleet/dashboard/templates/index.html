@@ -6,27 +6,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DockFleet Dashboard</title>
 
-    <!-- Dark mode init before render -->
     <script>
-        if (localStorage.theme === 'dark') {
-            document.documentElement.classList.add('dark');
-        }
+        if (localStorage.theme === 'dark') document.documentElement.classList.add('dark');
     </script>
 
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-    <!-- Tailwind -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = { darkMode: 'class' }
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
     </script>
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js">
 
-    <!-- Alpine.js -->
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    </script>
 
     <style>
-        /* Spinner for loading states */
+        [x-cloak] {
+            display: none !important;
+        }
+
         .spinner {
             width: 12px;
             height: 12px;
@@ -35,6 +32,7 @@
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
             display: inline-block;
+            vertical-align: middle;
         }
 
         @keyframes spin {
@@ -43,12 +41,6 @@
             }
         }
 
-        /* Hide x-cloak elements until Alpine initializes */
-        [x-cloak] {
-            display: none !important;
-        }
-
-        /* Scrollbar styling for log boxes */
         .log-box::-webkit-scrollbar {
             width: 6px;
         }
@@ -62,21 +54,76 @@
             border-radius: 3px;
         }
 
-        /* Pulse animation for live indicator */
         @keyframes pulse-dot {
 
             0%,
             100% {
-                opacity: 1;
+                opacity: 1
             }
 
             50% {
-                opacity: 0.3;
+                opacity: .3
             }
         }
 
         .pulse-dot {
             animation: pulse-dot 1.5s ease-in-out infinite;
+        }
+
+        .tab-content {
+            animation: fadeIn .15s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        .badge-auto {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-manual {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-health {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-other {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .dark .badge-auto {
+            background: #78350f;
+            color: #fde68a;
+        }
+
+        .dark .badge-manual {
+            background: #1e3a8a;
+            color: #bfdbfe;
+        }
+
+        .dark .badge-health {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
+
+        .dark .badge-other {
+            background: #374151;
+            color: #d1d5db;
         }
     </style>
 </head>
@@ -84,59 +131,39 @@
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen transition-colors duration-300"
     x-data="dashboard()" x-init="init()" x-cloak>
 
-    <!-- ========== TOP NAVBAR ========== -->
+    <!-- ══════════ NAVBAR ══════════ -->
     <nav
-        class="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur border-b border-gray-200 dark:border-gray-800 shadow-sm">
+        class="sticky top-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-b border-gray-200 dark:border-gray-800 shadow-sm">
         <div class="max-w-7xl mx-auto px-6 py-3 flex justify-between items-center">
-
-            <!-- Brand -->
             <div class="flex items-center gap-3">
                 <div
-                    class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
+                    class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm select-none">
                     DF</div>
                 <div>
                     <span class="font-bold text-lg tracking-tight">DockFleet</span>
                     <span
-                        class="ml-2 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300 font-medium">
-                        Self-Healing
-                    </span>
+                        class="ml-2 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300 font-medium">Self-Healing</span>
                 </div>
             </div>
 
-            <!-- Nav + dark mode -->
             <div class="flex items-center gap-1">
-                <button @click="activeTab = 'services'" :class="activeTab === 'services'
-                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'"
-                    class="px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                    Services
-                </button>
-                <button @click="activeTab = 'logs'; fetchLogs()" :class="activeTab === 'logs'
-                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'"
-                    class="px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                    Logs
-                </button>
-                <button @click="switchToAnalytics()" :class="activeTab === 'analytics'
-                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'"
-                    class="px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                    Analytics
-                </button>
+                <template
+                    x-for="tab in [{id:'services',label:'Services'},{id:'logs',label:'Logs'},{id:'analytics',label:'Analytics'}]"
+                    :key="tab.id">
+                    <button @click="switchTab(tab.id)"
+                        :class="activeTab===tab.id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'"
+                        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors" x-text="tab.label">
+                    </button>
+                </template>
 
-                <!-- Divider -->
+
                 <div class="w-px h-5 bg-gray-300 dark:bg-gray-700 mx-2"></div>
-
-                <!-- Dark mode toggle -->
-                <button @click="toggleDarkMode()"
-                    class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                    :title="darkMode ? 'Switch to light' : 'Switch to dark'">
-                    <!-- Sun icon -->
+                <button @click="toggleDark()"
+                    class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                     <svg x-show="darkMode" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
                         <path
                             d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z" />
                     </svg>
-                    <!-- Moon icon -->
                     <svg x-show="!darkMode" class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
                         <path fill-rule="evenodd"
                             d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z"
@@ -147,926 +174,909 @@
         </div>
     </nav>
 
-    <!-- ========== MAIN CONTENT ========== -->
     <main class="max-w-7xl mx-auto px-6 py-8">
 
-        <!-- ============================= SERVICES TAB ============================= -->
-        <div x-show="activeTab === 'services'" class="space-y-6">
-
-            <!-- Page title -->
+        <!-- ══════════════════════════════════ SERVICES ══════════════════════════════════ -->
+        <div x-show="activeTab==='services'" class="tab-content space-y-6">
             <div class="flex items-center justify-between">
                 <h1 class="text-2xl font-bold">Services</h1>
-                <span class="text-sm text-gray-500 dark:text-gray-400">
-                    Auto-refresh every 5s
-                    <span class="inline-block w-2 h-2 rounded-full bg-green-500 ml-1 pulse-dot"></span>
-                </span>
+                <span class="text-sm text-gray-500 dark:text-gray-400">Auto-refresh 5s <span
+                        class="inline-block w-2 h-2 rounded-full bg-green-500 ml-1 pulse-dot"></span></span>
             </div>
 
-            <!-- Summary strip -->
             <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
                 <div
                     class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-                    <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Total</p>
-                    <p class="text-2xl font-bold" x-text="summary.total_services ?? 0"></p>
+                    <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Total</p>
+                    <p class="text-2xl font-bold" x-text="summary.total_services??0"></p>
                 </div>
                 <div
                     class="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 shadow-sm border border-green-200 dark:border-green-800 text-center">
                     <p class="text-xs text-green-600 dark:text-green-400 uppercase tracking-wide mb-1">Running</p>
-                    <p class="text-2xl font-bold text-green-600 dark:text-green-400" x-text="summary.running ?? 0"></p>
+                    <p class="text-2xl font-bold text-green-600 dark:text-green-400" x-text="summary.running??0"></p>
                 </div>
                 <div
                     class="bg-red-50 dark:bg-red-900/20 rounded-xl p-4 shadow-sm border border-red-200 dark:border-red-800 text-center">
                     <p class="text-xs text-red-600 dark:text-red-400 uppercase tracking-wide mb-1">Unhealthy</p>
-                    <p class="text-2xl font-bold text-red-600 dark:text-red-400" x-text="summary.unhealthy ?? 0"></p>
+                    <p class="text-2xl font-bold text-red-600 dark:text-red-400" x-text="summary.unhealthy??0"></p>
                 </div>
                 <div
                     class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
-                    <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Stopped</p>
-                    <p class="text-2xl font-bold" x-text="summary.stopped ?? 0"></p>
+                    <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Stopped</p>
+                    <p class="text-2xl font-bold" x-text="summary.stopped??0"></p>
                 </div>
+
             </div>
 
-            <!-- Config features info -->
             <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
-                <p class="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-2"> DockFleet Configuration
+                <p class="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-2">DockFleet Configuration
                     Features</p>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-blue-600 dark:text-blue-400">
-                    <span> Resource Limits (CPU/Memory)</span>
+                    <span> Resource Limits</span>
                     <span> Dependency Ordering</span>
                     <span> Environment Variables</span>
-                    <span> YAML-based Config</span>
+                    <span>YAML-based Config</span>
                 </div>
             </div>
-
-            <!-- Empty state -->
-            <div x-show="services.length === 0" class="text-center py-16 text-gray-400">
-                <div class="text-5xl mb-4">empty</div>
+            <div x-show="services.length===0" class="text-center py-16 text-gray-400">
+               
                 <p class="text-lg font-medium mb-2">No services found</p>
                 <p class="text-sm">Run <code
-                        class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-gray-700 dark:text-gray-300">dockfleet up examples/dockfleet.yaml</code>
-                    to get started.</p>
+                        class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">dockfleet up examples/dockfleet.yaml</code>
+                    to get started.
+                </p>
             </div>
 
-            <!-- Services grid -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 <template x-for="svc in services" :key="svc.name">
                     <div
                         class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
-
-                        <!-- Card header -->
                         <div class="p-4 border-b border-gray-100 dark:border-gray-700">
-                            <div class="flex items-start justify-between gap-2">
+                            <div class="flex items-start justify-between gap-2 mb-2">
                                 <h3 class="font-semibold text-base capitalize truncate" x-text="svc.name"></h3>
-                                <!-- Recently restarted badge -->
                                 <template
-                                    x-if="svc.restart_count > 0 && svc.health_status === 'healthy' &&  (now - new Date(svc.last_health_check).getTime() < 60000)">
+                                    x-if="svc.restart_count>0&&svc.health_status==='healthy'&&isRecentlyRestarted(svc.last_health_check)">
                                     <span
-                                        class="shrink-0 text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300">
+                                        class="shrink-0 text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300">↺
                                         Restarted</span>
                                 </template>
                             </div>
 
-                            <!-- Status badges -->
-                            <div class="flex flex-wrap gap-1.5 mt-2">
-                                <!-- Docker status -->
-                                <span class="text-xs px-2 py-0.5 rounded font-medium capitalize" :class="{
-                                        'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300': svc.status === 'running',
-                                        'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300': svc.status === 'stopped' || svc.status === 'exited',
-                                        'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300': svc.status === 'restarting',
-                                        'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400': svc.status === 'unknown'
-                                    }" x-text="svc.status || 'unknown'">
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="text-xs px-2 py-0.5 rounded font-medium capitalize"
+                                    :class="{'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300':svc.status==='running','bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300':svc.status==='stopped'||svc.status==='exited','bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300':svc.status==='restarting','bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400':svc.status==='unknown'}"
+                                    x-text="svc.status||'unknown'">
                                 </span>
-
-                                <!-- Health status -->
-                              
                                 <span
                                     class="text-xs px-2 py-0.5 rounded-full font-medium capitalize flex items-center gap-1"
-                                    :class="{
-                                        'bg-green-500 text-white': svc.health_status === 'healthy',
-                                        'bg-red-500 text-white': svc.health_status === 'unhealthy',
-                                        'bg-orange-500 text-white': svc.health_status === 'restarting',
-                                        'bg-gray-400 text-white': svc.health_status === 'stopped' || svc.health_status === 'unknown' || !svc.health_status
-                                    }">
-                                    <span x-text="svc.health_status || 'unknown'"></span>
-                                    <template x-if="svc.health_status === 'restarting'">
-                                        <span class="spinner" style="width:8px;height:8px;border-width:1.5px;"></span>
+                                    :class="{'bg-green-500 text-white':svc.health_status==='healthy','bg-red-500 text-white':svc.health_status==='unhealthy','bg-orange-500 text-white':svc.health_status==='restarting','bg-gray-400 text-white':!svc.health_status||svc.health_status==='stopped'||svc.health_status==='unknown'}">
+                                    <span x-text="svc.health_status||'unknown'">
+
+                                    </span>
+                                    <template x-if="svc.health_status==='restarting'"><span class="spinner"
+                                            style="width:8px;height:8px;border-width:1.5px;"></span>
                                     </template>
                                 </span>
                             </div>
                         </div>
 
-                        <!-- Card body -->
                         <div class="p-4 flex-1 space-y-2 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-gray-500 dark:text-gray-400">Image</span>
-                                <span class="font-mono text-xs truncate max-w-[130px]" x-text="svc.image"></span>
-                            </div>
+                            <div class="flex justify-between"><span
+                                    class="text-gray-500 dark:text-gray-400">Image</span><span
+                                    class="font-mono text-xs truncate max-w-[130px]" x-text="svc.image"></span></div>
                             <template x-if="svc.ports">
-                                <div class="flex justify-between">
-                                    <span class="text-gray-500 dark:text-gray-400">Ports</span>
-                                    <span class="font-mono text-xs" x-text="svc.ports"></span>
-                                </div>
+                                <div class="flex justify-between"><span
+                                        class="text-gray-500 dark:text-gray-400">Ports</span><span
+                                        class="font-mono text-xs" x-text="svc.ports"></span></div>
                             </template>
-                            <div class="flex justify-between">
-                                <span class="text-gray-500 dark:text-gray-400">CPU</span>
-                                <span class="text-xs"
-                                    x-text="(svc.cpu && svc.cpu !== '0%') ? svc.cpu : (svc.status === 'running' ? '…' : '—')">
-                                </span>
+                            <div class="flex justify-between"><span
+                                    class="text-gray-500 dark:text-gray-400">CPU</span><span class="text-xs"
+                                    x-text="(svc.cpu&&svc.cpu!=='0%')?svc.cpu:(svc.status==='running'?'…':'—')"></span>
                             </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-500 dark:text-gray-400">Memory</span>
-                                <span class="text-xs"
-                                    x-text="(svc.memory && svc.memory !== '0MB') ? svc.memory : (svc.status === 'running' ? '…' : '—')">
-                                </span>
+                            <div class="flex justify-between"><span
+                                    class="text-gray-500 dark:text-gray-400">Memory</span><span class="text-xs"
+                                    x-text="(svc.memory&&svc.memory!=='0MB')?svc.memory:(svc.status==='running'?'…':'—')"></span>
                             </div>
-                            <template x-if="svc.cpu_limit || svc.memory_limit">
-                                <div class="flex justify-between">
-                                    <span class="text-gray-500 dark:text-gray-400">Limits</span>
-                                    <span class="text-xs">
-                                        <span x-text="svc.memory_limit || '—'"></span>
-                                        /
-                                        <span x-text="svc.cpu_limit ? svc.cpu_limit + ' CPU' : '—'"></span>
-                                    </span>
-                                </div>
+                            <template x-if="svc.cpu_limit||svc.memory_limit">
+                                <div class="flex justify-between"><span
+                                        class="text-gray-500 dark:text-gray-400">Limits</span><span
+                                        class="text-xs"><span x-text="svc.memory_limit||'—'"></span> / <span
+                                            x-text="svc.cpu_limit?svc.cpu_limit+' CPU':'—'"></span></span></div>
                             </template>
-                            <div class="flex justify-between">
-                                <span class="text-gray-500 dark:text-gray-400">Uptime</span>
-                                <span class="text-xs"
-                                    x-text="(svc.uptime && svc.uptime !== 'stopped') ? svc.uptime : '—'">
-                                </span>
+                            <div class="flex justify-between"><span
+                                    class="text-gray-500 dark:text-gray-400">Uptime</span><span class="text-xs"
+                                    x-text="(svc.uptime&&svc.uptime!=='stopped')?svc.uptime:'—'"></span></div>
+                            <div class="flex justify-between items-center"><span
+                                    class="text-gray-500 dark:text-gray-400">Policy</span><span
+                                    class="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded"
+                                    x-text="svc.restart_policy"></span></div>
+                            <div class="flex justify-between items-center"><span
+                                    class="text-gray-500 dark:text-gray-400">Restarts</span>
+                                <span class="text-xs font-bold px-2 py-0.5 rounded"
+                                    :class="{'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400':svc.restart_count===0,'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300':svc.restart_count>0&&svc.restart_count<=3,'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300':svc.restart_count>3}"
+                                    x-text="svc.restart_count"></span>
                             </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-500 dark:text-gray-400">Policy</span>
-                                <span class="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded"
-                                    x-text="svc.restart_policy"></span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-500 dark:text-gray-400">Restarts</span>
-                                <span class="text-xs font-bold px-2 py-0.5 rounded" :class="{
-                                        'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400': svc.restart_count === 0,
-                                        'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300': svc.restart_count > 0 && svc.restart_count <= 3,
-                                        'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300': svc.restart_count > 3
-                                    }" x-text="svc.restart_count">
-                                </span>
-                            </div>
-                            <p class="text-xs text-gray-400 dark:text-gray-500 pt-1">
-                                Last check: <span x-text="formatTime(svc.last_health_check)"></span>
-                            </p>
+                            <p class="text-xs text-gray-400 pt-1">Last check: <span
+                                    x-text="fmtTime(svc.last_health_check)"></span></p>
                         </div>
 
-                        <!-- Action buttons -->
-        
                         <div class="p-4 pt-0 flex gap-2">
-                            <button @click="restartService(svc.name)" :disabled="!!actionLoading[svc.name]" class="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all
-                                       bg-yellow-500 hover:bg-yellow-400 text-black
-                                       disabled:opacity-50 disabled:cursor-not-allowed">
-                                <template x-if="!actionLoading[svc.name]">
+                            <button @click="restartSvc(svc.name)" :disabled="!!busy[svc.name]"
+                                class="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium bg-yellow-500 hover:bg-yellow-400 text-black disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                                <template x-if="!busy[svc.name]">
                                     <span> Restart</span>
                                 </template>
-                                <template x-if="actionLoading[svc.name]">
-                                    <span class="flex items-center gap-1"><span class="spinner"></span> Working…</span>
+                                <template x-if="busy[svc.name]">
+                                    <span class="flex items-center gap-1">
+                                        <span
+                                            class="spinner"></span> Working…</span>
                                 </template>
                             </button>
-                            <button @click="stopService(svc.name)" :disabled="!!actionLoading[svc.name]" class="flex-1 flex items-center justify-center py-2 px-3 rounded-lg text-sm font-medium transition-all
-                                       bg-red-600 hover:bg-red-500 text-white
-                                       disabled:opacity-50 disabled:cursor-not-allowed">
+
+                            <button @click="stopSvc(svc.name)" :disabled="!!busy[svc.name]"
+                                class="flex-1 flex items-center justify-center py-2 px-3 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                                  Stop
                             </button>
                         </div>
                     </div>
                 </template>
+
             </div>
         </div>
 
-        <!-- ============================= LOGS TAB ============================= -->
-        <div x-show="activeTab === 'logs'" class="space-y-8">
-
-            <!-- Section: DB Log Explorer -->
+        <!-- ══════════════════════════════════ LOGS ══════════════════════════════════ -->
+        <div x-show="activeTab==='logs'" class="tab-content space-y-8">
             <div>
                 <h2 class="text-2xl font-bold mb-4">Log Explorer</h2>
-
-                <!-- Filters -->
                 <div class="flex flex-wrap gap-3 mb-4">
-                    <select x-model="logsFilter.service" @change="logsFilter.offset = 0; fetchLogs()"
+                    <select x-model="lf.service" @change="lf.offset=0;fetchLogs()"
                         class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm min-w-[160px]">
                         <option value="">All Services</option>
+
                         <template x-for="s in services" :key="s.name">
                             <option :value="s.name" x-text="s.name"></option>
                         </template>
                     </select>
 
-                    <input type="text" placeholder="Search logs…" x-model="logsFilter.query"
-                        @input.debounce.400ms="logsFilter.offset = 0; fetchLogs()"
+                    <input type="text" placeholder="Search logs…" x-model="lf.query"
+                        @input.debounce.400ms="lf.offset=0;fetchLogs()"
                         class="flex-1 min-w-[200px] bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm">
-
                     <button @click="fetchLogs()"
                         class="px-4 py-2 rounded-lg text-sm bg-blue-600 hover:bg-blue-500 text-white transition-colors">
                         Refresh
                     </button>
-
-                    <button @click="downloadLogsFromBackend()"
-                        class="px-4 py-2 rounded-lg text-sm bg-gray-600 hover:bg-gray-500 text-white transition-colors">
-                         Download
+                    <button @click="dlLogs()"
+                        class="px-4 py-2 rounded-lg text-sm bg-gray-600 hover:bg-gray-500 text-white transition-colors">↓
+                        Download
                     </button>
                 </div>
 
-                <!-- Log viewer states -->
-                <div x-show="logsLoading" class="flex items-center justify-center py-12 text-gray-400">
-                    <span class="spinner mr-2"></span> Loading logs…
-                </div>
-
-                <div x-show="!logsLoading && logsError"
+                <div x-show="logsLoading" class="flex items-center justify-center py-12 text-gray-400"><span
+                        class="spinner mr-2"></span> Loading…</div>
+                <div x-show="!logsLoading&&logsErr"
                     class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-5 text-red-700 dark:text-red-300">
                     <p class="font-semibold">Failed to load logs</p>
-                    <p class="text-sm mt-1" x-text="logsError"></p>
-                    <p class="text-sm mt-2 text-red-500">The log DB may be empty — use Live Logs below to stream
-                        real-time output.</p>
+                    <p class="text-sm mt-1" x-text="logsErr"></p>
                 </div>
-
-                <div x-show="!logsLoading && !logsError && apiLogs.length === 0"
+                <div x-show="!logsLoading&&!logsErr&&apiLogs.length===0"
                     class="text-center py-12 text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
-                    <p class="text-4xl mb-3">logs</p>
+                    
                     <p class="font-medium">No logs found</p>
                     <p class="text-sm mt-1">Start services and logs will appear here, or use Live Logs below.</p>
                 </div>
-
-                <div x-show="!logsLoading && !logsError && apiLogs.length > 0">
+                <div x-show="!logsLoading&&!logsErr&&apiLogs.length>0">
                     <div
                         class="bg-gray-900 text-green-400 font-mono text-xs p-4 rounded-xl h-80 overflow-y-auto log-box border border-gray-700">
-                        <template x-for="(log, i) in filteredLogs" :key="i">
+                        <template x-for="(log,i) in fmtLogs" :key="i">
                             <div class="mb-1 leading-relaxed hover:bg-white/5 px-1 rounded">
                                 <span class="text-gray-500 mr-2 select-none" x-text="log.ts"></span>
-                                <span class="text-blue-400 mr-2" x-text="'[' + log.service + ']'"></span>
+                                <span class="text-blue-400 mr-2" x-text="'['+log.service+']'"></span>
                                 <template x-if="log.level">
-                                    <span class="mr-1 px-1 rounded text-xs font-bold" :class="{
-                                            'bg-red-700 text-red-100': log.level === 'ERROR',
-                                            'bg-yellow-600 text-yellow-100': log.level === 'WARN',
-                                            'bg-blue-700 text-blue-100': log.level === 'INFO',
-                                            'bg-gray-600 text-gray-200': !['ERROR','WARN','INFO'].includes(log.level)
-                                        }" x-text="log.level">
-                                    </span>
+                                    <span class="mr-1 px-1 rounded text-xs font-bold"
+                                        :class="{'bg-red-700 text-red-100':log.level==='ERROR','bg-yellow-600 text-yellow-100':log.level==='WARN','bg-blue-700 text-blue-100':log.level==='INFO','bg-gray-600 text-gray-200':!['ERROR','WARN','INFO'].includes(log.level)}"
+                                        x-text="log.level"></span>
                                 </template>
                                 <span x-text="log.message"></span>
                             </div>
                         </template>
                     </div>
-
-                    <!-- Pagination -->
                     <div class="flex justify-between items-center text-sm text-gray-500 mt-2 px-1">
                         <span>Showing <strong x-text="apiLogs.length"></strong> entries</span>
                         <div class="flex gap-2">
-                            <button x-show="logsFilter.offset > 0"
-                                @click="logsFilter.offset -= logsFilter.limit; fetchLogs()"
+                            <button x-show="lf.offset>0" @click="lf.offset-=lf.limit;fetchLogs()"
                                 class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:opacity-80 text-xs">
-                                Prev
-                            </button>
-                            <button x-show="apiLogs.length === logsFilter.limit"
-                                @click="logsFilter.offset += logsFilter.limit; fetchLogs()"
-                                class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:opacity-80 text-xs">
-                                Next 
+                                Prev</button>
+                            <button x-show="apiLogs.length===lf.limit" @click="lf.offset+=lf.limit;fetchLogs()"
+                                class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:opacity-80 text-xs">Next
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Divider -->
             <hr class="border-gray-200 dark:border-gray-700">
-
-            <!-- Section: Live Logs (SSE) -->
             <div>
                 <h2 class="text-2xl font-bold mb-4">Live Service Logs</h2>
-
                 <div class="flex flex-wrap gap-3 mb-4 items-center">
-                  
-                    <select x-model="liveLogService"
+
+                    <select x-model="liveSvc"
                         class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm min-w-[160px]">
                         <option value="">Select Service…</option>
+
                         <template x-for="s in services" :key="s.name">
                             <option :value="s.name" x-text="s.name"></option>
                         </template>
                     </select>
-
-                    <button @click="connectLiveLogs()" :disabled="!liveLogService || !!liveLogSource"
-                        class="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                         Start
+                    <button @click="liveConnect()" :disabled="!liveSvc||!!liveSrc"
+                        class="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                        Start
                     </button>
-
-                    <button @click="disconnectLiveLogs()" :disabled="!liveLogSource"
-                        class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-600 hover:bg-gray-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                         Stop
+                    <button @click="liveDisconnect()" :disabled="!liveSrc"
+                        class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-600 hover:bg-gray-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                        Stop
                     </button>
-
-                    <button @click="liveLogs = []"
+                    <button @click="liveLines=[]"
                         class="px-4 py-2 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors">
                         Clear
                     </button>
-
-                    <button @click="liveAutoScroll = !liveAutoScroll" :class="liveAutoScroll
-                            ? 'bg-purple-600 text-white'
-                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'"
+                    <button @click="liveScroll=!liveScroll"
+                        :class="liveScroll?'bg-purple-600 text-white':'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'"
                         class="px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                        <span x-text="liveAutoScroll ? ' Auto-Scroll ON' : 'Auto-Scroll OFF'"></span>
+                        <span x-text="liveScroll?'⬇ Auto-Scroll ON':'Auto-Scroll OFF'"></span>
                     </button>
-
-                    <!-- Live indicator -->
-                    <template x-if="liveLogSource">
-                        <div class="flex items-center gap-1.5 text-sm text-green-500">
-                            <span class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span>
-                            Live
-                        </div>
+                    <template x-if="liveSrc">
+                        <div class="flex items-center gap-1.5 text-sm text-green-500"><span
+                                class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span>Live</div>
                     </template>
                 </div>
-
-                <div x-ref="liveLogBox"
+                <div x-ref="liveBox"
                     class="bg-gray-900 text-green-400 font-mono text-xs p-4 rounded-xl h-64 overflow-y-auto log-box border border-gray-700">
-                    <template x-if="liveLogs.length === 0">
+                    <template x-if="liveLines.length===0">
                         <p class="text-gray-600 italic">
-                            <template x-if="!liveLogService">Select a service and press  Start</template>
-                            <template x-if="liveLogService && !liveLogSource">Press  Start to begin
-                                streaming</template>
-                            <template x-if="liveLogService && liveLogSource">Waiting for log output…</template>
+                            <template x-if="!liveSvc">Select a service and press Start</template>
+                            <template x-if="liveSvc&&!liveSrc">Press  Start to begin streaming</template>
+                            <template x-if="liveSvc&&liveSrc">Waiting for log output…</template>
                         </p>
                     </template>
-                    <template x-for="(line, i) in liveLogs" :key="i">
-                        <div class="leading-relaxed hover:bg-white/5 px-1 rounded" x-text="line"></div>
+                    <template x-for="(l,i) in liveLines" :key="i">
+                        <div class="leading-relaxed hover:bg-white/5 px-1 rounded" x-text="l"></div>
                     </template>
                 </div>
             </div>
         </div>
 
-        <!-- ============================= ANALYTICS TAB ============================= -->
+        <!-- ══════════════════════════════════ ANALYTICS ══════════════════════════════════ -->
+        <div x-show="activeTab==='analytics'" class="tab-content">
 
-        <!-- Loading -->
-        <div x-show="activeTab === 'analytics' && analyticsLoading"
-            class="flex flex-col items-center justify-center py-20 text-gray-400">
-            <span class="spinner mb-3" style="width:32px;height:32px;border-width:3px;"></span>
-            <p>Loading analytics…</p>
-        </div>
-
-        <!-- Error -->
-        <div x-show="activeTab === 'analytics' && !analyticsLoading && analyticsError"
-            class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-red-700 dark:text-red-300">
-            <p class="font-semibold">Failed to load analytics</p>
-            <p class="text-sm mt-1" x-text="analyticsError"></p>
-        </div>
-
-        <!-- Analytics content -->
-        <div x-show="activeTab === 'analytics' && !analyticsLoading && !analyticsError" class="space-y-6">
-
-            <!-- Header with time window selector -->
-            <div class="flex items-center justify-between">
-                <h1 class="text-2xl font-bold">Analytics</h1>
-                <div class="flex items-center gap-2 text-sm">
-                    <label class="text-gray-500 dark:text-gray-400">Window:</label>
-                    <select x-model.number="analyticsWindow" @change="fetchAnalytics()"
-                        class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm">
-                        <option value="1">1 hour</option>
-                        <option value="6">6 hours</option>
-                        <option value="24">24 hours</option>
-                        <option value="48">48 hours</option>
-                        <option value="168">7 days</option>
-                    </select>
-                </div>
+            <!-- Loading -->
+            <div x-show="an.loading" class="flex flex-col items-center justify-center py-20 text-gray-400">
+                <span class="spinner mb-3" style="width:32px;height:32px;border-width:3px;"></span>
+                <p>Loading analytics…</p>
             </div>
 
-            <!-- All stable banner -->
-            <div x-show="analytics.unstable_services.length === 0"
-                class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-10 text-center">
-                <p class="text-5xl mb-3">🎉</p>
-                <p class="text-lg font-semibold text-green-700 dark:text-green-300">All services stable</p>
-                <p class="text-sm text-green-600 dark:text-green-400 mt-1">
-                    No failures in the last
-                    <span x-text="analyticsWindow"></span>
-                    hour<span x-show="analyticsWindow > 1">s</span>.
-                </p>
+            <!-- Error -->
+            <div x-show="!an.loading&&an.error"
+                class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-red-700 dark:text-red-300">
+                <p class="font-semibold">Failed to load analytics</p>
+                <p class="text-sm mt-1" x-text="an.error"></p>
             </div>
 
-            <!-- Insight banner -->
-            <div x-show="analytics.unstable_services.length > 0"
-                class="bg-gradient-to-r from-indigo-500 to-blue-600 text-white rounded-xl p-6 shadow-lg">
-                <p class="text-sm opacity-75 mb-1">Top unstable service</p>
-                <p class="text-xl font-bold">
-                    <span x-text="analytics.unstable_services[0]?.service_name"></span>
-                    — <span x-text="analytics.unstable_services[0]?.restarts"></span>
-                    restart<span x-show="(analytics.unstable_services[0]?.restarts ?? 0) !== 1">s</span>
-                </p>
-                <p class="text-sm mt-1 opacity-80" :class="{
-                        'text-green-200': (analytics.unstable_services[0]?.restarts ?? 0) <= 1,
-                        'text-yellow-200': (analytics.unstable_services[0]?.restarts ?? 0) > 1 && (analytics.unstable_services[0]?.restarts ?? 0) <= 4,
-                        'text-red-200': (analytics.unstable_services[0]?.restarts ?? 0) > 4
-                    }">
-                    <span x-show="(analytics.unstable_services[0]?.restarts ?? 0) <= 1">Stable</span>
-                    <span
-                        x-show="(analytics.unstable_services[0]?.restarts ?? 0) > 1 && (analytics.unstable_services[0]?.restarts ?? 0) <= 4">Moderate
-                        instability</span>
-                    <span x-show="(analytics.unstable_services[0]?.restarts ?? 0) > 4"> Critical — needs
-                        attention</span>
-                </p>
-            </div>
+            <!-- Main content -->
+            <div x-show="!an.loading&&!an.error" class="space-y-6">
 
-            <!-- KPI cards -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div
-                    class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
-                    <p class="text-sm text-gray-400 mb-1">Total Restarts</p>
-                    <p class="text-3xl font-bold text-blue-500" x-text="analytics.total_restarts"></p>
-                </div>
-                <div
-                    class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
-                    <p class="text-sm text-gray-400 mb-1">Unstable Services</p>
-                    <p class="text-3xl font-bold text-red-500" x-text="analytics.unstable_services.length"></p>
-                </div>
-                <div
-                    class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
-                    <p class="text-sm text-gray-400 mb-1">Most Affected</p>
-                    <p class="text-lg font-semibold"
-                        x-text="analytics.unstable_services.length ? analytics.unstable_services[0].service_name : 'None'">
-                    </p>
-                </div>
-            </div>
-
-            <!-- Charts (only when data exists) -->
-            <div x-show="analytics.unstable_services.length > 0" class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                <div
-                    class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
-                    <h3 class="font-semibold mb-3">Most Unstable Services</h3>
-                    <div class="h-56 relative">
-                        <canvas id="unstableChart"></canvas>
-                    </div>
-                </div>
-
-                <div
-                    class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
-                    <h3 class="font-semibold mb-1">Restart Timeline</h3>
-                    <p class="text-xs text-gray-400 mb-3" x-text="'for ' + (selectedAnalyticsService || '—')"></p>
-                    <div x-show="analytics.restart_history.length === 0"
-                        class="h-56 flex items-center justify-center text-gray-400 text-sm">
-                        No restart history in this window.
-                    </div>
-                    <div x-show="analytics.restart_history.length > 0" class="h-56 relative">
-                        <canvas id="restartChart"></canvas>
-                    </div>
-                </div>
-
-                <div
-                    class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
-                    <h3 class="font-semibold mb-1">Failure Breakdown</h3>
-                    <p class="text-xs text-gray-400 mb-3" x-text="'for ' + (selectedAnalyticsService || '—')"></p>
-                    <div x-show="analytics.failure_breakdown.length === 0"
-                        class="h-56 flex flex-col items-center justify-center text-gray-400 text-sm gap-2">
-                       
-                        <span>No failure reasons recorded.</span>
-                    </div>
-                    <div x-show="analytics.failure_breakdown.length > 0" class="h-56 relative">
-                        <canvas id="failureChart"></canvas>
-                    </div>
-                    <!-- Legend -->
-                    <div x-show="analytics.failure_breakdown.length > 0" class="mt-3 space-y-1">
-                        <template x-for="item in analytics.failure_breakdown" :key="item.reason">
-                            <div class="flex justify-between text-xs">
-                                <div class="flex items-center gap-1.5">
-                                    <span class="w-2.5 h-2.5 rounded-full" :class="{
-                                            'bg-red-500': item.reason === 'healthcheck_timeout',
-                                            'bg-orange-400': item.reason === 'crash_loop',
-                                            'bg-blue-500': item.reason === 'manual_restart',
-                                            'bg-gray-400': item.reason === 'other'
-                                        }">
-                                    </span>
-                                    <span class="capitalize" x-text="item.reason.replace(/_/g,' ')"></span>
-                                </div>
-                                <span class="font-semibold" x-text="item.count"></span>
-                            </div>
+                <!-- ── Controls bar ── -->
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-2">
+                        <!-- Back button (per-service view only) -->
+                        <template x-if="an.selectedSvc!==''">
+                            <button @click="an.selectedSvc='';loadOverall()"
+                                class="flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline mr-2">
+                                 All Services
+                            </button>
+                        </template>
+                        <h1 class="text-2xl font-bold" x-text="an.selectedSvc ? an.selectedSvc : 'Analytics Overview'">
+                        </h1>
+                        <!-- health badge for per-service -->
+                        <template x-if="an.selectedSvc!==''&&svcObj(an.selectedSvc)">
+                            <span class="text-xs px-2 py-0.5 rounded-full font-medium capitalize text-white"
+                                :class="{'bg-green-500':svcObj(an.selectedSvc)?.health_status==='healthy','bg-red-500':svcObj(an.selectedSvc)?.health_status==='unhealthy','bg-orange-500':svcObj(an.selectedSvc)?.health_status==='restarting','bg-gray-400':!svcObj(an.selectedSvc)?.health_status}"
+                                x-text="svcObj(an.selectedSvc)?.health_status||'unknown'">
+                            </span>
                         </template>
                     </div>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <!-- Time window -->
+                        <div class="flex items-center gap-2 text-sm">
+                            <span class="text-gray-500 dark:text-gray-400">Window:</span>
+                            <select x-model.number="an.window"
+                                @change="an.selectedSvc===''?loadOverall():loadService(an.selectedSvc)"
+                                class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm">
+                                <option value="1">1 hour</option>
+                                <option value="6">6 hours</option>
+                                <option value="24">24 hours</option>
+                                <option value="48">48 hours</option>
+                                <option value="168">7 days</option>
+                            </select>
+                        </div>
+                        <!-- Service dropdown -->
+                        <div class="flex items-center gap-2 text-sm">
+                            <span class="text-gray-500 dark:text-gray-400">Service:</span>
+                            <select x-model="an.selectedSvc"
+                                @change="an.selectedSvc===''?loadOverall():loadService(an.selectedSvc)"
+                                class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm">
+                                <option value="">All Services</option>
+                                <template x-for="s in services" :key="s.name">
+                                    <option :value="s.name" x-text="s.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Per-service detail (service selector + restart history table) -->
-            <div x-show="analytics.unstable_services.length > 0"
-                class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
-                <h3 class="font-semibold mb-3">Service Details</h3>
+                <!-- ════════ OVERALL VIEW (selectedSvc === '') ════════ -->
+                <div x-show="an.selectedSvc===''" class="space-y-6">
 
-                <!-- Service buttons -->
-                <div class="flex flex-wrap gap-2 mb-4">
-                    <template x-for="svc in analytics.unstable_services" :key="svc.service_name">
-                        <button @click="selectServiceAnalytics(svc.service_name)" :class="selectedAnalyticsService === svc.service_name
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:opacity-80'"
-                            class="px-4 py-1.5 rounded-lg text-sm font-medium transition-all">
-                            <span x-text="svc.service_name"></span>
-                            <span class="ml-1 opacity-70 text-xs">(<span x-text="svc.restarts"></span>)</span>
-                        </button>
-                    </template>
-                </div>
+                    <!-- KPI strip -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                            <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Restarts</p>
+                            <p class="text-3xl font-bold text-blue-500" x-text="an.summary.total_restarts??0"></p>
+                            <p class="text-xs text-gray-400 mt-1">in window</p>
+                        </div>
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                            <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Health Failures</p>
+                            <p class="text-3xl font-bold text-red-500" x-text="an.summary.total_health_failures??0"></p>
+                            <p class="text-xs text-gray-400 mt-1">triggered restarts</p>
+                        </div>
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                            <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Unstable Services</p>
+                            <p class="text-3xl font-bold text-orange-500"
+                                x-text="an.summary.most_unstable_services?.length??0"></p>
+                            <p class="text-xs text-gray-400 mt-1">had restarts</p>
+                        </div>
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                            <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Most Affected</p>
+                            <p class="text-lg font-bold truncate"
+                                x-text="an.summary.most_unstable_services?.length?an.summary.most_unstable_services[0].service_name:'None'">
+                            </p>
+                            <p class="text-xs text-gray-400 mt-1"
+                                x-text="an.summary.most_unstable_services?.length?(an.summary.most_unstable_services[0].restarts+' restarts'):'all stable'">
+                            </p>
+                        </div>
+                    </div>
 
-                <!-- Restart history table -->
-                <div x-show="analytics.restart_history.length > 0" class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="text-xs text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700">
-                            <tr>
-                                <th class="text-left py-2 pr-4">Time</th>
-                                <th class="text-left py-2 pr-4">Reason</th>
-                                <th class="text-left py-2 pr-4">From</th>
-                                <th class="text-left py-2">To</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="(ev, i) in analytics.restart_history.slice(0, 10)" :key="i">
-                                <tr
-                                    class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/20">
-                                    <td class="py-2 pr-4 text-xs text-gray-500"
-                                        x-text="new Date(ev.timestamp).toLocaleString()">
-                                    </td>
-                                    <td class="py-2 pr-4">
-                                        <span class="px-2 py-0.5 rounded text-xs" :class="{
-                                                'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300': ev.reason && ev.reason.includes('health'),
-                                                'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300': ev.reason && ev.reason.includes('manual'),
-                                                'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400': !ev.reason || (!ev.reason.includes('health') && !ev.reason.includes('manual'))
-                                            }" x-text="(ev.reason || 'unknown').replace(/_/g,' ')">
+                    <!-- All stable banner -->
+                    <div x-show="!an.summary.most_unstable_services?.length"
+                        class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-10 text-center">
+                       
+                        <p class="text-lg font-semibold text-green-700 dark:text-green-300">All services stable</p>
+                        <p class="text-sm text-green-600 dark:text-green-400 mt-1">No failures in the last <span
+                                x-text="an.window"></span> hour<span x-show="an.window>1">s</span>.</p>
+                    </div>
+
+                    <!-- Chart + ranked table -->
+                    <div x-show="an.summary.most_unstable_services?.length"
+                        class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold mb-1">Restarts by Service</h3>
+                            <p class="text-xs text-gray-400 mb-3">Click a bar to drill into that service</p>
+                            <div class="h-64 relative"><canvas id="overallBarChart"></canvas></div>
+                        </div>
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold mb-3">Instability Ranking</h3>
+                            <div class="space-y-2">
+                                <template x-for="(s,idx) in (an.summary.most_unstable_services||[])"
+                                    :key="s.service_name">
+                                    <div
+                                        class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-600">
+                                        <span
+                                            class="w-7 h-7 flex-shrink-0 rounded-full flex items-center justify-center text-xs font-bold"
+                                            :class="idx===0?'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300':idx===1?'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300':'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'"
+                                            x-text="idx+1"></span>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="font-medium text-sm truncate" x-text="s.service_name"></p>
+                                            <p class="text-xs text-gray-400"
+                                                x-text="s.last_restart_at?'Last: '+fmtTime(s.last_restart_at):'No recent restarts'">
+                                            </p>
+                                        </div>
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-bold"
+                                            :class="s.restarts>5?'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300':s.restarts>2?'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300':'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'"
+                                            x-text="s.restarts+' restarts'">
                                         </span>
-                                    </td>
-                                    <td class="py-2 pr-4 text-xs text-gray-500" x-text="ev.previous_status || '—'"></td>
-                                    <td class="py-2 text-xs text-gray-500" x-text="ev.new_status || '—'"></td>
-                                </tr>
+
+                                    </div>
+                                </template>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-3 text-center">Click any row to see service details</p>
+                        </div>
+                    </div>
+
+                    <!-- Overall healing overview -->
+                    <div x-show="an.summary.most_unstable_services?.length"
+                        class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-semibold">Healing Actions Overview</h3>
+                                <p class="text-xs text-gray-400 mt-0.5">Auto-heal events triggered across all services
+                                </p>
+                            </div>
+                            <span
+                                class="text-xs px-3 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-medium">
+                                <span x-text="an.summary.total_restarts??0"></span> total actions
+                            </span>
+                        </div>
+                        <div class="space-y-3">
+                            <template x-for="s in (an.summary.most_unstable_services||[])" :key="s.service_name">
+                                <div class="flex items-center gap-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <p class="font-medium text-sm" x-text="s.service_name"></p>
+                                            <span class="text-xs px-2 py-0.5 rounded-full"
+                                                :class="s.restarts>5?'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300':s.restarts>2?'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300':'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'"
+                                                x-text="s.restarts>5?'Critical':s.restarts>2?'Unstable':'Minor'"></span>
+                                        </div>
+                                        <div class="h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+                                            <div class="h-full rounded-full transition-all"
+                                                :class="s.restarts>5?'bg-red-500':s.restarts>2?'bg-yellow-500':'bg-green-500'"
+                                                :style="'width:'+Math.min(100,s.restarts/Math.max(...(an.summary.most_unstable_services||[{restarts:1}]).map(x=>x.restarts))*100)+'%'">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right flex-shrink-0">
+                                        <p class="text-lg font-bold" x-text="s.restarts"></p>
+                                        <p class="text-xs text-gray-400">heals</p>
+                                    </div>
+                                    <button @click="an.selectedSvc=s.service_name;loadService(s.service_name)"
+                                        class="text-xs px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors flex-shrink-0">
+                                        View Details 
+                                    </button>
+                                </div>
                             </template>
-                        </tbody>
-                    </table>
-                    <p x-show="analytics.restart_history.length > 10" class="text-xs text-gray-400 mt-2">
-                        Showing 10 of <span x-text="analytics.restart_history.length"></span> events.
-                    </p>
+                        </div>
+                    </div>
                 </div>
 
-                <p x-show="analytics.restart_history.length === 0 && selectedAnalyticsService"
-                    class="text-sm text-gray-400">
-                    No restart history for <strong x-text="selectedAnalyticsService"></strong> in this window.
-                </p>
+                <!-- ════════ PER-SERVICE VIEW (selectedSvc !== '') ════════ -->
+                <div x-show="an.selectedSvc!==''" class="space-y-6">
+
+                    <!-- Quick switch between unstable services -->
+                    <div x-show="an.summary.most_unstable_services?.length" class="flex flex-wrap gap-2">
+                        <template x-for="s in (an.summary.most_unstable_services||[])" :key="s.service_name">
+
+                            <button @click="an.selectedSvc=s.service_name;loadService(s.service_name)"
+                                :class="an.selectedSvc===s.service_name?'bg-blue-600 text-white':'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:opacity-80'"
+                                class="px-3 py-1 rounded-lg text-xs font-medium transition-all">
+                                <span x-text="s.service_name"></span>
+
+                                <span class="ml-1 opacity-60">(<span x-text="s.restarts"></span>)
+                            </span>
+                            </button>
+                        </template>
+                    </div>
+
+                    <!-- Per-service KPI -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                            <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Restarts</p>
+                            <p class="text-3xl font-bold text-blue-500" x-text="an.svc.restarts??0"></p>
+                            <p class="text-xs text-gray-400 mt-1">in window</p>
+                        </div>
+
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                            <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Auto-heals</p>
+                            <p class="text-3xl font-bold text-green-500" x-text="an.svc.autoHeals??0"></p>
+                            <p class="text-xs text-gray-400 mt-1">health-check triggered</p>
+                        </div>
+
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                            <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Manual Restarts</p>
+                            <p class="text-3xl font-bold text-purple-500" x-text="an.svc.manualRestarts??0"></p>
+                            <p class="text-xs text-gray-400 mt-1">from dashboard</p>
+                        </div>
+
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                            <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Last Restart</p>
+                            <p class="text-sm font-bold"
+                                x-text="an.svc.lastRestart?fmtTime(an.svc.lastRestart):'Never'"></p>
+                            <p class="text-xs text-gray-400 mt-1"
+                                x-text="an.svc.lastReason?an.svc.lastReason.replace(/_/g,' '):'—'"></p>
+                        </div>
+                    </div>
+
+                    <!-- Timeline + breakdown charts -->
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold mb-1">Restart Timeline</h3>
+                            <p class="text-xs text-gray-400 mb-3">Cumulative restarts over time</p>
+                            <div x-show="!an.svc.history?.length"
+                                class="h-56 flex items-center justify-center text-gray-400 text-sm">No restart events in
+                                this window.
+                            </div>
+                            <div x-show="an.svc.history?.length" class="h-56 relative">
+                                <canvas
+                                    id="svcTimelineChart">
+                                </canvas>
+                            </div>
+                        </div>
+
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold mb-1">Failure Reasons</h3>
+                            <p class="text-xs text-gray-400 mb-3">What caused each restart</p>
+                            <div x-show="!an.svc.breakdown?.length"
+                                class="h-56 flex flex-col items-center justify-center text-gray-400 text-sm gap-2">
+                               <span>No failure reasons recorded.</span>
+                            </div>
+
+                            <div x-show="an.svc.breakdown?.length">
+                                <div class="h-40 relative"><canvas id="svcBreakdownChart"></canvas></div>
+                                <div class="mt-3 space-y-1.5">
+                                    <template x-for="item in (an.svc.breakdown||[])" :key="item.reason">
+                                        <div class="flex items-center justify-between text-xs">
+                                            <div class="flex items-center gap-2">
+
+                                                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                                    :class="{'bg-red-500':item.reason==='healthcheck_timeout','bg-orange-400':item.reason==='crash_loop','bg-blue-500':item.reason==='manual_restart','bg-gray-400':item.reason==='other'}">
+                                                </span>
+
+                                                <span class="capitalize" x-text="item.reason.replace(/_/g,' ')"></span>
+                                            </div>
+
+                                            <div class="flex items-center gap-2">
+                                                <div
+                                                    class="w-20 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+                                                    <div class="h-full rounded-full"
+                                                        :class="{'bg-red-500':item.reason==='healthcheck_timeout','bg-orange-400':item.reason==='crash_loop','bg-blue-500':item.reason==='manual_restart','bg-gray-400':item.reason==='other'}"
+                                                        :style="'width:'+Math.round(item.count/(an.svc.breakdown||[{count:1}]).reduce((s,x)=>s+x.count,0)*100)+'%'">
+                                                    </div>
+                                                </div>
+                                                <span class="font-semibold w-4 text-right" x-text="item.count">
+
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
+
     </main>
 
-    <!-- ========== ALPINE COMPONENT SCRIPT ========== -->
+    <!-- ═══════════════════ SCRIPT ═══════════════════ -->
     <script>
         function dashboard() {
             return {
-                // ─── State ───────────────────────────────────────────────
-                services: [],
-                summary: {},
+                services: [], 
+                summary: {}, 
                 activeTab: 'services',
                 darkMode: document.documentElement.classList.contains('dark'),
+                busy: {}, 
+                now: Date.now(),
 
-                actionLoading: {},
+                // Logs
+                apiLogs: [], 
+                logsLoading: false, 
+                logsErr: null,
+                lf: { service: '', query: '', offset: 0, limit: 100 },
 
-                // Logs (DB)
-                apiLogs: [],
-                logsLoading: false,
-                logsError: null,
-                logsFilter: { service: '', query: '', offset: 0, limit: 100 },
-
-                // Live logs — SEPARATE variables from DB filter
-                liveLogService: '',
-                liveLogSource: null,
-                liveLogs: [],
-                liveAutoScroll: true,
+                // Live
+                liveSvc: '', 
+                liveSrc: null, 
+                
+                liveLines: [], 
+                liveScroll: true,
 
                 // Analytics
-                analyticsLoading: false,
-                analyticsError: null,
-                analyticsWindow: 24,
-                selectedAnalyticsService: '',
-                analytics: {
-                    unstable_services: [],
-                    restart_history: [],
-                    failure_breakdown: [],
-                    total_restarts: 0,
+                an: {
+                    loading: false, 
+                    error: null, 
+                    window: 24, 
+                    selectedSvc: '',
+                    summary: {},
+                    svc: { 
+                        history: [], 
+                        breakdown: [], 
+                        restarts: 0, 
+                        autoHeals: 0, 
+                        manualRestarts: 0, 
+                        lastRestart: null, 
+                        lastReason: null 
+                    },
                 },
+                _ch: { overallBar: null, svcTimeline: null, svcBreakdown: null },
 
-                // Chart instances
-                _charts: { unstable: null, restart: null, failure: null },
-
-                // ─── Init ─────────────────────────────────────────────────
+                // ── Init ──
                 async init() {
-                    await Promise.all([this.fetchServices(), this.fetchSummary()]);
-
-                    setInterval(() => {
-                        this.fetchServices();
-                        this.fetchSummary();
+                    await Promise.all([
+                        this.fetchSvcs(), 
+                        this.fetchSummary()
+                    ]);
+                    setInterval(() => { 
+                        this.fetchSvcs(); 
+                        this.fetchSummary(); 
                     }, 5000);
-
-                    setInterval(() => {
-                        if (this.activeTab === 'analytics') this.fetchAnalytics();
-                    }, 120000);
-                    setInterval(() => {
-                        this.now = Date.now();
+                    setInterval(() => { 
+                        if (this.activeTab === 'analytics') 
+                        this.refreshAnalytics();
+                     }, 120000);
+                    setInterval(() => { 
+                        this.now = Date.now(); 
                     }, 1000);
                 },
 
-                // ─── Tab switch helper ────────────────────────────────────
-                switchToAnalytics() {
-                    this.activeTab = 'analytics';
-                    this.fetchAnalytics();
+                switchTab(id) {
+                    this.activeTab = id;
+                    if (id === 'logs') 
+                    this.fetchLogs();
+                    if (id === 'analytics') 
+                    this.refreshAnalytics();
                 },
 
-                // ─── Services ─────────────────────────────────────────────
-                async fetchServices() {
-                    try {
-                        const res = await fetch('/services');
-                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                        this.services = await res.json();
-                    } catch (e) {
-                        console.error('fetchServices:', e);
-                    }
+                refreshAnalytics() {
+                    if (this.an.selectedSvc === '') 
+                    this.loadOverall();
+                    else this.loadService(this.an.selectedSvc);
+                },
+
+                // ── Services ──
+                async fetchSvcs() {
+                    try { const r = await fetch('/services'); 
+                    if (!r.ok) throw 0; 
+                    this.services = await r.json(); 
+                } catch (_) { }
                 },
 
                 async fetchSummary() {
-                    try {
-                        const res = await fetch('/status');
-                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                        this.summary = await res.json();
-                    } catch (e) {
-                        console.error('fetchSummary:', e);
-                    }
+                    try { 
+                        const r = await fetch('/status'); 
+                        if (!r.ok) throw 0; 
+                        this.summary = await r.json(); 
+                    } catch (_) { }
                 },
 
-              
-                async restartService(name) {
-                    // Set loading — must replace object to trigger reactivity
-                    this.actionLoading = { ...this.actionLoading, [name]: true };
+                svcObj(name) { 
+                    return this.services.find(s => s.name === name) || null; },
+
+                async restartSvc(name) {
+                    this.busy = { ...this.busy, [name]: true };
                     try {
-                        const res = await fetch(`/services/${name}/restart`, { method: 'POST' });
-                        const data = await res.json();
-                        if (!data.ok) alert(`Restart failed: ${data.message}`);
-                        await Promise.all([this.fetchServices(), this.fetchSummary()]);
-                    } catch (e) {
-                        console.error('restartService:', e);
-                        alert('Restart request failed. Is Docker running?');
-                    } finally {
-                        this.actionLoading = { ...this.actionLoading, [name]: false };
-                    }
+                        const r = await fetch(`/services/${name}/restart`, { method: 'POST' });
+                        const d = await r.json(); if (!d.ok) alert(`Restart failed: ${d.message}`);
+                        await Promise.all([this.fetchSvcs(), this.fetchSummary()]);
+                    } catch (_) { alert('Request failed. Is Docker running?'); }
+                    finally { this.busy = { ...this.busy, [name]: false }; }
                 },
 
-                async stopService(name) {
-                    this.actionLoading = { ...this.actionLoading, [name]: true };
+                async stopSvc(name) {
+                    this.busy = { ...this.busy, [name]: true };
                     try {
-                        const res = await fetch(`/services/${name}/stop`, { method: 'POST' });
-                        const data = await res.json();
-                        if (!data.ok) alert(`Stop failed: ${data.message}`);
-                        await Promise.all([this.fetchServices(), this.fetchSummary()]);
-                    } catch (e) {
-                        console.error('stopService:', e);
-                        alert('Stop request failed. Is Docker running?');
-                    } finally {
-                        this.actionLoading = { ...this.actionLoading, [name]: false };
-                    }
+                        const r = await fetch(`/services/${name}/stop`, { method: 'POST' });
+                        const d = await r.json(); if (!d.ok) alert(`Stop failed: ${d.message}`);
+                        await Promise.all([this.fetchSvcs(), this.fetchSummary()]);
+                    } catch (_) { alert('Request failed. Is Docker running?'); }
+                    finally { this.busy = { ...this.busy, [name]: false }; 
+                }
                 },
-
-                // Recently restarted = last_health_check within 2 minutes
+                
                 isRecentlyRestarted(ts) {
                     if (!ts) return false;
                     const t = new Date(ts);
                     return !isNaN(t) && (this.now - t.getTime()) < 2 * 60 * 1000;
                 },
 
-                // ─── DB Logs ──────────────────────────────────────────────
+                // ── DB Logs ──
                 async fetchLogs() {
-                    this.logsLoading = true;
-                    this.logsError = null;
+                    this.logsLoading = true; this.logsErr = null;
                     try {
-                        let url = `/logs/db?limit=${this.logsFilter.limit}&offset=${this.logsFilter.offset}`;
-                        if (this.logsFilter.service) url += `&service_name=${encodeURIComponent(this.logsFilter.service)}`;
-                        if (this.logsFilter.query) url += `&q=${encodeURIComponent(this.logsFilter.query)}`;
-
-                        const res = await fetch(url);
-                        if (!res.ok) throw new Error(`Server returned ${res.status}`);
-                        this.apiLogs = await res.json();
-                    } catch (e) {
-                        this.logsError = e.message;
-                        this.apiLogs = [];
-                    } finally {
-                        this.logsLoading = false;
-                    }
+                        let u = `/logs/db?limit=${this.lf.limit}&offset=${this.lf.offset}`;
+                        if (this.lf.service) u += `&service_name=${encodeURIComponent(this.lf.service)}`;
+                        if (this.lf.query) u += `&q=${encodeURIComponent(this.lf.query)}`;
+                        const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                        this.apiLogs = await r.json();
+                    } catch (e) { this.logsErr = e.message; this.apiLogs = []; }
+                    finally { this.logsLoading = false; }
                 },
 
-                get filteredLogs() {
-                    return this.apiLogs.map(log => {
-                        if (typeof log === 'string') {
-                            return { ts: '', service: this.logsFilter.service || 'all', level: null, message: log };
-                        }
-                        return {
-                            ts: log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : '',
-                            service: log.service_name || this.logsFilter.service || 'all',
-                            level: log.level || null,
-                            message: log.message || '',
-                        };
+                get fmtLogs() {
+                    return this.apiLogs.map(l => {
+                        if (typeof l === 'string') return { ts: '', service: this.lf.service || 'all', level: null, message: l };
+                        return { ts: l.timestamp ? new Date(l.timestamp).toLocaleTimeString() : '', service: l.service_name || this.lf.service || 'all', level: l.level || null, message: l.message || '' };
                     });
                 },
 
-                // Download using backend endpoint (proper full download)
-                downloadLogsFromBackend() {
-                    const params = new URLSearchParams();
-                    if (this.logsFilter.service) params.set('service_name', this.logsFilter.service);
-                    if (this.logsFilter.query) params.set('q', this.logsFilter.query);
-                    window.open(`/logs/download?${params.toString()}`, '_blank');
+                dlLogs() {
+                    const p = new URLSearchParams();
+                    if (this.lf.service) p.set('service_name', this.lf.service);
+                    if (this.lf.query) p.set('q', this.lf.query);
+                    window.open(`/logs/download?${p.toString()}`, '_blank');
                 },
 
-                // ─── Live Logs (SSE) ──────────────────────────────────────
-             
-                connectLiveLogs() {
-                    if (!this.liveLogService) return;
-
-                    // Always disconnect existing first
-                    if (this.liveLogSource) {
-                        this.liveLogSource.close();
-                        this.liveLogSource = null;
-                    }
-
-                    this.liveLogs = [];
-
-                    const url = `/logs/stream/${encodeURIComponent(this.liveLogService)}`;
-                    this.liveLogSource = new EventSource(url);
-
-                    this.liveLogSource.onmessage = (e) => {
-                        this.liveLogs.push(e.data);
-                        // Cap at 500 lines to avoid memory issues
-                        if (this.liveLogs.length > 500) {
-                            this.liveLogs = this.liveLogs.slice(-500);
-                        }
-                        this.$nextTick(() => {
-                            if (this.liveAutoScroll && this.$refs.liveLogBox) {
-                                this.$refs.liveLogBox.scrollTop = this.$refs.liveLogBox.scrollHeight;
-                            }
-                        });
+                // ── Live Logs ──
+                liveConnect() {
+                    if (!this.liveSvc) return;
+                    if (this.liveSrc) { this.liveSrc.close(); this.liveSrc = null; }
+                    this.liveLines = [];
+                    this.liveSrc = new EventSource(`/logs/stream/${encodeURIComponent(this.liveSvc)}`);
+                    this.liveSrc.onmessage = e => {
+                        this.liveLines.push(e.data);
+                        if (this.liveLines.length > 500) this.liveLines = this.liveLines.slice(-500);
+                        this.$nextTick(() => { if (this.liveScroll && this.$refs.liveBox) this.$refs.liveBox.scrollTop = this.$refs.liveBox.scrollHeight; });
                     };
-
-                    this.liveLogSource.onerror = () => {
-                        this.liveLogs.push('[dockfleet] Connection lost. Press ▶ Start to reconnect.');
-                        this.liveLogSource.close();
-                        this.liveLogSource = null;
-                    };
+                    this.liveSrc.onerror = () => { this.liveLines.push('[dockfleet] Connection lost.'); this.liveSrc.close(); this.liveSrc = null; };
                 },
 
-                disconnectLiveLogs() {
-                    if (this.liveLogSource) {
-                        this.liveLogSource.close();
-                        this.liveLogSource = null;
-                    }
+                liveDisconnect() { 
+                    if (this.liveSrc) { 
+                        this.liveSrc.close(); 
+                        this.liveSrc = null; 
+                    } 
                 },
 
-                // ─── Analytics ────────────────────────────────────────────
-                async fetchAnalytics() {
-                    if (this.analyticsLoading) return;
-                    this.analyticsLoading = true;
-                    this.analyticsError = null;
-
+                // ── Analytics: OVERALL ──
+                async loadOverall() {
+                    this.an.loading = true; this.an.error = null;
                     try {
-                        const res = await fetch(`/analytics/unstable-services?limit=10&window_hours=${this.analyticsWindow}`);
-                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                        const data = await res.json();
-
-                        this.analytics.unstable_services = Array.isArray(data) ? data : [];
-                        this.analytics.total_restarts = this.analytics.unstable_services.reduce((s, x) => s + (x.restarts || 0), 0);
-                        this.analytics.restart_history = [];
-                        this.analytics.failure_breakdown = [];
-
-                        if (this.analytics.unstable_services.length > 0) {
-                            await this.selectServiceAnalytics(this.analytics.unstable_services[0].service_name);
-                        }
-
-                        this.$nextTick(() => this._renderAllCharts());
-                    } catch (e) {
-                        console.error('fetchAnalytics:', e);
-                        this.analyticsError = `Failed to load: ${e.message}`;
-                    } finally {
-                        this.analyticsLoading = false;
-                    }
+                        const r = await fetch(`/analytics/summary?limit=10&window_hours=${this.an.window}`);
+                        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                        this.an.summary = await r.json();
+                        this.$nextTick(() => this._renderOverallBar());
+                    } catch (e) { this.an.error = e.message; }
+                    finally { this.an.loading = false; }
                 },
 
-                async selectServiceAnalytics(name) {
-                    this.selectedAnalyticsService = name;
+                // ── Analytics: PER-SERVICE ──
+                async loadService(name) {
+                    this.an.loading = true; this.an.error = null;
+                    this._destroyChart('svcTimeline'); this._destroyChart('svcBreakdown');
                     try {
                         const [hRes, fRes] = await Promise.all([
-                            fetch(`/analytics/restart-history/${encodeURIComponent(name)}?since_hours=${this.analyticsWindow}`),
-                            fetch(`/analytics/failure-reasons/${encodeURIComponent(name)}?window_hours=${this.analyticsWindow}`)
+                            fetch(`/analytics/restart-history/${encodeURIComponent(name)}?since_hours=${this.an.window}`),
+                            fetch(`/analytics/failure-reasons/${encodeURIComponent(name)}?window_hours=${this.an.window}`)
                         ]);
-
-                        this.analytics.restart_history = hRes.ok ? (await hRes.json()) : [];
-
-                        const fData = fRes.ok ? (await fRes.json()) : {};
-                        if (Array.isArray(fData)) {
-                            this.analytics.failure_breakdown = fData;
-                        } else if (fData && typeof fData === 'object') {
-                            this.analytics.failure_breakdown = Object.entries(fData)
-                                .filter(([, c]) => c > 0)
-                                .map(([reason, count]) => ({ reason, count }))
-                                .sort((a, b) => b.count - a.count);
-                        } else {
-                            this.analytics.failure_breakdown = [];
+                        const history = hRes.ok ? await hRes.json() : [];
+                        const fRaw = fRes.ok ? await fRes.json() : {};
+                        let breakdown = [];
+                        if (Array.isArray(fRaw)) breakdown = fRaw;
+                        else if (fRaw && typeof fRaw === 'object') {
+                            breakdown = Object.entries(fRaw).filter(([, c]) => c > 0).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count);
                         }
-                    } catch (e) {
-                        console.error('selectServiceAnalytics:', e);
-                    }
+                        const autoHeals = history.filter(e => this.isAutoHeal(e.reason)).length;
 
-                    this.$nextTick(() => this._renderAllCharts());
+                        const manualRestarts = history.filter(e => this.isManualRestart(e.reason)).length;
+                        const lastEv = history[0] || null;
+                        const inList = (this.an.summary.most_unstable_services || []).find(s => s.service_name === name);
+
+                        this.an.svc = {
+                            history, breakdown,
+                            restarts: inList?.restarts ?? history.length,
+                            autoHeals, manualRestarts,
+                            lastRestart: lastEv?.timestamp || null,
+                            lastReason: lastEv?.reason || null,
+                        };
+
+                        this.$nextTick(() => { this._renderSvcTimeline(); this._renderSvcBreakdown(); });
+                    } 
+                    catch (e) { this.an.error = e.message; }
+                    finally { this.an.loading = false; }
                 },
 
-                // ─── Chart rendering ──────────────────────────────────────
-                _renderAllCharts() {
-                    this._renderUnstableChart();
-                    this._renderRestartChart();
-                    this._renderFailureChart();
-                },
+                // ── Charts ──
+                _destroyChart(key) { 
+                    if (this._ch[key]) { 
+                        try { this._ch[key].destroy();
 
-                _destroyChart(key) {
-                    if (this._charts[key]) {
-                        try { this._charts[key].destroy(); } catch (_) { }
-                        this._charts[key] = null;
+                         } catch (_) { } 
+                         this._ch[key] = null; 
+                        } },
+
+                _renderOverallBar() {
+                    const canvas = document.getElementById('overallBarChart'); if (!canvas) return;
+                    const items = this.an.summary.most_unstable_services || [];
+                    const labels = items.map(s => s.service_name), data = items.map(s => s.restarts);
+                    const colors = items.map(s => s.restarts > 5 ? '#ef4444' : s.restarts > 2 ? '#f97316' : '#3b82f6');
+                    if (this._ch.overallBar) {
+                        this._ch.overallBar.data.labels = labels; this._ch.overallBar.data.datasets[0].data = data; this._ch.overallBar.data.datasets[0].backgroundColor = colors;
+                        this._ch.overallBar.update('none'); return;
                     }
-                },
-                now: Date.now(),
-
-                _renderUnstableChart() {
-                    const canvas = document.getElementById('unstableChart');
-                    if (!canvas) return;
-                    const labels = this.analytics.unstable_services.map(s => s.service_name);
-                    const data = this.analytics.unstable_services.map(s => s.restarts);
-                    const colors = ['#ef4444', '#f97316', '#eab308', '#3b82f6', '#8b5cf6'];
-
-                    if (this._charts.unstable) {
-                        this._charts.unstable.data.labels = labels;
-                        this._charts.unstable.data.datasets[0].data = data;
-                        this._charts.unstable.update('none');
-                        return;
-                    }
-                    this._charts.unstable = new Chart(canvas.getContext('2d'), {
-                        type: 'bar',
-                        data: { labels, datasets: [{ label: 'Restarts', data, backgroundColor: labels.map((_, i) => colors[i % colors.length]), borderRadius: 4 }] },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+                    this._ch.overallBar = new Chart(canvas.getContext('2d'), {
+                        type: 'bar', data: { labels, datasets: [{ label: 'Restarts', data, backgroundColor: colors, borderRadius: 6 }] },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            onClick: (_e, els) => { if (els.length) { const n = labels[els[0].index]; this.an.selectedSvc = n; this.loadService(n); } },
+                            plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.raw} restarts` } } },
+                            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                        }
                     });
                 },
 
-                _renderRestartChart() {
-                    const canvas = document.getElementById('restartChart');
-                    if (!canvas) return;
-                    if (!this.analytics.restart_history.length) { this._destroyChart('restart'); return; }
-
-                    const history = [...this.analytics.restart_history].reverse();
-                    let n = 0;
+                _renderSvcTimeline() {
+                    const canvas = document.getElementById('svcTimelineChart'); if (!canvas || !this.an.svc.history?.length) return;
+                    const history = [...this.an.svc.history].reverse(); let n = 0;
                     const trend = history.map(() => ++n);
                     const labels = history.map(e => new Date(e.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
-
-                    if (this._charts.restart) {
-                        this._charts.restart.data.labels = labels;
-                        this._charts.restart.data.datasets[0].data = trend;
-                        this._charts.restart.update('none');
-                        return;
-                    }
-                    this._charts.restart = new Chart(canvas.getContext('2d'), {
-                        type: 'line',
-                        data: { labels, datasets: [{ label: 'Cumulative', data: trend, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.3, pointRadius: 3 }] },
+                    if (this._ch.svcTimeline) { this._ch.svcTimeline.data.labels = labels; this._ch.svcTimeline.data.datasets[0].data = trend; this._ch.svcTimeline.update('none'); return; }
+                    this._ch.svcTimeline = new Chart(canvas.getContext('2d'), {
+                        type: 'line', data: { labels, datasets: [{ label: 'Cumulative', data: trend, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,.1)', fill: true, tension: .3, pointRadius: 4, pointHoverRadius: 6 }] },
                         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { maxTicksLimit: 5, maxRotation: 0 } }, y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
                     });
                 },
 
-                _renderFailureChart() {
-                    const canvas = document.getElementById('failureChart');
-                    if (!canvas) return;
-                    if (!this.analytics.failure_breakdown.length) { this._destroyChart('failure'); return; }
-
-                    const labels = this.analytics.failure_breakdown.map(i => (i.reason || 'other').replace(/_/g, ' '));
-                    const data = this.analytics.failure_breakdown.map(i => i.count);
+                _renderSvcBreakdown() {
+                    const canvas = document.getElementById('svcBreakdownChart'); if (!canvas || !this.an.svc.breakdown?.length) return;
+                    const labels = this.an.svc.breakdown.map(i => (i.reason || 'other').replace(/_/g, ' '));
+                    const data = this.an.svc.breakdown.map(i => i.count);
                     const bg = ['#ef4444', '#f97316', '#3b82f6', '#6b7280'];
-
-                    if (this._charts.failure) {
-                        this._charts.failure.data.labels = labels;
-                        this._charts.failure.data.datasets[0].data = data;
-                        this._charts.failure.data.datasets[0].backgroundColor = bg.slice(0, data.length);
-                        this._charts.failure.update('none');
-                        return;
-                    }
-                    this._charts.failure = new Chart(canvas.getContext('2d'), {
-                        type: 'doughnut',
-                        data: { labels, datasets: [{ data, backgroundColor: bg.slice(0, data.length), borderWidth: 2, borderColor: '#1f2937' }] },
-                        options: {
-                            responsive: true, maintainAspectRatio: false,
-                            plugins: {
-                                legend: { display: false },
-                                tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw}` } }
-                            }
-                        }
+                    if (this._ch.svcBreakdown) { this._ch.svcBreakdown.data.labels = labels; this._ch.svcBreakdown.data.datasets[0].data = data; this._ch.svcBreakdown.update('none'); return; }
+                    this._ch.svcBreakdown = new Chart(canvas.getContext('2d'), {
+                        type: 'doughnut', data: { labels, datasets: [{ data, backgroundColor: bg.slice(0, data.length), borderWidth: 2, borderColor: '#1f2937' }] },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw}` } } } }
                     });
                 },
 
-                // ─── Utilities ────────────────────────────────────────────
-                toggleDarkMode() {
+                // ── Healing helpers ──
+                isAutoHeal(r) { 
+                    return !!(r && (r.includes('3_failed') || r.includes('health_check') || r.includes('auto'))); 
+                },
+
+                isManualRestart(r) { 
+                    return !!(r && (r.includes('manual') || r.includes('dashboard'))); 
+                },
+
+                isHealthFail(r) { 
+                    return !!(r && r.includes('health') && !this.isAutoHeal(r)); 
+                },
+
+                isOther(r) { 
+                    return !this.isAutoHeal(r) && !this.isManualRestart(r) && !this.isHealthFail(r); 
+                },
+
+                healingDesc(ev) {
+                    if (
+                        this.isAutoHeal(ev.reason)) return `DockFleet automatically restarted this service after detecting 3 consecutive health check failures.`;
+                    if (
+                        this.isManualRestart(ev.reason)) return `A user manually triggered a restart from the DockFleet dashboard.`;
+                    if (
+                        this.isHealthFail(ev.reason)) return `Service failed a health check (${ev.previous_status || 'unknown'} → ${ev.new_status || 'unknown'}).`;
+                    return `Service was restarted (reason: ${(ev.reason || 'unknown').replace(/_/g, ' ')}).`;
+                },
+
+                statusBadge(s) {
+                    return ({
+                        running: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+                        healthy: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+                        unhealthy: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+                        stopped: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+                        restarting: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+                    })[s] || 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400';
+                },
+
+                // ── Utilities ──
+                toggleDark() {
                     document.documentElement.classList.toggle('dark');
                     this.darkMode = document.documentElement.classList.contains('dark');
                     localStorage.theme = this.darkMode ? 'dark' : 'light';
                 },
 
-                formatTime(ts) {
+                fmtTime(ts) {
                     if (!ts) return 'Never';
-                    const t = new Date(ts);
-                    if (isNaN(t)) return 'Unknown';
+                    const t = new Date(ts); if (isNaN(t)) return 'Unknown';
                     const d = Math.floor((Date.now() - t) / 1000);
                     if (d < 5) return 'Just now';
                     if (d < 60) return `${d}s ago`;
