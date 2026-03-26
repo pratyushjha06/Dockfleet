@@ -4,29 +4,32 @@ from sqlmodel import Session, select
 from .models import Service, RestartEvent, engine
 
 def mark_service_running(name: str) -> None:
-    _update_status(name, "running", set_last_health=True)
+    _update_status(name, new_status="running", new_health="healthy", set_last_health=True)
 
 def mark_service_stopped(name: str) -> None:
-    _update_status(name, "stopped", set_last_health=False)
+    # Normal stop: container stopped but still considered healthy
+    _update_status(name, new_status="stopped", new_health="healthy", set_last_health=False)
 
 def _update_status(
     name: str,
     new_status: str,
+    new_health: Optional[str] = None,
     set_last_health: bool = False,
 ) -> None:
-    """Low-level helper to flip status for a service by name."""
+    """Low-level helper to flip status (and optionally health_status) for a service by name."""
     with Session(engine) as session:
         svc = session.exec(
             select(Service).where(Service.name == name)
         ).one_or_none()
 
         if svc is None:
-            print(
-                f"[status] Service '{name}' not found in DB, skipping status update"
-            )
+            print(f"[status] Service '{name}' not found in DB, skipping status update")
             return
 
         svc.status = new_status
+
+        if new_health is not None:
+            svc.health_status = new_health
 
         if set_last_health:
             svc.last_health_check = datetime.utcnow()
@@ -42,15 +45,15 @@ def update_service_health(
     """
     Update Service row after a health check.
     - If healthy:
-        status = "running"
+        status        = "running"
+        health_status = "healthy"
         last_health_check updated
         consecutive_failures reset to 0
-        restart_count unchanged
     - If unhealthy:
-        status = "unhealthy"
+        status        stays as-is (running/stopped decided elsewhere)
+        health_status = "crashed"
         last_health_check updated
         consecutive_failures++
-        restart_count unchanged (restart attempts are tracked separately)
     """
     with Session(engine) as session:
         svc = session.exec(
@@ -66,9 +69,10 @@ def update_service_health(
 
         if is_healthy:
             svc.status = "running"
+            svc.health_status = "healthy"
             svc.consecutive_failures = 0
         else:
-            svc.status = "unhealthy"
+            svc.health_status = "crashed"
             svc.consecutive_failures += 1
             if reason:
                 svc.last_failure_reason = reason
@@ -113,9 +117,7 @@ def record_restart_event(service: Service, reason: str) -> None:
 def mark_restart_successful(service_name: str) -> None:
     """
     Called by orchestrator after a successful auto-restart.
-    Resets consecutive_failures and marks status as running.
-    Does NOT touch restart_count; that is incremented separately
-    for each restart attempt (auto or manual).
+    Resets consecutive_failures and marks service as healthy + running.
     """
     with Session(engine) as session:
         svc = session.exec(
@@ -128,6 +130,7 @@ def mark_restart_successful(service_name: str) -> None:
 
         svc.consecutive_failures = 0
         svc.status = "running"
+        svc.health_status = "healthy"
 
         session.add(svc)
         session.commit()
@@ -138,7 +141,7 @@ def record_manual_restart_event(service_name: str) -> None:
     and the orchestrator has successfully restarted the container.
 
     - Increments restart_count (restart attempts).
-    - Marks status as 'running'.
+    - Marks status as 'running' and health_status as 'healthy'.
     - Inserts a RestartEvent with reason='manual_dashboard_restart'.
     """
     with Session(engine) as session:
@@ -153,6 +156,7 @@ def record_manual_restart_event(service_name: str) -> None:
         previous_status = svc.status
         svc.restart_count = (svc.restart_count or 0) + 1
         svc.status = "running"
+        svc.health_status = "healthy"
 
         event = RestartEvent(
             service_id=svc.id,
@@ -173,6 +177,7 @@ def record_manual_stop(service_name: str) -> None:
     and the orchestrator has successfully stopped the container.
 
     - Marks status as 'stopped'.
+    - Keeps health_status as 'healthy' (it's a clean stop).
     - Does NOT touch restart_count or consecutive_failures.
     """
     with Session(engine) as session:
@@ -185,6 +190,7 @@ def record_manual_stop(service_name: str) -> None:
             return
 
         svc.status = "stopped"
+        svc.health_status = "healthy"
 
         session.add(svc)
         session.commit()
