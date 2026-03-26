@@ -1,6 +1,5 @@
 from datetime import datetime
 from pathlib import Path
-
 from sqlmodel import Field, SQLModel, create_engine
 
 """
@@ -8,10 +7,10 @@ Service table model
 fields:
 - id, name, image, restart_policy
 - ports_raw, healthcheck_raw
-- status, restart_count, last_health_check, last_failure_reason, consecutive_failures
+- status, health_status, restart_count,
+  last_health_check, last_failure_reason, consecutive_failures
 - resources_memory, resources_cpu, env_raw, depends_on_raw
 """
-
 
 class Service(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -22,7 +21,10 @@ class Service(SQLModel, table=True):
     ports_raw: str | None = Field(default=None)
     healthcheck_raw: str | None = Field(default=None)
     # Runtime state fields
+    # status: container lifecycle (running / stopped / unknown)
     status: str = Field(default="unknown", nullable=False)
+    # health_status: health dimension (healthy / crashed / unknown)
+    health_status: str = Field(default="healthy", nullable=False)
     restart_count: int = Field(default=0, nullable=False)
     last_health_check: datetime | None = Field(default=None)
     last_failure_reason: str | None = Field(default=None)
@@ -36,7 +38,6 @@ class Service(SQLModel, table=True):
     # depends_on_raw: comma-separated service names (e.g. "redis,db")
     env_raw: str | None = Field(default=None)
     depends_on_raw: str | None = Field(default=None)
-
 
 # RestartEvent table model
 # fields: id, service_id, service_name, restarted_at, reason, previous_status, new_status
@@ -65,16 +66,15 @@ class LogEvent(SQLModel, table=True):
     # Index on created_at for time-ordered scans
     created_at: datetime = Field(nullable=False, index=True)
     # Optional metadata fields
-    level: str | None = Field(default=None)  # e.g. "INFO", "WARN", "ERROR"
-    message: str | None = Field(default=None)  # short summary / first line
+    level: str | None = Field(default=None)   # e.g. "INFO", "WARN", "ERROR"
+    message: str | None = Field(default=None) # short summary / first line
     source: str | None = Field(
         default=None
     )  # e.g. "docker-logs", "scheduler", "orchestrator"
 
 # init_db() function
 # work: engine + tables create
-# Always use a project-root absolute path so CLI and FastAPI share one DB
-PROJECT_ROOT = Path(__file__).resolve().parents[2]  # .../Projects/Dockfleet
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = PROJECT_ROOT / "dockfleet.db"
 sqlite_file_name = str(DB_PATH)
 sqlite_url = f"sqlite:///{sqlite_file_name}"

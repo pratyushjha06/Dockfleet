@@ -11,7 +11,7 @@ from dockfleet.cli.config import (
 def services_from_config(config: DockFleetConfig) -> list[Service]:
     services: list[Service] = []
 
-    # config.services: Dict[str, ServiceConfig]
+    # 1) config.services: Dict[str, ServiceConfig]
     for name, svc_cfg in config.services.items():
         image = svc_cfg.image
         restart_policy = svc_cfg.restart.value  # always / on-failure / never
@@ -26,7 +26,7 @@ def services_from_config(config: DockFleetConfig) -> list[Service]:
         if svc_cfg.healthcheck is None:
             healthcheck_raw = None
         else:
-            hc = svc_cfg.healthcheck
+            hc: HealthCheckConfig = svc_cfg.healthcheck
             hc_dict = {
                 "type": hc.type,
                 "endpoint": hc.endpoint,
@@ -58,6 +58,7 @@ def services_from_config(config: DockFleetConfig) -> list[Service]:
 
         # 7) Runtime defaults (not from config)
         status = "stopped"
+        health_status = "healthy"  # lifecycle is stopped, but not crashed
         restart_count = 0
         last_health_check = None
         last_failure_reason = None
@@ -71,6 +72,7 @@ def services_from_config(config: DockFleetConfig) -> list[Service]:
             ports_raw=ports_raw,
             healthcheck_raw=healthcheck_raw,
             status=status,
+            health_status=health_status,
             restart_count=restart_count,
             last_health_check=last_health_check,
             last_failure_reason=last_failure_reason,

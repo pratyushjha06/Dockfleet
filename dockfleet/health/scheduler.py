@@ -126,7 +126,7 @@ class HealthScheduler:
         This keeps the decision logic on the health side and the actual
         container restart on the orchestrator side.
         """
-        #self-healing toggle from config
+        # self-healing toggle from config
         svc_cfg = self.config.services.get(name)
         if svc_cfg is None:
             return
@@ -149,7 +149,7 @@ class HealthScheduler:
             )
             return
 
-        #Load latest DB state
+        # Load latest DB state
         with Session(engine) as session:
             svc = session.exec(
                 select(Service).where(Service.name == name)
@@ -162,7 +162,7 @@ class HealthScheduler:
             )
             return
 
-        #Check failure threshold + restart policy
+        # Check failure threshold + restart policy
         if not needs_restart(svc):
             return
 
@@ -174,11 +174,20 @@ class HealthScheduler:
             svc.consecutive_failures,
         )
 
-        #Delegate to orchestrator
+        # Delegate to orchestrator
         try:
-            restart_service(svc.name, self.config)
+            success = restart_service(svc.name, self.config)
 
-            # On success: reset streak, mark running, and record event.
+            if not success:
+                # Orchestrator refused / could not restart (e.g. container not running)
+                self._logger.error(
+                    "HealthScheduler: restart_service returned False for %s",
+                    svc.name,
+                )
+                mark_restart_failed(svc.name, "restart_service returned False")
+                return
+
+            # On success: reset streak, mark running+healthy, and record event.
             mark_restart_successful(svc.name)
             record_restart_event(svc, "3_failed_health_checks")
         except Exception as exc:  # pragma: no cover (defensive)
