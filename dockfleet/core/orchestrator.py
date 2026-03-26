@@ -27,7 +27,6 @@ from dockfleet.health.logs import store_log_line
 
 logger = logging.getLogger(__name__)
 
-
 class ServiceStat(BaseModel):
     service_name: str
     container_name: str
@@ -37,20 +36,16 @@ class ServiceStat(BaseModel):
     uptime: Optional[str] = None
     status: str = "unknown"  # running, stopped, missing
 
-
 _orchestrator_instance = None
-
 
 def get_container_name(service_name: str) -> str:
     """Shared container name helper for logs."""
     return f"dockfleet_{service_name}"
 
-
 def get_service_stats(config=None):
     """Module wrapper for stats."""
     orch = get_orchestrator(config)
     return orch.get_service_stats()
-
 
 def get_orchestrator(config=None, self_healing: bool = True):
     """Get/create global Orchestrator instance."""
@@ -59,18 +54,15 @@ def get_orchestrator(config=None, self_healing: bool = True):
         _orchestrator_instance = Orchestrator(config or {}, self_healing=self_healing)
     return _orchestrator_instance
 
-
 def restart_service(name: str, config=None) -> bool:
     """Module wrapper for HealthScheduler."""
     orch = get_orchestrator(config)
     return orch.restart_service(name, config)
 
-
 def mark_restart_failed(name: str, reason: str) -> None:
     """Module wrapper for HealthScheduler."""
     orch = get_orchestrator()
     orch._mark_restart_failed(name, reason)
-
 
 def get_logs(
     service_name: str,
@@ -123,7 +115,6 @@ def get_logs(
         logger.error("Failed to stream logs for %s: %s", container_name, e)
         yield f"Error: {e}"
 
-
 def normalize_services(services):
     if isinstance(services, list):
         normalized = {}
@@ -134,7 +125,6 @@ def normalize_services(services):
             normalized[name] = svc
         return normalized
     return services or {}
-
 
 class Orchestrator:
     def __init__(self, config, self_healing: bool = True):
@@ -152,7 +142,6 @@ class Orchestrator:
 
         try:
             self.docker.remove_container(container_name)
-
             # Convert to dict safely
             if isinstance(svc, dict):
                 service_config = svc
@@ -378,16 +367,18 @@ class Orchestrator:
                 logger.warning("Service %s not found after restart", service_name)
 
     def _mark_restart_failed(self, service_name: str, reason: str) -> None:
-        with Session(engine) as session:
-            svc = session.exec(
-                select(Service).where(Service.name == service_name)
-            ).one_or_none()
-            if svc:
-                svc.status = "crashed"
-                svc.last_failure_reason = f"auto-restart failed: {reason}"
-                session.add(svc)
-                session.commit()
-                logger.error("%s marked CRASHED: %s", service_name, reason)
+            with Session(engine) as session:
+                svc = session.exec(
+                    select(Service).where(Service.name == service_name)
+                ).one_or_none()
+                if svc:
+                    # Container is not running and health is bad
+                    svc.status = "stopped"
+                    svc.health_status = "crashed"
+                    svc.last_failure_reason = f"auto-restart failed: {reason}"
+                    session.add(svc)
+                    session.commit()
+                    logger.error("%s marked CRASHED: %s", service_name, reason)
 
     def _resolve_service_order(self):
         visited = set()
