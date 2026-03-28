@@ -27,6 +27,7 @@ from dockfleet.health.logs import store_log_line
 
 logger = logging.getLogger(__name__)
 
+
 class ServiceStat(BaseModel):
     service_name: str
     container_name: str
@@ -36,16 +37,20 @@ class ServiceStat(BaseModel):
     uptime: Optional[str] = None
     status: str = "unknown"  # running, stopped, missing
 
+
 _orchestrator_instance = None
+
 
 def get_container_name(service_name: str) -> str:
     """Shared container name helper for logs."""
     return f"dockfleet_{service_name}"
 
+
 def get_service_stats(config=None):
     """Module wrapper for stats."""
     orch = get_orchestrator(config)
     return orch.get_service_stats()
+
 
 def get_orchestrator(config=None, self_healing: bool = True):
     """Get/create global Orchestrator instance."""
@@ -54,15 +59,18 @@ def get_orchestrator(config=None, self_healing: bool = True):
         _orchestrator_instance = Orchestrator(config or {}, self_healing=self_healing)
     return _orchestrator_instance
 
+
 def restart_service(name: str, config=None) -> bool:
     """Module wrapper for HealthScheduler."""
     orch = get_orchestrator(config)
     return orch.restart_service(name, config)
 
+
 def mark_restart_failed(name: str, reason: str) -> None:
     """Module wrapper for HealthScheduler."""
     orch = get_orchestrator()
     orch._mark_restart_failed(name, reason)
+
 
 def get_logs(
     service_name: str,
@@ -115,6 +123,7 @@ def get_logs(
         logger.error("Failed to stream logs for %s: %s", container_name, e)
         yield f"Error: {e}"
 
+
 def normalize_services(services):
     if isinstance(services, list):
         normalized = {}
@@ -125,6 +134,7 @@ def normalize_services(services):
             normalized[name] = svc
         return normalized
     return services or {}
+
 
 class Orchestrator:
     def __init__(self, config, self_healing: bool = True):
@@ -141,7 +151,12 @@ class Orchestrator:
         container_name = self.container_name(name)
 
         try:
-            self.docker.remove_container(container_name)
+            # Best-effort remove any previous container
+            try:
+                self.docker.remove_container(container_name)
+            except Exception:
+                logger.debug("No existing container to remove for %s", container_name)
+
             # Convert to dict safely
             if isinstance(svc, dict):
                 service_config = svc
@@ -214,9 +229,14 @@ class Orchestrator:
         backoff_attempt: int = 0,
     ) -> bool:
         """
-        Restart a service container, even if the previous container is already gone.
+        Restart a service's container, respecting restart_policy and self_healing.
 
-        Used by HealthScheduler auto-heal path.
+        - If restart_policy == "never": do nothing and return False.
+        - Otherwise:
+          - Optional exponential backoff.
+          - Best-effort stop of any existing container.
+          - Start a fresh container with the same config.
+          - Return True if the new container start succeeded.
         """
         config = config or self.config
 
@@ -230,10 +250,12 @@ class Orchestrator:
 
         svc = config.services[service_name]
 
-        if svc.restart == RestartPolicy.never:
+        # Respect restart_policy == never
+        if getattr(svc, "restart", None) == RestartPolicy.never:
             logger.info("%s: restart='never', skipping", service_name)
             return False
 
+        # Optional exponential backoff
         if backoff_attempt > 0:
             delay = min(2**backoff_attempt, 32)
             logger.info(
@@ -245,24 +267,26 @@ class Orchestrator:
             time.sleep(delay)
 
         logger.info("Restarting %s", service_name)
+        container_name = self.container_name(service_name)
 
-        # Best-effort stop; ok if container is already gone
+        # Best-effort stop; even if this fails, we still try to start a new one
         try:
-            self.stop_service(service_name)
-        except Exception as e:
-            logger.info(
-                "%s stop skipped/failed (already down or missing): %s",
-                service_name,
-                e,
+            subprocess.run(
+                ["docker", "stop", container_name],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
+        except Exception as exc:
+            logger.warning("restart_service: error stopping %s: %s", container_name, exc)
 
+        # Try to start a fresh container
         try:
-            self._increment_restart_count(service_name)
             self.start_service(service_name, svc)
-
+            self._increment_restart_count(service_name)
             logger.info("%s restarted (count updated)", service_name)
             return True
-
         except Exception as e:
             logger.error("%s restart FAILED: %s", service_name, e)
             return False
