@@ -16,7 +16,7 @@ services:
     healthcheck:
       type: tcp
       endpoint: localhost:5432
-      interval: 10
+      interval: 60
 
   api:
     image: nginx
@@ -25,7 +25,7 @@ services:
     healthcheck:
       type: http
       endpoint: http://localhost:8080
-      interval: 5
+      interval: 60
 
     depends_on:
       - db
@@ -41,7 +41,8 @@ services:
     image: busybox
     restart: always
 
+    # Intentionally failing healthcheck so auto-heal + analytics are visible
     healthcheck:
-      type: process
-      endpoint: ""      # not used for process type
-      interval: 10
+      type: http
+      endpoint: "http://localhost:9999/health"  # nothing listening here
+      interval: 60
