@@ -15,7 +15,7 @@ def store_log_line(
     - Looks up Service by name and attaches service_id + service_name.
     - Skips insert (with a warning) if the service is not present in the DB.
     - Intended callers:
-        * CLI `dockfleet logs` path (sampling/aggregation).
+        * CLI dockfleet logs path (sampling/aggregation).
         * SSE log streaming wrapper in the dashboard backend.
         * Orchestrator for structured events.
     """
