@@ -14,7 +14,9 @@ from dockfleet.health.status import (
 )
 from dockfleet.core.orchestrator import restart_service, mark_restart_failed
 
-DEFAULT_INTERVAL_SECONDS = 30
+
+DEFAULT_INTERVAL_SECONDS = 60
+
 
 class HealthScheduler:
     """
@@ -162,16 +164,17 @@ class HealthScheduler:
             )
             return
 
-        # Check failure threshold + restart policy
+        # Check failure threshold + restart policy (+ current health state via needs_restart)
         if not needs_restart(svc):
             return
 
         self._logger.info(
             "HealthScheduler: auto-restart candidate detected: %s "
-            "(policy=%s, consecutive_failures=%d)",
+            "(policy=%s, consecutive_failures=%d, health_status=%s)",
             svc.name,
             svc.restart_policy,
             svc.consecutive_failures,
+            svc.health_status,
         )
 
         # Delegate to orchestrator
