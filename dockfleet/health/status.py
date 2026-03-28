@@ -6,9 +6,11 @@ from .models import Service, RestartEvent, engine
 def mark_service_running(name: str) -> None:
     _update_status(name, new_status="running", new_health="healthy", set_last_health=True)
 
+
 def mark_service_stopped(name: str) -> None:
     # Normal stop: container stopped but still considered healthy
     _update_status(name, new_status="stopped", new_health="healthy", set_last_health=False)
+
 
 def _update_status(
     name: str,
@@ -36,6 +38,7 @@ def _update_status(
 
         session.add(svc)
         session.commit()
+
 
 def update_service_health(
     name: str,
@@ -80,6 +83,7 @@ def update_service_health(
         session.add(svc)
         session.commit()
 
+
 def needs_restart(service: Service) -> bool:
     """
     Decide if a service should be auto-restarted.
@@ -87,6 +91,7 @@ def needs_restart(service: Service) -> bool:
     - At least 3 consecutive health check failures.
     - restart_policy must be "always" or "on-failure".
     - restart_policy == "never" is a hard block.
+    - Only restart if currently unhealthy/crashed.
     """
     if service.consecutive_failures < 3:
         return False
@@ -94,7 +99,11 @@ def needs_restart(service: Service) -> bool:
     if service.restart_policy not in {"always", "on-failure"}:
         return False
 
+    if service.health_status not in {"unhealthy", "crashed"}:
+        return False
+
     return True
+
 
 def record_restart_event(service: Service, reason: str) -> None:
     """
@@ -113,6 +122,7 @@ def record_restart_event(service: Service, reason: str) -> None:
     with Session(engine) as session:
         session.add(event)
         session.commit()
+
 
 def mark_restart_successful(service_name: str) -> None:
     """
@@ -134,6 +144,7 @@ def mark_restart_successful(service_name: str) -> None:
 
         session.add(svc)
         session.commit()
+
 
 def record_manual_restart_event(service_name: str) -> None:
     """
@@ -170,6 +181,7 @@ def record_manual_restart_event(service_name: str) -> None:
         session.add(svc)
         session.add(event)
         session.commit()
+
 
 def record_manual_stop(service_name: str) -> None:
     """
