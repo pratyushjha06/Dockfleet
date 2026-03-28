@@ -328,68 +328,73 @@
         <div x-show="activeTab==='logs'" class="tab-content space-y-8">
             <div>
                 <h2 class="text-2xl font-bold mb-4">Log Explorer</h2>
-                <div class="flex flex-wrap gap-3 mb-4">
-                    <select x-model="lf.service" @change="lf.offset=0;fetchLogs()"
-                        class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm min-w-[160px]">
-                        <option value="">All Services</option>
+                <div class="flex flex-wrap gap-3 mb-4 items-center">
+                <!-- Service Select -->
+                <select x-model="lf.service" @change="fetchExploreLogs()"
+                    class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm min-w-[160px]">
+                    <option value="">All Services</option>
+                    <template x-for="s in services" :key="s.name">
+                        <option :value="s.name" x-text="s.name"></option>
+                    </template>
+                </select>
 
-                        <template x-for="s in services" :key="s.name">
-                            <option :value="s.name" x-text="s.name"></option>
-                        </template>
-                    </select>
+                <!-- DAYS SELECT -->
+                <select x-model.number="lf.days" @change="fetchExploreLogs()"
+                    class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm min-w-[120px]">
+                    <option value="1">1 Day</option>
+                    <option value="3">3 Days</option>
+                    <option value="7">7 Days</option>
+                    <option value="14">14 Days</option>
+                    <option value="30">30 Days</option>
+                </select>
 
-                    <input type="text" placeholder="Search logs…" x-model="lf.query"
-                        @input.debounce.400ms="lf.offset=0;fetchLogs()"
-                        class="flex-1 min-w-[200px] bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm">
-                    <button @click="fetchLogs()"
-                        class="px-4 py-2 rounded-lg text-sm bg-blue-600 hover:bg-blue-500 text-white transition-colors">
-                        Refresh
-                    </button>
-                    <button @click="dlLogs()"
-                        class="px-4 py-2 rounded-lg text-sm bg-gray-600 hover:bg-gray-500 text-white transition-colors">↓
-                        Download
-                    </button>
+                <!-- Search -->
+                <input type="text" placeholder="Search logs..." x-model="lf.query"
+                    @input.debounce.500ms="fetchExploreLogs()"
+                    class="flex-1 min-w-[200px] bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm">
+                
+                <!-- Buttons -->
+                <button @click="fetchExploreLogs()"
+                    class="px-4 py-2 rounded-lg text-sm bg-blue-600 hover:bg-blue-500 text-white transition-colors">
+                    Refresh
+                </button>
+                <button @click="dlExploreLogs()"
+                    class="px-4 py-2 rounded-lg text-sm bg-gray-600 hover:bg-gray-500 text-white transition-colors">
+                     Download
+                </button>
+            </div>
+
+                <!-- Loading -->
+                <div x-show="logsLoading" class="flex items-center justify-center py-12 text-gray-400">
+                    <span class="spinner mr-2"></span> Loading...
                 </div>
 
-                <div x-show="logsLoading" class="flex items-center justify-center py-12 text-gray-400"><span
-                        class="spinner mr-2"></span> Loading…</div>
-                <div x-show="!logsLoading&&logsErr"
+                <!-- Error -->
+                <div x-show="!logsLoading && logsErr"
                     class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-5 text-red-700 dark:text-red-300">
                     <p class="font-semibold">Failed to load logs</p>
                     <p class="text-sm mt-1" x-text="logsErr"></p>
                 </div>
-                <div x-show="!logsLoading&&!logsErr&&apiLogs.length===0"
+
+                <!-- Empty -->
+                <div x-show="!logsLoading && !logsErr && !exploreLogs.length"
                     class="text-center py-12 text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
-                    
                     <p class="font-medium">No logs found</p>
-                    <p class="text-sm mt-1">Start services and logs will appear here, or use Live Logs below.</p>
+                    <p class="text-sm mt-1">Select service + increase days or check Live Logs below.</p>
                 </div>
-                <div x-show="!logsLoading&&!logsErr&&apiLogs.length>0">
-                    <div
-                        class="bg-gray-900 text-green-400 font-mono text-xs p-4 rounded-xl h-80 overflow-y-auto log-box border border-gray-700">
-                        <template x-for="(log,i) in fmtLogs" :key="i">
-                            <div class="mb-1 leading-relaxed hover:bg-white/5 px-1 rounded">
-                                <span class="text-gray-500 mr-2 select-none" x-text="log.ts"></span>
-                                <span class="text-blue-400 mr-2" x-text="'['+log.service+']'"></span>
-                                <template x-if="log.level">
-                                    <span class="mr-1 px-1 rounded text-xs font-bold"
-                                        :class="{'bg-red-700 text-red-100':log.level==='ERROR','bg-yellow-600 text-yellow-100':log.level==='WARN','bg-blue-700 text-blue-100':log.level==='INFO','bg-gray-600 text-gray-200':!['ERROR','WARN','INFO'].includes(log.level)}"
-                                        x-text="log.level"></span>
-                                </template>
+
+                <!-- Logs Display -->
+                <div x-show="!logsLoading && !logsErr && exploreLogs.length" class="space-y-2">
+                    <div class="bg-gray-900 text-green-400 font-mono text-xs p-4 rounded-xl h-80 overflow-y-auto log-box border border-gray-700">
+                        <template x-for="(log,i) in exploreLogs" :key="i">
+                            <div class="mb-1 leading-relaxed hover:bg-white/5 px-1 rounded cursor-pointer" @click="copyToClipboard(log.message)">
+                                <span class="text-gray-500 mr-2 text-[11px]" x-text="fmtLogTime(log.timestamp)"></span>
                                 <span x-text="log.message"></span>
                             </div>
                         </template>
                     </div>
-                    <div class="flex justify-between items-center text-sm text-gray-500 mt-2 px-1">
-                        <span>Showing <strong x-text="apiLogs.length"></strong> entries</span>
-                        <div class="flex gap-2">
-                            <button x-show="lf.offset>0" @click="lf.offset-=lf.limit;fetchLogs()"
-                                class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:opacity-80 text-xs">
-                                Prev</button>
-                            <button x-show="apiLogs.length===lf.limit" @click="lf.offset+=lf.limit;fetchLogs()"
-                                class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:opacity-80 text-xs">Next
-                            </button>
-                        </div>
+                    <div class="flex justify-between items-center text-sm text-gray-500 px-1">
+                        <span>Showing <strong x-text="exploreLogs.length"></strong> logs (last <strong x-text="lf.days"></strong> days)</span>
                     </div>
                 </div>
             </div>
@@ -858,9 +863,10 @@
 
                 // Logs
                 apiLogs: [], 
+                exploreLogs: [],
                 logsLoading: false, 
                 logsErr: null,
-                lf: { service: '', query: '', offset: 0, limit: 100 },
+                lf: { service: '', days: 1, query: '', offset: 0, limit: 100 },
 
                 // Live
                 liveSvc: '', 
@@ -910,7 +916,7 @@
                 switchTab(id) {
                     this.activeTab = id;
                     if (id === 'logs') 
-                    this.fetchLogs();
+                    this.fetchExploreLogs();
                     if (id === 'analytics') 
                     this.refreshAnalytics();
                 },
@@ -968,16 +974,69 @@
                 },
 
                 // ── DB Logs ──
-                async fetchLogs() {
-                    this.logsLoading = true; this.logsErr = null;
+                async fetchExploreLogs() {
+                    this.logsLoading = true;
+                    this.logsErr = null;
+
                     try {
-                        let u = `/logs/db?limit=${this.lf.limit}&offset=${this.lf.offset}`;
-                        if (this.lf.service) u += `&service_name=${encodeURIComponent(this.lf.service)}`;
-                        if (this.lf.query) u += `&q=${encodeURIComponent(this.lf.query)}`;
-                        const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                        this.apiLogs = await r.json();
-                    } catch (e) { this.logsErr = e.message; this.apiLogs = []; }
-                    finally { this.logsLoading = false; }
+                        if (this.lf.service && this.lf.service !== "") {
+                            const url = `/logs/explore/${encodeURIComponent(this.lf.service)}?days=${this.lf.days}`;
+                            const r = await fetch(url);
+
+                            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
+                            this.exploreLogs = await r.json();
+                        }
+                        else {
+                            let allLogs = [];
+
+                            for (let svc of this.services) {
+                                try {
+                                    const url = `/logs/explore/${encodeURIComponent(svc.name)}?days=${this.lf.days}`;
+                                    const r = await fetch(url);
+
+                                    if (!r.ok) continue;
+                                    const data = await r.json();
+                                    const tagged = data.map(log => ({
+                                        ...log,
+                                        service: svc.name
+                                    }));
+
+                                    allLogs.push(...tagged);
+                                } catch (err) {
+                                    console.error(`Error fetching logs for ${svc.name}`);
+                                }
+                            }
+
+                            // sort latest first
+                            allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                            this.exploreLogs = allLogs;
+                        }
+
+                    } catch (e) {
+                        this.logsErr = e.message;
+                        this.exploreLogs = [];
+                    } finally {
+                        this.logsLoading = false;
+                    }
+                },
+                dlExploreLogs() {
+                    if (!this.lf.service) return;
+                    window.open(`/logs/explore/${this.lf.service}?days=${this.lf.days}`, '_blank');
+                },
+
+                fmtLogTime(ts) {
+                const d = new Date(ts);
+                return d.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit' 
+                });
+                },
+
+                copyToClipboard(text) {
+                navigator.clipboard.writeText(text);
                 },
 
                 get fmtLogs() {

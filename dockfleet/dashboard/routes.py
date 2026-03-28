@@ -1,13 +1,11 @@
 import subprocess
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List
-
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
-
 from dockfleet.dashboard.services import get_services
 from dockfleet.core.orchestrator import get_orchestrator
 from dockfleet.core.logs import stream_container_logs, get_logs_services
@@ -25,7 +23,7 @@ from dockfleet.health.queries import (
     get_restart_history,
     get_failure_reasons_breakdown,
 )
-from dockfleet.health.models import RestartEvent, engine
+from dockfleet.health.models import RestartEvent, engine, LogEvent
 
 router = APIRouter()
 templates = Jinja2Templates(directory="dockfleet/dashboard/templates")
@@ -37,6 +35,7 @@ def to_ist_iso(dt: Optional[datetime]) -> Optional[str]:
     """Convert naive UTC datetime to IST ISO string."""
     if dt is None:
         return None
+    # stored as naive UTC
     dt_utc = dt.replace(tzinfo=timezone.utc)
     dt_ist = dt_utc.astimezone(IST)
     return dt_ist.isoformat()
@@ -72,7 +71,7 @@ class Service(BaseModel):
     restart_count: int = Field(
         ..., description="Total number of times this service has been restarted"
     )
-    # Serialized as IST ISO string
+    # Now serialized as IST ISO string
     last_health_check: Optional[str] = Field(
         None, description="IST timestamp of the last health check (ISO string)"
     )
@@ -110,10 +109,8 @@ class UnstableService(BaseModel):
     restarts: int = Field(
         ..., description="Number of restarts in the requested time window"
     )
-    # IST ISO timestamp
-    last_restart_at: Optional[str] = Field(
-        None,
-        description="IST timestamp (ISO) of the most recent restart, if any",
+    last_restart_at: Optional[datetime] = Field(
+        None, description="UTC timestamp of the most recent restart, if any"
     )
 
 
@@ -123,10 +120,7 @@ class RestartEventItem(BaseModel):
     Used in /analytics/restart-history/{service_name}.
     """
 
-    # IST ISO timestamp
-    timestamp: str = Field(
-        ..., description="IST time (ISO) when the restart occurred"
-    )
+    timestamp: datetime = Field(..., description="UTC time when the restart occurred")
     reason: str = Field(
         ...,
         description=(
@@ -205,8 +199,8 @@ class MetricsSummary(BaseModel):
     health_failures: int = Field(
         ..., description="Restart events recorded in the last 24 hours"
     )
-    collected_at: str = Field(
-        ..., description="IST timestamp (ISO) when these metrics were collected"
+    collected_at: datetime = Field(
+        ..., description="UTC timestamp when these metrics were collected"
     )
 
 
@@ -290,6 +284,21 @@ def list_logs(
         for log in events
     ]
 
+# -------------------------------------------
+# Time-Based log history
+# -------------------------------------------
+@router.get("/logs/explore/{service_name}")
+async def explore_logs(service_name: str, days: int = 1):
+    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+    
+    with Session(engine) as session:  # Direct session
+        statement = select(LogEvent).where(
+            LogEvent.service_name == service_name,
+            LogEvent.created_at > cutoff
+        ).order_by(LogEvent.created_at.desc()).limit(500)
+        
+        logs = session.exec(statement).all()
+        return [{"timestamp": log.created_at, "message": log.message} for log in logs]
 
 # ------------------------------------------------
 # Legacy /logs: live docker logs (non-DB)
@@ -429,7 +438,6 @@ def get_metrics():
         stmt = select(RestartEvent).where(RestartEvent.restarted_at >= since)
         health_failures = len(session.exec(stmt).all())
 
-    collected_utc = datetime.utcnow()
     return MetricsSummary(
         total_services=total,
         running_services=running,
@@ -437,7 +445,7 @@ def get_metrics():
         stopped_services=stopped,
         total_restarts=total_restarts,
         health_failures=health_failures,
-        collected_at=to_ist_iso(collected_utc),
+        collected_at=datetime.utcnow(),
     )
 
 
@@ -490,7 +498,7 @@ def analytics_summary(
                 UnstableService(
                     service_name=name,
                     restarts=row["restarts"],
-                    last_restart_at=to_ist_iso(last.restarted_at) if last else None,
+                    last_restart_at=last.restarted_at if last else None,
                 )
             )
 
@@ -536,7 +544,7 @@ def analytics_unstable_services(
                 UnstableService(
                     service_name=name,
                     restarts=row["restarts"],
-                    last_restart_at=to_ist_iso(last.restarted_at) if last else None,
+                    last_restart_at=last.restarted_at if last else None,
                 )
             )
 
@@ -563,7 +571,7 @@ def analytics_restart_history(
 
     return [
         RestartEventItem(
-            timestamp=to_ist_iso(item["timestamp"]),
+            timestamp=item["timestamp"],
             reason=item["reason"],
             previous_status=item["previous_status"],
             new_status=item["new_status"],
