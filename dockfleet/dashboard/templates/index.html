@@ -10,6 +10,8 @@
         if (localStorage.theme === 'dark') document.documentElement.classList.add('dark');
     </script>
 
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="shortcut icon" href="/static/favicon.ico">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
     </script>
     <script src="https://cdn.tailwindcss.com">
@@ -136,9 +138,9 @@
         class="sticky top-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-b border-gray-200 dark:border-gray-800 shadow-sm">
         <div class="max-w-7xl mx-auto px-6 py-3 flex justify-between items-center">
             <div class="flex items-center gap-3">
-                <div
-                    class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm select-none">
-                    DF</div>
+                <div class="w-8 h-8">
+                    <img src="/static/logo.png" alt="DockFleet Logo" class="w-10 h-10 object-contain">
+                </div>
                 <div>
                     <span class="font-bold text-lg tracking-tight">DockFleet</span>
                     <span
@@ -219,7 +221,7 @@
                 </div>
             </div>
             <div x-show="services.length===0" class="text-center py-16 text-gray-400">
-               
+
                 <p class="text-lg font-medium mb-2">No services found</p>
                 <p class="text-sm">Run <code
                         class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">dockfleet up examples/dockfleet.yaml</code>
@@ -308,14 +310,13 @@
                                 </template>
                                 <template x-if="busy[svc.name]">
                                     <span class="flex items-center gap-1">
-                                        <span
-                                            class="spinner"></span> Working…</span>
+                                        <span class="spinner"></span> Working…</span>
                                 </template>
                             </button>
 
                             <button @click="stopSvc(svc.name)" :disabled="!!busy[svc.name]"
                                 class="flex-1 flex items-center justify-center py-2 px-3 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all">
-                                 Stop
+                                Stop
                             </button>
                         </div>
                     </div>
@@ -329,40 +330,40 @@
             <div>
                 <h2 class="text-2xl font-bold mb-4">Log Explorer</h2>
                 <div class="flex flex-wrap gap-3 mb-4 items-center">
-                <!-- Service Select -->
-                <select x-model="lf.service" @change="fetchExploreLogs()"
-                    class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm min-w-[160px]">
-                    <option value="">All Services</option>
-                    <template x-for="s in services" :key="s.name">
-                        <option :value="s.name" x-text="s.name"></option>
-                    </template>
-                </select>
+                    <!-- Service Select -->
+                    <select x-model="lf.service" @change="fetchExploreLogs()"
+                        class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm min-w-[160px]">
+                        <option value="">All Services</option>
+                        <template x-for="s in services" :key="s.name">
+                            <option :value="s.name" x-text="s.name"></option>
+                        </template>
+                    </select>
 
-                <!-- DAYS SELECT -->
-                <select x-model.number="lf.days" @change="fetchExploreLogs()"
-                    class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm min-w-[120px]">
-                    <option value="1">1 Day</option>
-                    <option value="3">3 Days</option>
-                    <option value="7">7 Days</option>
-                    <option value="14">14 Days</option>
-                    <option value="30">30 Days</option>
-                </select>
+                    <!-- DAYS SELECT -->
+                    <select x-model.number="lf.days" @change="fetchExploreLogs()"
+                        class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm min-w-[120px]">
+                        <option value="1">1 Day</option>
+                        <option value="3">3 Days</option>
+                        <option value="7">7 Days</option>
+                        <option value="14">14 Days</option>
+                        <option value="30">30 Days</option>
+                    </select>
 
-                <!-- Search -->
-                <input type="text" placeholder="Search logs..." x-model="lf.query"
-                    @input.debounce.500ms="fetchExploreLogs()"
-                    class="flex-1 min-w-[200px] bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm">
-                
-                <!-- Buttons -->
-                <button @click="fetchExploreLogs()"
-                    class="px-4 py-2 rounded-lg text-sm bg-blue-600 hover:bg-blue-500 text-white transition-colors">
-                    Refresh
-                </button>
-                <button @click="dlExploreLogs()"
-                    class="px-4 py-2 rounded-lg text-sm bg-gray-600 hover:bg-gray-500 text-white transition-colors">
-                     Download
-                </button>
-            </div>
+                    <!-- Search -->
+                    <input type="text" placeholder="Search logs..." x-model="lf.query"
+                        @input.debounce.500ms="fetchExploreLogs()"
+                        class="flex-1 min-w-[200px] bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm">
+
+                    <!-- Buttons -->
+                    <button @click="fetchExploreLogs()"
+                        class="px-4 py-2 rounded-lg text-sm bg-blue-600 hover:bg-blue-500 text-white transition-colors">
+                        Refresh
+                    </button>
+                    <button @click="dlExploreLogs()"
+                        class="px-4 py-2 rounded-lg text-sm bg-gray-600 hover:bg-gray-500 text-white transition-colors">
+                        Download
+                    </button>
+                </div>
 
                 <!-- Loading -->
                 <div x-show="logsLoading" class="flex items-center justify-center py-12 text-gray-400">
@@ -385,16 +386,19 @@
 
                 <!-- Logs Display -->
                 <div x-show="!logsLoading && !logsErr && exploreLogs.length" class="space-y-2">
-                    <div class="bg-gray-900 text-green-400 font-mono text-xs p-4 rounded-xl h-80 overflow-y-auto log-box border border-gray-700">
+                    <div
+                        class="bg-gray-900 text-green-400 font-mono text-xs p-4 rounded-xl h-80 overflow-y-auto log-box border border-gray-700">
                         <template x-for="(log,i) in exploreLogs" :key="i">
-                            <div class="mb-1 leading-relaxed hover:bg-white/5 px-1 rounded cursor-pointer" @click="copyToClipboard(log.message)">
+                            <div class="mb-1 leading-relaxed hover:bg-white/5 px-1 rounded cursor-pointer"
+                                @click="copyToClipboard(log.message)">
                                 <span class="text-gray-500 mr-2 text-[11px]" x-text="fmtLogTime(log.timestamp)"></span>
                                 <span x-text="log.message"></span>
                             </div>
                         </template>
                     </div>
                     <div class="flex justify-between items-center text-sm text-gray-500 px-1">
-                        <span>Showing <strong x-text="exploreLogs.length"></strong> logs (last <strong x-text="lf.days"></strong> days)</span>
+                        <span>Showing <strong x-text="exploreLogs.length"></strong> logs (last <strong
+                                x-text="lf.days"></strong> days)</span>
                     </div>
                 </div>
             </div>
@@ -438,7 +442,7 @@
                     <template x-if="liveLines.length===0">
                         <p class="text-gray-600 italic">
                             <template x-if="!liveSvc">Select a service and press Start</template>
-                            <template x-if="liveSvc&&!liveSrc">Press  Start to begin streaming</template>
+                            <template x-if="liveSvc&&!liveSrc">Press Start to begin streaming</template>
                             <template x-if="liveSvc&&liveSrc">Waiting for log output…</template>
                         </p>
                     </template>
@@ -475,7 +479,7 @@
                         <template x-if="an.selectedSvc!==''">
                             <button @click="an.selectedSvc='';loadOverall()"
                                 class="flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline mr-2">
-                                 All Services
+                                All Services
                             </button>
                         </template>
                         <h1 class="text-2xl font-bold" x-text="an.selectedSvc ? an.selectedSvc : 'Analytics Overview'">
@@ -557,7 +561,7 @@
                     <!-- All stable banner -->
                     <div x-show="!an.summary.most_unstable_services?.length"
                         class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-10 text-center">
-                       
+
                         <p class="text-lg font-semibold text-green-700 dark:text-green-300">All services stable</p>
                         <p class="text-sm text-green-600 dark:text-green-400 mt-1">No failures in the last <span
                                 x-text="an.window"></span> hour<span x-show="an.window>1">s</span>.</p>
@@ -639,7 +643,7 @@
                                     </div>
                                     <button @click="an.selectedSvc=s.service_name;loadService(s.service_name)"
                                         class="text-xs px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors flex-shrink-0">
-                                        View Details 
+                                        View Details
                                     </button>
                                 </div>
                             </template>
@@ -660,7 +664,7 @@
                                 <span x-text="s.service_name"></span>
 
                                 <span class="ml-1 opacity-60">(<span x-text="s.restarts"></span>)
-                            </span>
+                                </span>
                             </button>
                         </template>
                     </div>
@@ -710,8 +714,7 @@
                                 this window.
                             </div>
                             <div x-show="an.svc.history?.length" class="h-56 relative">
-                                <canvas
-                                    id="svcTimelineChart">
+                                <canvas id="svcTimelineChart">
                                 </canvas>
                             </div>
                         </div>
@@ -722,7 +725,7 @@
                             <p class="text-xs text-gray-400 mb-3">What caused each restart</p>
                             <div x-show="!an.svc.breakdown?.length"
                                 class="h-56 flex flex-col items-center justify-center text-gray-400 text-sm gap-2">
-                               <span>No failure reasons recorded.</span>
+                                <span>No failure reasons recorded.</span>
                             </div>
 
                             <div x-show="an.svc.breakdown?.length">
@@ -777,7 +780,7 @@
                         <!-- Empty -->
                         <div x-show="!an.svc.history?.length"
                             class="text-center py-10 text-gray-400 border border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
-                          
+
                             <p class="font-medium">No healing actions recorded</p>
                             <p class="text-sm mt-1">This service has been stable in the selected window.</p>
                         </div>
@@ -854,42 +857,42 @@
     <script>
         function dashboard() {
             return {
-                services: [], 
-                summary: {}, 
+                services: [],
+                summary: {},
                 activeTab: 'services',
                 darkMode: document.documentElement.classList.contains('dark'),
-                busy: {}, 
+                busy: {},
                 now: Date.now(),
 
                 // Logs
-                apiLogs: [], 
+                apiLogs: [],
                 exploreLogs: [],
-                logsLoading: false, 
+                logsLoading: false,
                 logsErr: null,
                 lf: { service: '', days: 1, query: '', offset: 0, limit: 100 },
 
                 // Live
-                liveSvc: '', 
-                liveSrc: null, 
-                
-                liveLines: [], 
+                liveSvc: '',
+                liveSrc: null,
+
+                liveLines: [],
                 liveScroll: true,
 
                 // Analytics
                 an: {
-                    loading: false, 
-                    error: null, 
-                    window: 24, 
+                    loading: false,
+                    error: null,
+                    window: 24,
                     selectedSvc: '',
                     summary: {},
-                    svc: { 
-                        history: [], 
-                        breakdown: [], 
-                        restarts: 0, 
-                        autoHeals: 0, 
-                        manualRestarts: 0, 
-                        lastRestart: null, 
-                        lastReason: null 
+                    svc: {
+                        history: [],
+                        breakdown: [],
+                        restarts: 0,
+                        autoHeals: 0,
+                        manualRestarts: 0,
+                        lastRestart: null,
+                        lastReason: null
                     },
                 },
                 _ch: { overallBar: null, svcTimeline: null, svcBreakdown: null },
@@ -897,54 +900,56 @@
                 // ── Init ──
                 async init() {
                     await Promise.all([
-                        this.fetchSvcs(), 
+                        this.fetchSvcs(),
                         this.fetchSummary()
                     ]);
-                    setInterval(() => { 
-                        this.fetchSvcs(); 
-                        this.fetchSummary(); 
+                    setInterval(() => {
+                        this.fetchSvcs();
+                        this.fetchSummary();
                     }, 5000);
-                    setInterval(() => { 
-                        if (this.activeTab === 'analytics') 
-                        this.refreshAnalytics();
-                     }, 120000);
-                    setInterval(() => { 
-                        this.now = Date.now(); 
+                    setInterval(() => {
+                        if (this.activeTab === 'analytics')
+                            this.refreshAnalytics();
+                    }, 120000);
+                    setInterval(() => {
+                        this.now = Date.now();
                     }, 1000);
                 },
 
                 switchTab(id) {
                     this.activeTab = id;
-                    if (id === 'logs') 
-                    this.fetchExploreLogs();
-                    if (id === 'analytics') 
-                    this.refreshAnalytics();
+                    if (id === 'logs')
+                        this.fetchExploreLogs();
+                    if (id === 'analytics')
+                        this.refreshAnalytics();
                 },
 
                 refreshAnalytics() {
-                    if (this.an.selectedSvc === '') 
-                    this.loadOverall();
+                    if (this.an.selectedSvc === '')
+                        this.loadOverall();
                     else this.loadService(this.an.selectedSvc);
                 },
 
                 // ── Services ──
                 async fetchSvcs() {
-                    try { const r = await fetch('/services'); 
-                    if (!r.ok) throw 0; 
-                    this.services = await r.json(); 
-                } catch (_) { }
-                },
-
-                async fetchSummary() {
-                    try { 
-                        const r = await fetch('/status'); 
-                        if (!r.ok) throw 0; 
-                        this.summary = await r.json(); 
+                    try {
+                        const r = await fetch('/services');
+                        if (!r.ok) throw 0;
+                        this.services = await r.json();
                     } catch (_) { }
                 },
 
-                svcObj(name) { 
-                    return this.services.find(s => s.name === name) || null; },
+                async fetchSummary() {
+                    try {
+                        const r = await fetch('/status');
+                        if (!r.ok) throw 0;
+                        this.summary = await r.json();
+                    } catch (_) { }
+                },
+
+                svcObj(name) {
+                    return this.services.find(s => s.name === name) || null;
+                },
 
                 async restartSvc(name) {
                     this.busy = { ...this.busy, [name]: true };
@@ -963,10 +968,11 @@
                         const d = await r.json(); if (!d.ok) alert(`Stop failed: ${d.message}`);
                         await Promise.all([this.fetchSvcs(), this.fetchSummary()]);
                     } catch (_) { alert('Request failed. Is Docker running?'); }
-                    finally { this.busy = { ...this.busy, [name]: false }; 
-                }
+                    finally {
+                        this.busy = { ...this.busy, [name]: false };
+                    }
                 },
-                
+
                 isRecentlyRestarted(ts) {
                     if (!ts) return false;
                     const t = new Date(ts);
@@ -1027,16 +1033,16 @@
                 },
 
                 fmtLogTime(ts) {
-                const d = new Date(ts);
-                return d.toLocaleTimeString('en-US', { 
-                    hour: '2-digit', 
-                    minute: '2-digit', 
-                    second: '2-digit' 
-                });
+                    const d = new Date(ts);
+                    return d.toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
                 },
 
                 copyToClipboard(text) {
-                navigator.clipboard.writeText(text);
+                    navigator.clipboard.writeText(text);
                 },
 
                 get fmtLogs() {
@@ -1067,11 +1073,11 @@
                     this.liveSrc.onerror = () => { this.liveLines.push('[dockfleet] Connection lost.'); this.liveSrc.close(); this.liveSrc = null; };
                 },
 
-                liveDisconnect() { 
-                    if (this.liveSrc) { 
-                        this.liveSrc.close(); 
-                        this.liveSrc = null; 
-                    } 
+                liveDisconnect() {
+                    if (this.liveSrc) {
+                        this.liveSrc.close();
+                        this.liveSrc = null;
+                    }
                 },
 
                 // ── Analytics: OVERALL ──
@@ -1117,19 +1123,21 @@
                         };
 
                         this.$nextTick(() => { this._renderSvcTimeline(); this._renderSvcBreakdown(); });
-                    } 
+                    }
                     catch (e) { this.an.error = e.message; }
                     finally { this.an.loading = false; }
                 },
 
                 // ── Charts ──
-                _destroyChart(key) { 
-                    if (this._ch[key]) { 
-                        try { this._ch[key].destroy();
+                _destroyChart(key) {
+                    if (this._ch[key]) {
+                        try {
+                            this._ch[key].destroy();
 
-                         } catch (_) { } 
-                         this._ch[key] = null; 
-                        } },
+                        } catch (_) { }
+                        this._ch[key] = null;
+                    }
+                },
 
                 _renderOverallBar() {
                     const canvas = document.getElementById('overallBarChart'); if (!canvas) return;
@@ -1176,20 +1184,20 @@
                 },
 
                 // ── Healing helpers ──
-                isAutoHeal(r) { 
-                    return !!(r && (r.includes('3_failed') || r.includes('health_check') || r.includes('auto'))); 
+                isAutoHeal(r) {
+                    return !!(r && (r.includes('3_failed') || r.includes('health_check') || r.includes('auto')));
                 },
 
-                isManualRestart(r) { 
-                    return !!(r && (r.includes('manual') || r.includes('dashboard'))); 
+                isManualRestart(r) {
+                    return !!(r && (r.includes('manual') || r.includes('dashboard')));
                 },
 
-                isHealthFail(r) { 
-                    return !!(r && r.includes('health') && !this.isAutoHeal(r)); 
+                isHealthFail(r) {
+                    return !!(r && r.includes('health') && !this.isAutoHeal(r));
                 },
 
-                isOther(r) { 
-                    return !this.isAutoHeal(r) && !this.isManualRestart(r) && !this.isHealthFail(r); 
+                isOther(r) {
+                    return !this.isAutoHeal(r) && !this.isManualRestart(r) && !this.isHealthFail(r);
                 },
 
                 healingDesc(ev) {
