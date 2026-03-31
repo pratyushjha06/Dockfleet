@@ -132,19 +132,17 @@
 
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen transition-colors duration-300"
     x-data="dashboard()" x-init="init()" x-cloak>
-
     <!-- ══════════ NAVBAR ══════════ -->
     <nav
         class="sticky top-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-b border-gray-200 dark:border-gray-800 shadow-sm">
-        <div class="max-w-7xl mx-auto px-6 py-3 flex justify-between items-center">
+        <div class="w-full px-9 py-3 flex justify-between items-center">
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8">
                     <img src="/static/logo.png" alt="DockFleet Logo" class="w-10 h-10 object-contain">
                 </div>
                 <div>
-                    <span class="font-bold text-lg tracking-tight">DockFleet</span>
-                    <span
-                        class="ml-2 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300 font-medium">Self-Healing</span>
+                    <span class="font-bold text-2xl tracking-tight">DockFleet</span>
+
                 </div>
             </div>
 
@@ -154,12 +152,10 @@
                     :key="tab.id">
                     <button @click="switchTab(tab.id)"
                         :class="activeTab===tab.id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'"
-                        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors" x-text="tab.label">
+                        class="px-4 py-2 rounded-lg text-lg font-medium transition-colors" x-text="tab.label">
                     </button>
                 </template>
 
-
-                <div class="w-px h-5 bg-gray-300 dark:bg-gray-700 mx-2"></div>
                 <button @click="toggleDark()"
                     class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                     <svg x-show="darkMode" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
@@ -176,7 +172,7 @@
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-6 py-8">
+    <main class="px-10 py-12">
 
         <!-- ══════════════════════════════════ SERVICES ══════════════════════════════════ -->
         <div x-show="activeTab==='services'" class="tab-content space-y-6">
@@ -186,7 +182,84 @@
                         class="inline-block w-2 h-2 rounded-full bg-green-500 ml-1 pulse-dot"></span></span>
             </div>
 
-            <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            <div
+                class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 py-4 px-6 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0d1117] shadow-sm">
+
+                <div class="flex items-center gap-4">
+                    <div class="relative">
+                        <div
+                            class="flex items-center justify-center w-10 h-10 rounded-xl bg-gray-900 dark:bg-blue-600 text-white">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </div>
+                        <span class="absolute -top-1 -right-1 flex h-3 w-3">
+                            <span
+                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                        </span>
+                    </div>
+
+                    <div class="space-y-0.5">
+                        <div class="flex items-center gap-3">
+                            <h2
+                                class="text-sm font-bold tracking-tight text-gray-900 dark:text-gray-100 uppercase tracking-widest">
+                                DockFleet Engine</h2>
+
+                        </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">System orchestration is
+                            synchronized and active</p>
+                    </div>
+                </div>
+
+                <div class="hidden lg:block h-10 w-px bg-gray-200 dark:bg-gray-800"></div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-x-12 gap-y-4">
+                    <div class="space-y-1">
+                        <span
+                            class="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Resource
+                            Management</span>
+                        <div class="flex items-center gap-2">
+                            <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                            <span class="text-xs font-mono font-semibold text-gray-700 dark:text-gray-300">Limits
+                                Enforced</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <span
+                            class="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Orchestration</span>
+                        <div class="flex items-center gap-2">
+                            <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                            <span class="text-xs font-mono font-semibold text-gray-700 dark:text-gray-300">Dep Graph
+                                OK</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <span
+                            class="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Environment</span>
+                        <div class="flex items-center gap-2">
+                            <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                            <span class="text-xs font-mono font-semibold text-gray-700 dark:text-gray-300">Vars
+                                Injected</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <span
+                            class="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Configuration</span>
+                        <div class="flex items-center gap-2">
+                            <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                            <span class="text-xs font-mono font-semibold text-gray-700 dark:text-gray-300">YAML v2
+                                Stable</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div
                     class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
                     <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Total</p>
@@ -210,16 +283,7 @@
 
             </div>
 
-            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
-                <p class="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-2">DockFleet Configuration
-                    Features</p>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-blue-600 dark:text-blue-400">
-                    <span> Resource Limits</span>
-                    <span> Dependency Ordering</span>
-                    <span> Environment Variables</span>
-                    <span>YAML-based Config</span>
-                </div>
-            </div>
+
             <div x-show="services.length===0" class="text-center py-16 text-gray-400">
 
                 <p class="text-lg font-medium mb-2">No services found</p>
@@ -228,7 +292,6 @@
                     to get started.
                 </p>
             </div>
-
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 <template x-for="svc in services" :key="svc.name">
                     <div
@@ -323,132 +386,211 @@
                 </template>
 
             </div>
+
         </div>
 
-        <!-- ══════════════════════════════════ LOGS ══════════════════════════════════ -->
-        <div x-show="activeTab==='logs'" class="tab-content space-y-8">
-            <div>
-                <h2 class="text-2xl font-bold mb-4">Log Explorer</h2>
-                <div class="flex flex-wrap gap-3 mb-4 items-center">
-                    <!-- Service Select -->
-                    <select x-model="lf.service" @change="fetchExploreLogs()"
-                        class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm min-w-[160px]">
-                        <option value="">All Services</option>
-                        <template x-for="s in services" :key="s.name">
-                            <option :value="s.name" x-text="s.name"></option>
-                        </template>
-                    </select>
+        <div x-show="activeTab==='logs'" class="tab-content space-y-10">
 
-                    <!-- DAYS SELECT -->
-                    <select x-model.number="lf.days" @change="fetchExploreLogs()"
-                        class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm min-w-[120px]">
-                        <option value="1">1 Day</option>
-                        <option value="3">3 Days</option>
-                        <option value="7">7 Days</option>
-                        <option value="14">14 Days</option>
-                        <option value="30">30 Days</option>
-                    </select>
-
-                    <!-- Search -->
-                    <input type="text" placeholder="Search logs..." x-model="lf.query"
-                        @input.debounce.500ms="fetchExploreLogs()"
-                        class="flex-1 min-w-[200px] bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm">
-
-                    <!-- Buttons -->
-                    <button @click="fetchExploreLogs()"
-                        class="px-4 py-2 rounded-lg text-sm bg-blue-600 hover:bg-blue-500 text-white transition-colors">
-                        Refresh
-                    </button>
-                    <button @click="dlExploreLogs()"
-                        class="px-4 py-2 rounded-lg text-sm bg-gray-600 hover:bg-gray-500 text-white transition-colors">
-                        Download
-                    </button>
-                </div>
-
-                <!-- Loading -->
-                <div x-show="logsLoading" class="flex items-center justify-center py-12 text-gray-400">
-                    <span class="spinner mr-2"></span> Loading...
-                </div>
-
-                <!-- Error -->
-                <div x-show="!logsLoading && logsErr"
-                    class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-5 text-red-700 dark:text-red-300">
-                    <p class="font-semibold">Failed to load logs</p>
-                    <p class="text-sm mt-1" x-text="logsErr"></p>
-                </div>
-
-                <!-- Empty -->
-                <div x-show="!logsLoading && !logsErr && !exploreLogs.length"
-                    class="text-center py-12 text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
-                    <p class="font-medium">No logs found</p>
-                    <p class="text-sm mt-1">Select service + increase days or check Live Logs below.</p>
-                </div>
-
-                <!-- Logs Display -->
-                <div x-show="!logsLoading && !logsErr && exploreLogs.length" class="space-y-2">
-                    <div
-                        class="bg-gray-900 text-green-400 font-mono text-xs p-4 rounded-xl h-80 overflow-y-auto log-box border border-gray-700">
-                        <template x-for="(log,i) in exploreLogs" :key="i">
-                            <div class="mb-1 leading-relaxed hover:bg-white/5 px-1 rounded cursor-pointer"
-                                @click="copyToClipboard(log.message)">
-                                <span class="text-gray-500 mr-2 text-[11px]" x-text="fmtLogTime(log.timestamp)"></span>
-                                <span x-text="log.message"></span>
-                            </div>
-                        </template>
+            <div
+                class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                <div
+                    class="p-5 border-b border-gray-100 dark:border-gray-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">Log Explorer</h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Archive lookup and historical data
+                            analysis</p>
                     </div>
-                    <div class="flex justify-between items-center text-sm text-gray-500 px-1">
-                        <span>Showing <strong x-text="exploreLogs.length"></strong> logs (last <strong
-                                x-text="lf.days"></strong> days)</span>
+                    <div class="flex items-center gap-2">
+                        <button @click="fetchExploreLogs()"
+                            class="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                </path>
+                            </svg>
+                            Refresh
+                        </button>
+                        <button @click="dlExploreLogs()"
+                            class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 transition-all border border-gray-200 dark:border-gray-600">
+                            Download
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-5 bg-gray-50/50 dark:bg-gray-900/20">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div class="flex flex-col gap-1.5">
+                            <label
+                                class="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Service</label>
+                            <select x-model="lf.service" @change="fetchExploreLogs()"
+                                class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 transition-all outline-none">
+                                <option value="">All Services</option>
+                                <template x-for="s in services" :key="s.name">
+                                    <option :value="s.name" x-text="s.name"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Time
+                                Range</label>
+                            <select x-model.number="lf.days" @change="fetchExploreLogs()"
+                                class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 transition-all outline-none">
+                                <option value="1">Last 24 Hours</option>
+                                <option value="3">Last 3 Days</option>
+                                <option value="7">Last 7 Days</option>
+                                <option value="30">Last 30 Days</option>
+                            </select>
+                        </div>
+
+                        <div class="flex flex-col gap-1.5 lg:col-span-2">
+                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Filter
+                                Keywords</label>
+                            <input type="text" placeholder="Search message content..." x-model="lf.query"
+                                @input.debounce.500ms="fetchExploreLogs()"
+                                class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 transition-all outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-5 pt-0">
+                    <div class="relative group">
+                        <div x-show="logsLoading"
+                            class="absolute inset-0 bg-gray-900/40 backdrop-blur-[1px] rounded-xl z-10 flex items-center justify-center text-white">
+                            <span class="spinner w-6 h-6 border-2 border-white/30 border-t-white mr-3"></span>
+                            <span class="text-sm font-medium">Indexing Logs...</span>
+                        </div>
+
+                        <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-inner">
+                            <div class="flex items-center gap-2 px-4 py-2 bg-gray-800/50 border-b border-gray-800">
+                                <div class="flex gap-1.5">
+                                    <div class="w-2.5 h-2.5 rounded-full bg-red-500/20"></div>
+                                    <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/20"></div>
+                                    <div class="w-2.5 h-2.5 rounded-full bg-green-500/20"></div>
+                                </div>
+                                <span class="text-[10px] font-mono text-gray-500 uppercase tracking-widest ml-2">Console
+                                    Archive</span>
+                            </div>
+
+                            <div
+                                class="h-80 overflow-y-auto p-4 font-mono text-[12px] leading-relaxed log-box scrollbar-thin scrollbar-thumb-gray-700">
+                                <template x-if="!logsLoading && logsErr">
+                                    <div class="text-red-400 p-4 border border-red-900/50 bg-red-900/10 rounded-lg">
+                                        <span class="font-bold uppercase text-[10px] block mb-1">Critical Error</span>
+                                        <p x-text="logsErr"></p>
+                                    </div>
+                                </template>
+
+                                <template x-if="!logsLoading && !logsErr && !exploreLogs.length">
+                                    <div
+                                        class="h-full flex flex-col items-center justify-center text-gray-600 italic py-10">
+                                        <svg class="w-10 h-10 mb-3 opacity-20" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path
+                                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                                            </path>
+                                        </svg>
+                                        <p>No historical records matching criteria</p>
+                                    </div>
+                                </template>
+
+                                <template x-for="(log,i) in exploreLogs" :key="i">
+                                    <div class="group flex gap-3 mb-1 hover:bg-white/5 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                                        @click="copyToClipboard(log.message)">
+                                        <span class="text-gray-600 shrink-0 select-none w-32"
+                                            x-text="fmtLogTime(log.timestamp)"></span>
+                                        <span class="text-green-400 break-all" x-text="log.message"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        class="mt-4 flex justify-between items-center text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1">
+                        <span x-show="exploreLogs.length">Total Lines: <span class="text-blue-500"
+                                x-text="exploreLogs.length"></span></span>
+                        <span x-show="exploreLogs.length">Click any line to copy message</span>
                     </div>
                 </div>
             </div>
-            <hr class="border-gray-200 dark:border-gray-700">
-            <div>
-                <h2 class="text-2xl font-bold mb-4">Live Service Logs</h2>
-                <div class="flex flex-wrap gap-3 mb-4 items-center">
 
-                    <select x-model="liveSvc"
-                        class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm min-w-[160px]">
-                        <option value="">Select Service…</option>
+            <div
+                class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                <div
+                    class="p-5 border-b border-gray-100 dark:border-gray-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-xl font-bold text-gray-900 dark:text-white">Live Service Logs</h2>
+                                <template x-if="liveSrc">
+                                    <span
+                                        class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/40 text-[10px] font-black text-green-600 dark:text-green-400 uppercase tracking-tighter">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                                        Streaming
+                                    </span>
+                                </template>
+                            </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Real-time output via EventSource</p>
+                        </div>
+                    </div>
 
-                        <template x-for="s in services" :key="s.name">
-                            <option :value="s.name" x-text="s.name"></option>
-                        </template>
-                    </select>
-                    <button @click="liveConnect()" :disabled="!liveSvc||!!liveSrc"
-                        class="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                        Start
-                    </button>
-                    <button @click="liveDisconnect()" :disabled="!liveSrc"
-                        class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-600 hover:bg-gray-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                        Stop
-                    </button>
-                    <button @click="liveLines=[]"
-                        class="px-4 py-2 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors">
-                        Clear
-                    </button>
-                    <button @click="liveScroll=!liveScroll"
-                        :class="liveScroll?'bg-purple-600 text-white':'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'"
-                        class="px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                        <span x-text="liveScroll?' Auto-Scroll ON':'Auto-Scroll OFF'"></span>
-                    </button>
-                    <template x-if="liveSrc">
-                        <div class="flex items-center gap-1.5 text-sm text-green-500"><span
-                                class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span>Live</div>
-                    </template>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <select x-model="liveSvc"
+                            class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500/20">
+                            <option value="">Select Service...</option>
+                            <template x-for="s in services" :key="s.name">
+                                <option :value="s.name" x-text="s.name"></option>
+                            </template>
+                        </select>
+
+                        <div class="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
+
+                        <button @click="liveConnect()" :disabled="!liveSvc||!!liveSrc"
+                            class="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-30 transition-all shadow-sm shadow-blue-500/20">
+                            Start
+                        </button>
+                        <button @click="liveDisconnect()" :disabled="!liveSrc"
+                            class="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 transition-all">
+                            Stop
+                        </button>
+                        <button @click="liveLines=[]"
+                            class="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest bg-red-50 dark:bg-red-900/10 text-red-600 hover:bg-red-100 transition-all">
+                            Clear
+                        </button>
+                        <button @click="liveScroll=!liveScroll"
+                            :class="liveScroll ? 'bg-purple-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'"
+                            class="p-2 rounded-lg transition-all shadow-sm" title="Toggle Auto-Scroll">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 13l-7 7-7-7m14-8l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
-                <div x-ref="liveBox"
-                    class="bg-gray-900 text-green-400 font-mono text-xs p-4 rounded-xl h-64 overflow-y-auto log-box border border-gray-700">
-                    <template x-if="liveLines.length===0">
-                        <p class="text-gray-600 italic">
-                            <template x-if="!liveSvc">Select a service and press Start</template>
-                            <template x-if="liveSvc&&!liveSrc">Press Start to begin streaming</template>
-                            <template x-if="liveSvc&&liveSrc">Waiting for log output…</template>
-                        </p>
-                    </template>
-                    <template x-for="(l,i) in liveLines" :key="i">
-                        <div class="leading-relaxed hover:bg-white/5 px-1 rounded" x-text="l"></div>
-                    </template>
+
+                <div class="p-5">
+                    <div x-ref="liveBox"
+                        class="bg-gray-950 text-gray-300 font-mono text-[12px] p-5 rounded-xl h-72 overflow-y-auto log-box border border-gray-800 shadow-inner leading-relaxed">
+                        <template x-if="liveLines.length===0">
+                            <div class="h-full flex items-center justify-center text-gray-600 text-sm">
+                                <template x-if="!liveSvc">Waiting for service selection...</template>
+                                <template x-if="liveSvc&&!liveSrc">Connection ready. Press Start.</template>
+                                <template x-if="liveSvc&&liveSrc">Listening for stream events...</template>
+                            </div>
+                        </template>
+                        <template x-for="(l,i) in liveLines" :key="i">
+                            <div class="hover:bg-white/5 px-2 rounded-sm border-l border-transparent hover:border-blue-500 transition-colors py-0.5"
+                                x-text="l"></div>
+                        </template>
+                    </div>
                 </div>
             </div>
         </div>
@@ -794,15 +936,50 @@
                                 <template x-for="(ev,idx) in (an.svc.history||[])" :key="idx">
                                     <div class="flex gap-4 relative">
                                         <!-- Dot -->
-                                        <div class="w-8 h-8 flex-shrink-0 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center text-sm z-10 shadow-sm"
+                                        <div class="w-8 h-8 flex-shrink-0 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center z-10 shadow-sm"
                                             :class="{
-                                        'bg-green-100 dark:bg-green-900/50':isAutoHeal(ev.reason),
-                                        'bg-blue-100 dark:bg-blue-900/50':isManualRestart(ev.reason),
-                                        'bg-red-100 dark:bg-red-900/50':isHealthFail(ev.reason),
-                                        'bg-gray-100 dark:bg-gray-700':isOther(ev.reason)
-                                    }">
-                                            <span
-                                                x-text="isAutoHeal(ev.reason)?'⚡':isManualRestart(ev.reason)?'🖱':isHealthFail(ev.reason)?'💔':'↺'"></span>
+        'bg-green-100 dark:bg-green-900/50 text-green-600':isAutoHeal(ev.reason),
+        'bg-blue-100 dark:bg-blue-900/50 text-blue-600':isManualRestart(ev.reason),
+        'bg-red-100 dark:bg-red-900/50 text-red-600':isHealthFail(ev.reason),
+        'bg-gray-100 dark:bg-gray-700 text-gray-500':isOther(ev.reason)
+    }">
+
+                                            <!-- Auto Heal -->
+                                            <template x-if="isAutoHeal(ev.reason)">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none"
+                                                    viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-width="2" stroke-linecap="round"
+                                                        stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                </svg>
+                                            </template>
+
+                                            <!-- Manual -->
+                                            <template x-if="isManualRestart(ev.reason)">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none"
+                                                    viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-width="2" stroke-linecap="round"
+                                                        stroke-linejoin="round" d="M15 15l-6-6m0 6l6-6" />
+                                                </svg>
+                                            </template>
+
+                                            <!-- Health Failure -->
+                                            <template x-if="isHealthFail(ev.reason)">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none"
+                                                    viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-width="2" stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
+                                                </svg>
+                                            </template>
+
+                                            <!-- Other -->
+                                            <template x-if="isOther(ev.reason)">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none"
+                                                    viewBox="0 0 24 24" stroke="currentColor">
+                                                    <circle cx="12" cy="12" r="4" stroke-width="2" />
+                                                </svg>
+                                            </template>
+
                                         </div>
 
                                         <!-- Card -->
