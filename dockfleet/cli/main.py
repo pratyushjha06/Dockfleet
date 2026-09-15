@@ -176,19 +176,29 @@ def down(path: Path = typer.Argument("examples/dockfleet.yaml")):
 
 
 @app.command()
-def ps(path: Path = typer.Argument("examples/dockfleet.yaml")):
+def ps(
+    path: Path = typer.Argument("examples/dockfleet.yaml"),
+    json_output: bool = typer.Option(
+        False, "--json", help="Output container status in JSON format"
+    ),
+):
     """Show currently running DockFleet containers."""
     try:
-        typer.echo("Listing running containers...\n")
+        if not json_output:
+            typer.echo("Listing running containers...\n")
 
         config = load_config(path)
         orch = Orchestrator(config)
-        orch.ps()
+        orch.ps(json_output=json_output)
     except typer.Exit:
         raise
     except Exception as e:
-        typer.echo(f"Error listing containers: {e}")
+        if json_output:
+            typer.echo(f"Error listing containers: {e}", err=True)
+        else:
+            typer.echo(f"Error listing containers: {e}")
         raise typer.Exit(code=1)
+
 
 
 # ------------------------------------------------

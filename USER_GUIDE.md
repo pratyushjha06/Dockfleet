@@ -167,9 +167,15 @@ Starts all services defined in the configuration file.
 
 ```
 dockfleet ps
+dockfleet ps --json
 ```
 
-Displays currently running containers managed by DockFleet.
+Displays currently running containers managed by DockFleet. Use the optional `--json` flag to output machine-readable JSON suitable for automation or piping into tools like `jq`:
+
+```bash
+dockfleet ps --json | jq '.[].name'
+```
+
 
 ---
 

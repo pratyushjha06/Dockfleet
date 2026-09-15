@@ -50,3 +50,21 @@ class DockerManager:
     def list_containers(self):
         """Print currently running Docker containers."""
         subprocess.run(["docker", "ps"], check=True)
+
+    def get_containers_json(self) -> list:
+        import json
+        result = subprocess.run(
+            ["docker", "ps", "-a", "--format", "{{json .}}"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        containers = []
+        for line in result.stdout.splitlines():
+            if line.strip():
+                try:
+                    containers.append(json.loads(line.strip()))
+                except Exception:
+                    pass
+        return containers
+

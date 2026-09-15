@@ -604,6 +604,61 @@ class Orchestrator:
         for name in self.config.services.keys():
             self.stop_service(name)
 
+    def get_ps_data(self) -> list[dict]:
+        import json
+        raw_containers = self.docker.get_containers_json()
+
+        results = []
+        for container in raw_containers:
+            name = container.get("Names") or container.get("Name") or ""
+            if not name.startswith("dockfleet_"):
+                continue
+            service_name = name.replace("dockfleet_", "")
+
+            status_raw = container.get("Status", "")
+            state_raw = container.get("State", "")
+
+            if "Up" in status_raw or state_raw == "running":
+                status = "running"
+            elif "Restarting" in status_raw or state_raw == "restarting":
+                status = "restarting"
+            elif "Exited" in status_raw or state_raw == "exited":
+                status = "stopped"
+            else:
+                status = state_raw if state_raw else "unknown"
+
+            if "(healthy)" in status_raw:
+                health = "healthy"
+            elif "(unhealthy)" in status_raw:
+                health = "unhealthy"
+            elif "(health: starting)" in status_raw:
+                health = "starting"
+            elif status == "running":
+                health = "healthy"
+            elif status == "stopped":
+                health = "stopped"
+            else:
+                health = "unknown"
+
+            results.append(
+                {
+                    "name": service_name,
+                    "status": status,
+                    "health": health,
+                }
+            )
+
+        return results
+
+    def ps(self, json_output: bool = False):
+        if json_output:
+            import json
+            data = self.get_ps_data()
+            print(json.dumps(data, indent=2))
+        else:
+            print("Running containers:\n")
+            self.docker.list_containers()
+
     def ps(self):
         """Print running Docker containers managed by Dockfleet."""
         print("Running containers:\n")
