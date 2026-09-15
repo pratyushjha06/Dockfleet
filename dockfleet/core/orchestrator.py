@@ -247,12 +247,11 @@ class Orchestrator:
         """Return the standard Docker container name for a service."""
         return f"dockfleet_{service}"
 
-    def start_service(self, name, svc):
+
+    def start_service(self, name, svc) -> bool:
         """
         Start a container for the given service definition and update database status.
-
-        Raises:
-            Exception: If container execution fails (e.g., Docker daemon error, non-zero run exit status).
+        Returns True if successful, False otherwise.
         """
         container_name = self.container_name(name)
 
@@ -276,7 +275,6 @@ class Orchestrator:
                 raise ValueError(f"Service '{name}' missing 'image'")
 
             # DEFAULTS
-
             service_config["ports"] = service_config.get("ports") or []
 
             # FIX ports (dict → list)
@@ -302,24 +300,38 @@ class Orchestrator:
 
             mark_service_running(name)
             logger.info("Started service: %s", name)
+            return True
 
         except Exception as e:
             logger.error("Failed to start %s: %s", name, e)
-            raise e
+            return False
 
-    def stop_service(self, name):
+    def stop_service(self, name) -> bool:
         """Stop and remove a container for the given service, marking status STOPPED."""
         container_name = self.container_name(name)
 
         try:
-            self.docker.stop_container(container_name)
-            self.docker.remove_container(container_name)
+            # Best-effort stop (ignore absent container errors)
+            try:
+                self.docker.stop_container(container_name)
+            except Exception as e:
+                if "No such" not in str(e) and "not found" not in str(e).lower():
+                    raise e
+            
+            # Best-effort remove
+            try:
+                self.docker.remove_container(container_name)
+            except Exception as e:
+                if "No such" not in str(e) and "not found" not in str(e).lower():
+                    raise e
 
             mark_service_stopped(name)
             logger.info("Stopped service: %s", name)
+            return True
 
         except Exception as e:
             logger.error("Failed to stop %s: %s", name, e)
+            return False
 
     def _mark_restart_failed(self, service_name: str, reason: str) -> None:
         """Mark a service restart attempt as failed in DB, setting status=STOPPED and health_status=CRASHED."""
@@ -391,7 +403,7 @@ class Orchestrator:
                     session.add(db_svc)
                     session.commit()
 
-            # Optional exponential backoff
+# Optional exponential backoff
             if backoff_attempt > 0:
                 delay = min(2**backoff_attempt, 32)
                 logger.info(
@@ -421,7 +433,10 @@ class Orchestrator:
 
             # Try to start a fresh container
             try:
-                self.start_service(service_name, svc)
+                if not self.start_service(service_name, svc):
+                    self._mark_restart_failed(service_name, "start_service returned False")
+                    return False
+                    
                 self._increment_restart_count(service_name)
                 logger.info("%s restarted (count updated)", service_name)
                 return True
@@ -574,7 +589,7 @@ class Orchestrator:
 
     def up(self):
         """
-        Start all services once and return.
+        Start all services once and return. Raises an exception if any services fail to start.
 
         Continuous monitoring and self-healing are handled by HealthScheduler;
         this method should not block.
@@ -590,24 +605,46 @@ class Orchestrator:
 
         # Start services in dependency order
         order = self._resolve_service_order()
+        failed = []
 
         for name in order:
             svc = self.config.services[name]
-            self.start_service(name, svc)
+            success = self.start_service(name, svc)
+            if not success:
+                failed.append(name)
+
+        if failed:
+            raise RuntimeError(f"Failed to start services: {failed}")
 
         print("All services started.")
 
+   
     def down(self):
-        """Stop and tear down all managed services."""
+        """Stop and remove all services. Raises an exception if any service fails to stop."""
         print("Stopping services...\n")
+        failed = []
 
         for name in self.config.services.keys():
-            self.stop_service(name)
+            success = self.stop_service(name)
+            if not success:
+                failed.append(name)
+        if failed:
+            raise RuntimeError(f"Failed to stop services: {failed}")
+
 
     def ps(self):
-        """Print running Docker containers managed by Dockfleet."""
+        """List currently running containers managed by DockFleet."""
         print("Running containers:\n")
         self.docker.list_containers()
+    def restart(self):
+        """
+        Gracefully restart all services managed by DockFleet. This is a convenience wrapper around down() and up().
+        """
+        print("Restarting Services...\n")
+        self.down()
+        time.sleep(2)
+        self.up()
+        print("\n All services restarted.")
 
     def get_service_stats(self) -> list[ServiceStat]:
         """Enhanced Docker stats with inspect data."""
