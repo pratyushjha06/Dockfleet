@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import MagicMock
 from sqlmodel import Session, select
 from sqlalchemy import text
 from dockfleet.cli.config import DockFleetConfig, ServiceConfig, RestartPolicy
@@ -34,6 +35,10 @@ def test_restart_service_happy_path():
     )
     
     orch = Orchestrator(config)  # Instance
+        # Mock Docker calls so this test verifies orchestrator logic,
+    # not a real local Docker daemon.
+    orch.docker.run_container = MagicMock()
+    orch.docker.stop_container = MagicMock()
     
     # Create DB service
     with Session(engine) as session:
@@ -85,5 +90,6 @@ def test_restart_failure_marks_crashed():
     
     # ✅ Now service exists + marked crashed
     svc = _get_service("svc-fail")
-    assert svc.status == "crashed"
+    assert svc.status == "stopped"
+    assert svc.health_status == "crashed"
     assert "auto-restart failed" in (svc.last_failure_reason or "")

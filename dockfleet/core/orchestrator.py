@@ -286,9 +286,11 @@ class Orchestrator:
 
             mark_service_running(name)
             logger.info("Started service: %s", name)
+            return True
 
         except Exception as e:
             logger.error("Failed to start %s: %s", name, e)
+            return False
 
     def stop_service(self, name):
         container_name = self.container_name(name)
@@ -363,14 +365,14 @@ class Orchestrator:
             logger.warning("restart_service: error stopping %s: %s", container_name, exc)
 
         # Try to start a fresh container
-        try:
-            self.start_service(service_name, svc)
+        started = self.start_service(service_name, svc)
+        if started:
             self._increment_restart_count(service_name)
             logger.info("%s restarted (count updated)", service_name)
             return True
-        except Exception as e:
-            logger.error("%s restart FAILED: %s", service_name, e)
-            return False
+
+        logger.error("%s restart FAILED", service_name)
+        return False
 
     def _increment_restart_count(self, service_name: str) -> None:
         try:
