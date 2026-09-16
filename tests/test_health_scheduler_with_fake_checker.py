@@ -92,12 +92,14 @@ def test_scheduler_uses_injected_checker_and_db_updates(tmp_path):
     ok2 = scheduler._run_single_check(service_name, hc)
     update_service_health(service_name, ok2, reason="fail 1")
     svc = get_service()
-    assert svc.status == "unhealthy"
+    assert svc.status == "running"
+    assert svc.health_status == "crashed"
     assert svc.consecutive_failures == 1
 
     # Tick 3: unhealthy
     ok3 = scheduler._run_single_check(service_name, hc)
     update_service_health(service_name, ok3, reason="fail 2")
     svc = get_service()
-    assert svc.status == "unhealthy"
+    assert svc.status == "running"
+    assert svc.health_status == "crashed"
     assert svc.consecutive_failures == 2
