@@ -82,8 +82,11 @@ def test_restart_failure_marks_crashed():
     update_service_health("svc-fail", False, "fail 2")
     update_service_health("svc-fail", False, "fail 3")
 
-    with patch("subprocess.run") as mock_run, patch.object(
-        orch, "start_service", side_effect=RuntimeError("Docker engine down")
+    with (
+        patch("subprocess.run") as mock_run,
+        patch.object(
+            orch, "start_service", side_effect=RuntimeError("Docker engine down")
+        ),
     ):
         mock_run.return_value = MagicMock(returncode=0)
         orch.handle_unhealthy_service("svc-fail", config, "test failure")

@@ -138,20 +138,32 @@ def test_get_services_handles_none_and_non_string_names(monkeypatch):
     monkeypatch.setattr("dockfleet.dashboard.services.engine", test_engine)
 
     # Various edge case container names in ps output: None, missing, list, non-dockfleet
-    docker_ps_output = "\n".join([
-        json.dumps({"Names": None, "Status": "Up 5 minutes"}),
-        json.dumps({"OtherKey": "value"}),
-        json.dumps({"Names": ["dockfleet_web"], "Status": "Up 5 minutes", "RunningFor": "5 minutes"}),
-        json.dumps({"Names": ["other_container"], "Status": "Up 5 minutes"}),
-        json.dumps({"Names": [], "Status": "Up 5 minutes"}),
-        json.dumps({"Names": 12345, "Status": "Up 5 minutes"}),
-    ])
+    docker_ps_output = "\n".join(
+        [
+            json.dumps({"Names": None, "Status": "Up 5 minutes"}),
+            json.dumps({"OtherKey": "value"}),
+            json.dumps(
+                {
+                    "Names": ["dockfleet_web"],
+                    "Status": "Up 5 minutes",
+                    "RunningFor": "5 minutes",
+                }
+            ),
+            json.dumps({"Names": ["other_container"], "Status": "Up 5 minutes"}),
+            json.dumps({"Names": [], "Status": "Up 5 minutes"}),
+            json.dumps({"Names": 12345, "Status": "Up 5 minutes"}),
+        ]
+    )
 
-    docker_stats_output = "\n".join([
-        json.dumps({"Name": None, "CPUPerc": "1.5%", "MemUsage": "50MB"}),
-        json.dumps({"Name": ["dockfleet_web"], "CPUPerc": "2.0%", "MemUsage": "60MB"}),
-        json.dumps({"OtherKey": "val"}),
-    ])
+    docker_stats_output = "\n".join(
+        [
+            json.dumps({"Name": None, "CPUPerc": "1.5%", "MemUsage": "50MB"}),
+            json.dumps(
+                {"Name": ["dockfleet_web"], "CPUPerc": "2.0%", "MemUsage": "60MB"}
+            ),
+            json.dumps({"OtherKey": "val"}),
+        ]
+    )
 
     def mock_subprocess_run(cmd, *args, **kwargs):
         mock_res = MagicMock()

@@ -209,9 +209,12 @@ class SchedulerLock:
             return False
         if sys.platform == "win32":
             import ctypes
+
             kernel32 = ctypes.windll.kernel32
             PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-            h_process = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+            h_process = kernel32.OpenProcess(
+                PROCESS_QUERY_LIMITED_INFORMATION, False, pid
+            )
             if h_process:
                 kernel32.CloseHandle(h_process)
                 return True

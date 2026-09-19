@@ -302,6 +302,7 @@ def test_different_projects_independent(tmp_path):
 def test_pid_is_running():
     """Test SchedulerLock._pid_is_running for active, dead, and invalid PIDs."""
     import os
+
     # Current process must be running
     assert SchedulerLock._pid_is_running(os.getpid()) is True
 
@@ -309,4 +310,3 @@ def test_pid_is_running():
     assert SchedulerLock._pid_is_running(0) is False
     assert SchedulerLock._pid_is_running(-1) is False
     assert SchedulerLock._pid_is_running(9999999) is False
-

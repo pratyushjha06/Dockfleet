@@ -19,8 +19,12 @@ dockfleet = "dockfleet.cli.main:app"
 packages = ["dockfleet"]
 
 [tool.black]
-line-length = 150
+line-length = 88
+target-version = ["py310", "py311", "py312"]
 
 [tool.ruff]
 line-length = 150
 extend-ignore = ["F841", "E402"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

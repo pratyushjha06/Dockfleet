@@ -29,10 +29,11 @@ def test_orchestrator_updates_db_status(tmp_path):
         assert len(services) > 0
 
     orch = Orchestrator(config)
-    with patch.object(orch.docker, "run_container"), patch.object(
-        orch.docker, "stop_container"
-    ), patch.object(orch.docker, "remove_container"), patch.object(
-        orch.docker, "create_network"
+    with (
+        patch.object(orch.docker, "run_container"),
+        patch.object(orch.docker, "stop_container"),
+        patch.object(orch.docker, "remove_container"),
+        patch.object(orch.docker, "create_network"),
     ):
         orch.up()
 
