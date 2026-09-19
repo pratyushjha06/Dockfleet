@@ -170,7 +170,7 @@ class DockFleetConfig(BaseModel):
     @field_validator("services")
     @classmethod
     def validate_depends_on(cls, services):
-        """Validate dependency references point to existing services."""
+        """Validate dependency references and reject circular service graphs."""
         for name, svc in services.items():
             if svc.depends_on:
                 for dep in svc.depends_on:
@@ -178,6 +178,32 @@ class DockFleetConfig(BaseModel):
                         raise ValueError(
                             f"{name}: depends_on references unknown service '{dep}'"
                         )
+
+        visited: set[str] = set()
+        visiting: set[str] = set()
+        path: list[str] = []
+
+        def visit(name: str) -> None:
+            if name in visiting:
+                cycle_start = path.index(name)
+                cycle = path[cycle_start:] + [name]
+                raise ValueError(
+                    "circular depends_on relationship: " + " -> ".join(cycle)
+                )
+
+            if name in visited:
+                return
+
+            visiting.add(name)
+            path.append(name)
+            for dependency in services[name].depends_on or []:
+                visit(dependency)
+            path.pop()
+            visiting.remove(name)
+            visited.add(name)
+
+        for name in services:
+            visit(name)
         return services
 
 

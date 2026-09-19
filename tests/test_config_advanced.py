@@ -62,6 +62,26 @@ def test_invalid_depends_on():
         DockFleetConfig(**config)
 
 
+def test_circular_depends_on_is_rejected_during_validation():
+    config = {
+        "services": {
+            "api": {
+                "image": "nginx",
+                "restart": "always",
+                "depends_on": ["worker"],
+            },
+            "worker": {
+                "image": "nginx",
+                "restart": "always",
+                "depends_on": ["api"],
+            },
+        }
+    }
+
+    with pytest.raises(ValueError, match="circular depends_on relationship: api -> worker -> api"):
+        DockFleetConfig(**config)
+
+
 def test_valid_environment_list():
     config = {
         "services": {
