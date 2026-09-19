@@ -1,6 +1,8 @@
+from __future__ import annotations
+
+import logging
 from collections.abc import Iterable
 from datetime import datetime, timezone
-import logging
 
 from sqlmodel import Session, func, select
 
@@ -73,6 +75,8 @@ def query_logs(
     q: str | None = None,
     limit: int = 50,
     offset: int = 0,
+    cursor_ts: datetime | str | None = None,
+    cursor_id: int | None = None,
 ) -> list[LogEvent]:
     """
     High-level helper to fetch LogEvent rows with optional filters
@@ -80,7 +84,8 @@ def query_logs(
 
     - service_name: match on LogEvent.service_name (case-insensitive)
     - q: substring search on message (case-sensitive for now)
-    - limit/offset: pagination for dashboard /logs/db and /logs/download
+    - limit/offset: standard pagination (O(N), less efficient)
+    - cursor_ts/cursor_id: keyset pagination for fast sequential scanning (O(1))
     """
     # hard cap for safety
     limit = min(limit, 1000)
@@ -94,9 +99,21 @@ def query_logs(
         if q:
             pattern = f"%{q}%"
             # SQLite: LIKE (case-sensitive by default); can be tuned later.
-            stmt = stmt.where(LogEvent.message.like(pattern))
+            stmt = stmt.where(LogEvent.message.like(pattern))  # type: ignore
 
-        stmt = stmt.order_by(LogEvent.created_at.desc()).offset(offset).limit(limit)
+        if cursor_ts is not None and cursor_id is not None:
+            # Deterministic keyset pagination for descending order
+            stmt = stmt.where(
+                (LogEvent.created_at < cursor_ts) |  # type: ignore
+                ((LogEvent.created_at == cursor_ts) & (LogEvent.id < cursor_id))  # type: ignore
+            )
+
+        stmt = stmt.order_by(LogEvent.created_at.desc(), LogEvent.id.desc())  # type: ignore
+        
+        if offset > 0:
+            stmt = stmt.offset(offset)
+            
+        stmt = stmt.limit(limit)
         events = session.exec(stmt).all()
 
     return list(events)
@@ -114,14 +131,16 @@ def iter_logs_as_text(
     Format per line:
         [timestamp] [service_name] message
     """
-    offset = 0
+    cursor_ts = None
+    cursor_id = None
 
     while True:
         batch = query_logs(
             service_name=service_name,
             q=q,
             limit=batch_size,
-            offset=offset,
+            cursor_ts=cursor_ts,
+            cursor_id=cursor_id,
         )
         if not batch:
             break
@@ -132,7 +151,9 @@ def iter_logs_as_text(
             msg = event.message or ""
             yield f"[{ts}] [{service}] {msg}\n"
 
-        offset += batch_size
+        last_event = batch[-1]
+        cursor_ts = last_event.created_at
+        cursor_id = last_event.id
 
 
 def iter_logs_as_csv(
@@ -149,14 +170,16 @@ def iter_logs_as_csv(
     # header
     yield "service_name,timestamp,level,message,source\n"
 
-    offset = 0
+    cursor_ts = None
+    cursor_id = None
 
     while True:
         batch = query_logs(
             service_name=service_name,
             q=q,
             limit=batch_size,
-            offset=offset,
+            cursor_ts=cursor_ts,
+            cursor_id=cursor_id,
         )
         if not batch:
             break
@@ -189,4 +212,6 @@ def iter_logs_as_csv(
         if lines:
             yield "\n".join(lines) + "\n"
 
-        offset += batch_size
+        last_event = batch[-1]
+        cursor_ts = last_event.created_at
+        cursor_id = last_event.id
