@@ -10,12 +10,13 @@ from datetime import datetime
 from pathlib import Path
 
 import typer
-from sqlmodel import Session, select
+from pydantic import ValidationError
+from sqlmodel import select
 
 from dockfleet.cli.config import load_config
 from dockfleet.core.orchestrator import Orchestrator
 from dockfleet.health.logs import LogEvent
-from dockfleet.health.models import PROJECT_ROOT, engine
+from dockfleet.health.models import PROJECT_ROOT, get_session
 from dockfleet.health.scheduler import HealthScheduler
 from dockfleet.health.scheduler_lock import SchedulerLock
 from dockfleet.health.seed import bootstrap_from_path
@@ -358,7 +359,7 @@ def show_logs(
     Show aggregated logs stored in DockFleet database.
     """
     try:
-        with Session(engine) as session:
+        with get_session() as session:
             query = select(LogEvent).limit(limit)
 
             if service:

@@ -2,9 +2,9 @@ from collections.abc import Iterable
 from datetime import datetime, timezone
 import logging
 
-from sqlmodel import Session, func, select
+from sqlmodel import func, select
 
-from .models import LogEvent, Service, engine
+from .models import LogEvent, Service, get_session
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ def store_log_line(
     - Skips insert (with a warning) if the service is not present in the DB.
     - Persists created_at as a timezone-aware datetime instance (UTC).
     """
-    with Session(engine) as session:
+    with get_session() as session:
         svc = session.exec(
             select(Service).where(Service.name == service_name)
         ).one_or_none()
@@ -85,7 +85,7 @@ def query_logs(
     # hard cap for safety
     limit = min(limit, 1000)
 
-    with Session(engine) as session:
+    with get_session() as session:
         stmt = select(LogEvent)
 
         if service_name:

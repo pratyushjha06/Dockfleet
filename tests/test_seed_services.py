@@ -10,7 +10,7 @@ from dockfleet.cli.config import (
     RestartPolicy,
     ServiceConfig,
 )
-from dockfleet.health.models import ContainerStatus, HealthStatus, Service
+from dockfleet.health.models import ContainerStatus, HealthStatus, Service, get_session
 from dockfleet.health.seed import seed_services
 
 
@@ -46,7 +46,7 @@ def test_seed_services_idempotent():
 
     config = make_test_config()
 
-    with Session(engine) as session:
+    with get_session(engine=engine) as session:
         # first seed
         seed_services(config, session)
         count_after_first = session.exec(select(Service)).all()
@@ -64,7 +64,7 @@ def test_seed_services_updates_existing_config_and_preserves_runtime_state():
 
     initial_config = make_test_config()
 
-    with Session(engine) as session:
+    with get_session(engine=engine) as session:
         seed_services(initial_config, session)
 
         # Mutate runtime state for 'api'

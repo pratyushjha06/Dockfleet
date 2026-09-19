@@ -1,10 +1,16 @@
 import logging
+import os
+import threading
+from contextlib import contextmanager
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from typing import Any, Generator
 
 import sqlalchemy
-from sqlmodel import Field, SQLModel, create_engine
+from sqlalchemy.engine import Engine
+from sqlalchemy.pool import StaticPool
+from sqlmodel import Field, Session, SQLModel, create_engine
 
 logger = logging.getLogger(__name__)
 
@@ -185,15 +191,94 @@ class LogEvent(SQLModel, table=True):
     )  # e.g. "docker-logs", "scheduler", "orchestrator"
 
 
-# init_db() function
-# work: engine + tables create
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = PROJECT_ROOT / "dockfleet.db"
-sqlite_file_name = str(DB_PATH)
-sqlite_url = f"sqlite:///{sqlite_file_name}"
-engine = create_engine(sqlite_url, connect_args={"timeout": 30})
+
+_engines: dict[tuple[str, bool], Engine] = {}
+_engines_lock = threading.Lock()
 
 
-def init_db() -> None:
-    """Initialize the SQLite database and create all missing tables."""
-    SQLModel.metadata.create_all(engine)
+def get_engine(db_url: str | None = None, echo: bool = False) -> Engine:
+    """
+    Return a SQLAlchemy Engine instance lazily.
+
+    Precedence order:
+    1. Explicit `db_url` argument
+    2. `DOCKFLEET_DB_URL` environment variable
+    3. Default SQLite database at `PROJECT_ROOT / "dockfleet.db"`
+
+    Features:
+    - Thread-safe initialization via `_engines_lock`.
+    - Cache key includes `(resolved_url, echo)` so different echo configurations are distinguished.
+    - In-memory SQLite URLs (`sqlite://`, `sqlite:///:memory:`, or containing `:memory:`)
+      automatically use `StaticPool` and `check_same_thread=False` to ensure all sessions
+      share the exact same in-memory database without dropping tables between connections.
+    """
+    resolved_url = db_url or os.getenv("DOCKFLEET_DB_URL")
+    if not resolved_url:
+        resolved_url = f"sqlite:///{DB_PATH}"
+
+    cache_key = (resolved_url, echo)
+    with _engines_lock:
+        if cache_key not in _engines:
+            connect_args: dict[str, Any] = {}
+            engine_kwargs: dict[str, Any] = {"echo": echo}
+
+            if resolved_url.startswith("sqlite"):
+                connect_args["timeout"] = 30
+                if ":memory:" in resolved_url or resolved_url in ("sqlite://", "sqlite:///:memory:"):
+                    connect_args["check_same_thread"] = False
+                    engine_kwargs["poolclass"] = StaticPool
+
+            engine_kwargs["connect_args"] = connect_args
+            _engines[cache_key] = create_engine(
+                resolved_url,
+                **engine_kwargs,
+            )
+        return _engines[cache_key]
+
+
+def reset_engine_cache() -> None:
+    """Dispose of all cached engine connections and clear the cache thread-safely."""
+    global _engines
+    with _engines_lock:
+        for eng in _engines.values():
+            eng.dispose()
+        _engines.clear()
+
+
+@contextmanager
+def get_session(
+    db_url: str | None = None, engine: Engine | None = None
+) -> Generator[Session, None, None]:
+    """
+    Context manager that provides a transactional SQLModel Session.
+
+    Precedence:
+    Explicit `engine` takes precedence over `db_url`, which in turn takes precedence
+    over environment variable and default URL.
+    """
+    target_engine = engine or get_engine(db_url)
+    with Session(target_engine) as session:
+        yield session
+
+
+def init_db(db_url: str | None = None, engine: Engine | None = None) -> None:
+    """
+    Initialize the SQLite database and create all missing tables.
+
+    Precedence:
+    Explicit `engine` takes precedence over `db_url`, which in turn takes precedence
+    over environment variable and default URL.
+    """
+    target_engine = engine or get_engine(db_url)
+    SQLModel.metadata.create_all(target_engine)
+
+
+def __getattr__(name: str) -> Any:
+    """Backward compatibility fallback for dynamic attribute access (e.g. engine)."""
+    if name == "engine":
+        return get_engine()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+

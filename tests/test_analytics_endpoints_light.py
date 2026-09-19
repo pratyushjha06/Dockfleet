@@ -2,20 +2,18 @@
 
 from datetime import datetime, timedelta
 
-from sqlmodel import Session
-
 from dockfleet.dashboard.routes import (
     analytics_failure_reasons,
     analytics_restart_history,
     analytics_unstable_services,
 )
-from dockfleet.health.models import RestartEvent, Service, engine, init_db
+from dockfleet.health.models import RestartEvent, Service, get_session, init_db
 
 
 def setup_function(_func):
     # Fresh DB state before each test
     init_db()
-    with Session(engine) as session:
+    with get_session() as session:
         session.query(RestartEvent).delete()
         session.query(Service).delete()
         session.commit()
@@ -24,7 +22,7 @@ def setup_function(_func):
 
 
 def _seed_restarts():
-    with Session(engine) as session:
+    with get_session() as session:
         now = datetime.utcnow()
 
         api = Service(

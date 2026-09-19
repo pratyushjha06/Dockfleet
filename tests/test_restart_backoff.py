@@ -12,7 +12,7 @@ from dockfleet.cli.config import (
 from dockfleet.health.models import (
     ContainerStatus,
     Service,
-    engine,
+    get_session,
     init_db,
 )
 from dockfleet.health.scheduler import HealthScheduler
@@ -23,13 +23,17 @@ def _build_config(**service_options) -> DockFleetConfig:
     options = {
         "image": "dummy-image",
         "restart": "always",
+        "healthcheck": HealthCheckConfig(
+            type="process",
+            cmd="dummy-process",
+            interval=1,
+        ),
     }
     options.update(service_options)
 
     return DockFleetConfig(
-        services={
-            "api": ServiceConfig(**options),
-        }
+        version="1.0",
+        services={"api": ServiceConfig(**options)},
     )
 
 
@@ -41,7 +45,7 @@ def _create_service(name: str = "api") -> None:
         status=ContainerStatus.RUNNING,
     )
 
-    with Session(engine) as session:
+    with get_session() as session:
         session.add(service)
         session.commit()
 
@@ -58,7 +62,7 @@ def _fail_service(name: str = "api") -> None:
 def setup_function() -> None:
     init_db()
 
-    with Session(engine) as session:
+    with get_session() as session:
         session.exec(text("DELETE FROM service"))
         session.commit()
 

@@ -4,7 +4,8 @@ from unittest.mock import MagicMock, patch
 from sqlmodel import Session, SQLModel, create_engine
 
 from dockfleet.dashboard.services import get_services
-from dockfleet.health.models import ContainerStatus, HealthStatus, Service as DBService
+from dockfleet.health.models import ContainerStatus, HealthStatus, get_session
+from dockfleet.health.models import Service as DBService
 
 
 def test_get_services_preserves_unhealthy_status(monkeypatch):
@@ -47,7 +48,10 @@ def test_get_services_preserves_unhealthy_status(monkeypatch):
         session.add_all([svc_unhealthy, svc_crashed, svc_restarting, svc_healthy])
         session.commit()
 
-    monkeypatch.setattr("dockfleet.dashboard.services.engine", test_engine)
+    monkeypatch.setattr(
+        "dockfleet.dashboard.services.get_session",
+        lambda: get_session(engine=test_engine),
+    )
 
     # Mock docker ps returning containers in Up state
     docker_ps_output = "\n".join(
@@ -135,7 +139,10 @@ def test_get_services_handles_none_and_non_string_names(monkeypatch):
         session.add(svc)
         session.commit()
 
-    monkeypatch.setattr("dockfleet.dashboard.services.engine", test_engine)
+    monkeypatch.setattr(
+        "dockfleet.dashboard.services.get_session",
+        lambda: get_session(engine=test_engine),
+    )
 
     # Various edge case container names in ps output: None, missing, list, non-dockfleet
     docker_ps_output = "\n".join([

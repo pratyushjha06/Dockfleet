@@ -1,8 +1,14 @@
 from datetime import datetime, timezone
 
-from sqlmodel import Session, select
+from sqlmodel import select
 
-from .models import ContainerStatus, HealthStatus, RestartEvent, Service, engine
+from .models import (
+    ContainerStatus,
+    HealthStatus,
+    RestartEvent,
+    Service,
+    get_session,
+)
 
 
 def mark_service_running(name: str) -> None:
@@ -42,7 +48,7 @@ def _update_status(
     set_last_health: bool = False,
 ) -> None:
     """Low-level helper to flip status (and optionally health_status) for a service by name."""
-    with Session(engine) as session:
+    with get_session() as session:
         svc = session.exec(select(Service).where(Service.name == name)).one_or_none()
 
         if svc is None:
@@ -89,7 +95,7 @@ def update_service_health(
         last_health_check updated
         consecutive_failures++
     """
-    with Session(engine) as session:
+    with get_session() as session:
         svc = session.exec(select(Service).where(Service.name == name)).one_or_none()
 
         if svc is None:
@@ -159,7 +165,7 @@ def record_restart_event(service: Service, reason: str) -> None:
         new_status=ContainerStatus.RUNNING.value,  # intended post-restart status
     )
 
-    with Session(engine) as session:
+    with get_session() as session:
         session.add(event)
         session.commit()
 
@@ -169,7 +175,7 @@ def mark_restart_successful(service_name: str) -> None:
     Called by orchestrator after a successful auto-restart.
     Resets consecutive_failures and marks service as healthy + running.
     """
-    with Session(engine) as session:
+    with get_session() as session:
         svc = session.exec(
             select(Service).where(Service.name == service_name)
         ).one_or_none()
@@ -195,7 +201,7 @@ def record_manual_restart_event(service_name: str) -> None:
     - Marks status as ContainerStatus.RUNNING and health_status as HealthStatus.HEALTHY.
     - Inserts a RestartEvent with reason='manual_dashboard_restart'.
     """
-    with Session(engine) as session:
+    with get_session() as session:
         svc = session.exec(
             select(Service).where(Service.name == service_name)
         ).one_or_none()
@@ -234,7 +240,7 @@ def record_manual_stop(service_name: str) -> None:
     - Keeps health_status as HealthStatus.HEALTHY (it's a clean stop).
     - Does NOT touch restart_count or consecutive_failures.
     """
-    with Session(engine) as session:
+    with get_session() as session:
         svc = session.exec(
             select(Service).where(Service.name == service_name)
         ).one_or_none()

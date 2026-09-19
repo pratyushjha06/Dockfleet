@@ -1,7 +1,5 @@
-from sqlmodel import Session
-
 from dockfleet.cli.config import DockFleetConfig, load_config
-from dockfleet.health.models import engine, init_db
+from dockfleet.health.models import get_session, init_db
 from dockfleet.health.services import seed_services
 
 
@@ -11,7 +9,7 @@ def bootstrap_from_config(config: DockFleetConfig) -> None:
     init_db()
 
     # 2) Open session and seed services (idempotent)
-    with Session(engine) as session:
+    with get_session() as session:
         seed_services(config, session)
 
 

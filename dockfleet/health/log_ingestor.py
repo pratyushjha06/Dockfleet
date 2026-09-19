@@ -3,9 +3,9 @@ from __future__ import annotations
 import subprocess
 from datetime import datetime, timedelta, timezone
 
-from sqlmodel import Session, select
+from sqlmodel import select
 
-from .models import LogEvent, Service, engine
+from .models import LogEvent, Service, get_session
 
 
 def ingest_docker_logs_once(tail: int = 200) -> None:
@@ -16,7 +16,7 @@ def ingest_docker_logs_once(tail: int = 200) -> None:
     Idempotency-ish guard: we ensure created_at is strictly increasing
     per service so repeated runs don't break ordering.
     """
-    with Session(engine) as session:
+    with get_session() as session:
         services = session.exec(select(Service)).all()
 
         for svc in services:

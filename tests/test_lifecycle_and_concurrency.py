@@ -1,7 +1,7 @@
 import threading
 import time
 from sqlalchemy import text
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from dockfleet.cli.config import DockFleetConfig, RestartPolicy, ServiceConfig
 from dockfleet.core.orchestrator import Orchestrator, reset_orchestrator
@@ -9,7 +9,7 @@ from dockfleet.health.models import (
     ContainerStatus,
     HealthStatus,
     Service,
-    engine,
+    get_session,
     init_db,
 )
 from dockfleet.health.status import (
@@ -22,7 +22,7 @@ from dockfleet.health.status import (
 def setup_function() -> None:
     reset_orchestrator()
     init_db()
-    with Session(engine) as session:
+    with get_session() as session:
         session.exec(text("DELETE FROM service"))
         session.commit()
 
@@ -32,7 +32,7 @@ def teardown_function() -> None:
 
 
 def _get_service(name: str) -> Service:
-    with Session(engine) as session:
+    with get_session() as session:
         return session.exec(select(Service).where(Service.name == name)).one()
 
 
@@ -41,7 +41,7 @@ def test_full_lifecycle_healthy_crashed_restarting_healthy():
     Test full lifecycle transitions:
     HEALTHY -> CRASHED -> RESTARTING -> HEALTHY
     """
-    with Session(engine) as session:
+    with get_session() as session:
         svc = Service(
             name="lifecycle-svc",
             image="nginx:alpine",
@@ -103,7 +103,7 @@ def test_no_duplicate_restart_from_concurrent_paths():
     Verify that concurrent restart requests (e.g. from health scheduler auto-restart
     and manual dashboard restart) are guarded so that only 1 restart actually executes.
     """
-    with Session(engine) as session:
+    with get_session() as session:
         svc = Service(
             name="concurrent-svc",
             image="nginx:alpine",
@@ -163,7 +163,7 @@ def test_health_check_failure_preserves_running_status_as_is():
     Lock in established semantics (#122/#136): when a health check fails,
     health_status changes to CRASHED while container lifecycle status stays as-is (RUNNING).
     """
-    with Session(engine) as session:
+    with get_session() as session:
         svc = Service(
             name="status-as-is-svc",
             image="nginx:alpine",
@@ -235,7 +235,7 @@ def test_json_wire_serialization_emits_clean_strings():
     assert "HealthStatus" not in dash_json
 
     # 4. FastAPI wire response verification
-    with Session(engine) as session:
+    with get_session() as session:
         session.add(svc)
         session.commit()
 
@@ -267,7 +267,7 @@ def test_restart_guard_released_after_success():
     Verify that _active_restarts is cleanly cleared after a successful restart,
     allowing subsequent restarts to proceed without getting wedged.
     """
-    with Session(engine) as session:
+    with get_session() as session:
         svc = Service(
             name="guard-success-svc",
             image="nginx:alpine",
@@ -308,7 +308,7 @@ def test_restart_guard_released_after_failure():
     Verify that _active_restarts is cleared and DB is not wedged in RESTARTING
     when start_service fails / returns failure.
     """
-    with Session(engine) as session:
+    with get_session() as session:
         svc = Service(
             name="guard-failure-svc",
             image="nginx:alpine",
@@ -350,7 +350,7 @@ def test_restart_guard_released_after_exception():
     Verify that _active_restarts is guaranteed to be cleared via finally
     even when an unhandled exception is raised during restart.
     """
-    with Session(engine) as session:
+    with get_session() as session:
         svc = Service(
             name="guard-exc-svc",
             image="nginx:alpine",
@@ -397,7 +397,7 @@ def test_per_service_restart_isolation():
     Verify that _active_restarts is strictly isolated per-service.
     Restarting Service A while Service B is mid-restart does not block Service B.
     """
-    with Session(engine) as session:
+    with get_session() as session:
         session.add(
             Service(
                 name="service-a",
@@ -476,7 +476,7 @@ def test_true_concurrency_race_condition_prevented():
     attempt to restart the exact same service at the exact same instant using a barrier.
     Confirms only exactly 1 thread executes the restart.
     """
-    with Session(engine) as session:
+    with get_session() as session:
         svc = Service(
             name="race-svc",
             image="nginx:alpine",
@@ -541,7 +541,7 @@ def test_legacy_db_raw_string_backward_compatibility():
     must read back seamlessly through the enum-typed SQLModel without validation errors.
     """
     # Insert raw string values directly into SQLite table via raw SQL
-    with Session(engine) as session:
+    with get_session() as session:
         session.exec(
             text(
                 "INSERT INTO service (name, image, restart_policy, status, health_status, restart_count, consecutive_failures) "
@@ -551,7 +551,7 @@ def test_legacy_db_raw_string_backward_compatibility():
         session.commit()
 
     # Query through the updated SQLModel Service model
-    with Session(engine) as session:
+    with get_session() as session:
         legacy_svc = session.exec(
             select(Service).where(Service.name == "legacy-db-svc")
         ).one()
@@ -590,7 +590,7 @@ def test_malformed_legacy_db_data_resilience(caplog):
     """
     import logging
 
-    with Session(engine) as session:
+    with get_session() as session:
         # Insert 1 healthy service and 2 services with corrupted/empty status values
         session.exec(
             text(
@@ -614,7 +614,7 @@ def test_malformed_legacy_db_data_resilience(caplog):
 
     # Querying all services should succeed without raising LookupError or ValueError
     with caplog.at_level(logging.WARNING):
-        with Session(engine) as session:
+        with get_session() as session:
             all_services = session.exec(select(Service)).all()
             assert len(all_services) == 3
 
@@ -671,7 +671,7 @@ def test_async_api_non_blocking_during_in_flight_restart():
     from httpx import ASGITransport
     from dockfleet.dashboard.api import app
 
-    with Session(engine) as session:
+    with get_session() as session:
         session.add(
             Service(
                 name="async-safe-svc",

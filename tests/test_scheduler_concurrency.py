@@ -1,9 +1,7 @@
 import time
 
-from sqlmodel import Session
-
 from dockfleet.cli.config import DockFleetConfig, HealthCheckConfig, ServiceConfig
-from dockfleet.health.models import engine, init_db
+from dockfleet.health.models import get_session, init_db
 from dockfleet.health.scheduler import HealthScheduler
 from dockfleet.health.services import seed_services
 
@@ -41,7 +39,7 @@ def test_scheduler_runs_concurrently(monkeypatch):
     }
     config = DockFleetConfig(services=services)
     
-    with Session(engine) as session:
+    with get_session() as session:
         seed_services(config, session)
     
     # We monkeypatch time.sleep to avoid actual waiting in _poll if it reaches the end of the loop

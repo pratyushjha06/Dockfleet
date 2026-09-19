@@ -1,11 +1,11 @@
 from sqlalchemy import text
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from dockfleet.health.models import (
     ContainerStatus,
     HealthStatus,
     Service,
-    engine,
+    get_session,
     init_db,
 )
 from dockfleet.health.status import (
@@ -25,14 +25,14 @@ def _create_service(
         restart_policy=restart_policy,
         status=ContainerStatus.RUNNING,
     )
-    with Session(engine) as session:
+    with get_session() as session:
         session.add(svc)
         session.commit()
     return svc
 
 
 def _get_service(name: str) -> Service:
-    with Session(engine) as session:
+    with get_session() as session:
         return session.exec(select(Service).where(Service.name == name)).one()
 
 
@@ -43,7 +43,7 @@ def setup_function() -> None:
     init_db()
 
     # Hard clear Service table so unique(name) doesn't collide
-    with Session(engine) as session:
+    with get_session() as session:
         session.exec(text("DELETE FROM service"))
         session.commit()
 
@@ -136,7 +136,7 @@ def test_needs_restart_false_when_service_stopped() -> None:
         health_status=HealthStatus.CRASHED,
         consecutive_failures=5,
     )
-    with Session(engine) as session:
+    with get_session() as session:
         session.add(svc)
         session.commit()
 

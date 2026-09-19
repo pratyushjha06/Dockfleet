@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from unittest.mock import patch
 import pytest
-from sqlmodel import Session, delete, select
+from sqlmodel import delete, select
 
 from dockfleet.health.logs import (
     DEFAULT_EMPTY_TIMESTAMP,
@@ -10,14 +10,14 @@ from dockfleet.health.logs import (
     iter_logs_as_text,
     store_log_line,
 )
-from dockfleet.health.models import LogEvent, Service, engine, init_db
+from dockfleet.health.models import LogEvent, Service, get_session, init_db
 
 
 @pytest.fixture(autouse=True)
 def setup_db():
     """Ensure database schema is initialized and clean for each test."""
     init_db()
-    with Session(engine) as session:
+    with get_session() as session:
         # Create test service if not exists
         svc = session.exec(
             select(Service).where(Service.name == "api_test")
@@ -33,7 +33,7 @@ def setup_db():
             session.add(svc)
             session.commit()
     yield
-    with Session(engine) as session:
+    with get_session() as session:
         session.exec(delete(LogEvent))
         session.commit()
 
@@ -44,7 +44,7 @@ def test_store_log_line_persists_datetime_instance():
         "api_test", "test line datetime persistence", level="INFO", source="test"
     )
 
-    with Session(engine) as session:
+    with get_session() as session:
         event = session.exec(
             select(LogEvent)
             .where(LogEvent.service_name == "api_test")

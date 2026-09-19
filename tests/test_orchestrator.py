@@ -434,15 +434,16 @@ def test_concurrent_get_reset_no_stale_instance():
                 reset_orchestrator()
 
         threads = [
-            threading.Thread(target=getter),
-            threading.Thread(target=getter),
-            threading.Thread(target=getter),
-            threading.Thread(target=resetting),
-            threading.Thread(target=resetting),
+            threading.Thread(target=getter, daemon=True),
+            threading.Thread(target=getter, daemon=True),
+            threading.Thread(target=getter, daemon=True),
+            threading.Thread(target=resetting, daemon=True),
+            threading.Thread(target=resetting, daemon=True),
         ]
         for t in threads:
             t.start()
         stop.wait(timeout=0.3)
+        stop.set()
         for t in threads:
             t.join(timeout=2)
 

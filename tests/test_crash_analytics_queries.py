@@ -4,7 +4,13 @@ from unittest.mock import patch
 import pytest
 from sqlmodel import Session, SQLModel, create_engine
 
-from dockfleet.health.models import ContainerStatus, HealthStatus, RestartEvent, Service
+from dockfleet.health.models import (
+    ContainerStatus,
+    HealthStatus,
+    RestartEvent,
+    Service,
+    get_session,
+)
 from dockfleet.health.queries import (
     get_failure_reasons_breakdown,
     get_most_unstable_services,
@@ -29,7 +35,7 @@ def engine_fixture():
 @pytest.fixture(name="session")
 def session_fixture(engine):
     """Provide a session backed by the in-memory engine."""
-    with Session(engine) as session:
+    with get_session(engine=engine) as session:
         yield session
 
 
@@ -106,7 +112,7 @@ def test_failure_reasons_breakdown_counts(seeded_service, engine):
     grouped by reason within the default 24h window.
     The crash_loop event (30h ago) must NOT appear.
     """
-    with patch("dockfleet.health.queries.engine", engine):
+    with patch("dockfleet.health.queries.get_session", lambda: get_session(engine=engine)):
         breakdown = get_failure_reasons_breakdown("api", window_hours=24)
 
     assert breakdown["healthcheck_timeout"] == 4
@@ -120,7 +126,7 @@ def test_failure_reasons_breakdown_empty_for_unknown_service(engine):
     get_failure_reasons_breakdown() should return an empty dict
     for a service that does not exist in the DB.
     """
-    with patch("dockfleet.health.queries.engine", engine):
+    with patch("dockfleet.health.queries.get_session", lambda: get_session(engine=engine)):
         breakdown = get_failure_reasons_breakdown("nonexistent", window_hours=24)
 
     assert breakdown == {}
@@ -132,7 +138,7 @@ def test_failure_reasons_breakdown_wider_window_includes_old_events(
     """
     With a 48h window, the crash_loop event (30h ago) should now appear.
     """
-    with patch("dockfleet.health.queries.engine", engine):
+    with patch("dockfleet.health.queries.get_session", lambda: get_session(engine=engine)):
         breakdown = get_failure_reasons_breakdown("api", window_hours=48)
 
     assert breakdown["crash_loop"] == 1
@@ -149,7 +155,7 @@ def test_most_unstable_services_ordering(seeded_service, engine):
     get_most_unstable_services() should return services ordered
     by restart count descending within the time window.
     """
-    with patch("dockfleet.health.queries.engine", engine):
+    with patch("dockfleet.health.queries.get_session", lambda: get_session(engine=engine)):
         result = get_most_unstable_services(limit=5, window_hours=24)
 
     # api has 6 events in last 24h (4 healthcheck + 2 manual)
@@ -163,7 +169,7 @@ def test_most_unstable_services_empty_when_no_events(engine):
     get_most_unstable_services() should return empty list
     when there are no restart events in the window.
     """
-    with patch("dockfleet.health.queries.engine", engine):
+    with patch("dockfleet.health.queries.get_session", lambda: get_session(engine=engine)):
         result = get_most_unstable_services(limit=5, window_hours=24)
 
     assert result == []
@@ -181,7 +187,7 @@ def test_restart_history_returns_events_in_window(seeded_service, engine):
     """
     since = datetime.utcnow() - timedelta(hours=24)
 
-    with patch("dockfleet.health.queries.engine", engine):
+    with patch("dockfleet.health.queries.get_session", lambda: get_session(engine=engine)):
         history = get_restart_history("api", since=since)
 
     # 6 events within 24h (crash_loop is 30h ago)
@@ -199,7 +205,7 @@ def test_restart_history_empty_for_unknown_service(engine):
     """
     get_restart_history() should return empty list for unknown service.
     """
-    with patch("dockfleet.health.queries.engine", engine):
+    with patch("dockfleet.health.queries.get_session", lambda: get_session(engine=engine)):
         history = get_restart_history("ghost_service")
 
     assert history == []

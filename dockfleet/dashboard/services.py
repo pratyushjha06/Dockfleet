@@ -1,11 +1,11 @@
 import json
 import subprocess
 
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from dockfleet.health.models import ContainerStatus, HealthStatus
 from dockfleet.health.models import Service as DBService
-from dockfleet.health.models import engine
+from dockfleet.health.models import get_session
 
 
 def get_services() -> list[dict]:
@@ -17,7 +17,7 @@ def get_services() -> list[dict]:
     # -------------------
     # 1. Load DB services
     # -------------------
-    with Session(engine) as session:
+    with get_session() as session:
         db_services = session.exec(select(DBService)).all()
 
         for svc in db_services:

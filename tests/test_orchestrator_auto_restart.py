@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 from sqlalchemy import text
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from dockfleet.cli.config import DockFleetConfig, RestartPolicy, ServiceConfig
 from dockfleet.core.orchestrator import Orchestrator
@@ -8,7 +8,7 @@ from dockfleet.health.models import (
     ContainerStatus,
     HealthStatus,
     Service,
-    engine,
+    get_session,
     init_db,
 )
 from dockfleet.health.status import needs_restart, update_service_health
@@ -17,14 +17,14 @@ from dockfleet.health.status import needs_restart, update_service_health
 def setup_function():
     """Per-test reset."""
     init_db()
-    with Session(engine) as session:
+    with get_session() as session:
         session.exec(text("DELETE FROM service"))
         session.commit()
 
 
 def _get_service(name: str) -> Service:
     """Helper to fetch service from DB."""
-    with Session(engine) as session:
+    with get_session() as session:
         return session.exec(select(Service).where(Service.name == name)).one()
 
 
@@ -40,7 +40,7 @@ def test_restart_service_happy_path():
 
     orch = Orchestrator(config)
 
-    with Session(engine) as session:
+    with get_session() as session:
         svc = Service(name="svc-orch", image="nginx:alpine", restart_policy="always")
         session.add(svc)
         session.commit()
@@ -61,7 +61,7 @@ def test_restart_service_happy_path():
 
 def test_restart_failure_marks_crashed():
     """Test failure handling when restart start_service raises an exception."""
-    with Session(engine) as session:
+    with get_session() as session:
         svc = Service(
             name="svc-fail",
             image="fail-image",

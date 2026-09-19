@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 import pytest
 from sqlmodel import Session, SQLModel, create_engine
 
-from dockfleet.health.models import ContainerStatus, HealthStatus, Service
+from dockfleet.health.models import ContainerStatus, HealthStatus, Service, get_session
 
 # ------------------------------------------------
 # In-memory SQLite engine for tests
@@ -30,7 +30,7 @@ def engine_fixture():
 
 @pytest.fixture(name="session")
 def session_fixture(engine):
-    with Session(engine) as session:
+    with get_session(engine=engine) as session:
         yield session
 
 

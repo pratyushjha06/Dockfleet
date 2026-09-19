@@ -1,7 +1,7 @@
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from dockfleet.cli.config import DockFleetConfig, load_config
-from dockfleet.health.models import Service, engine, init_db
+from dockfleet.health.models import Service, get_session, init_db
 from dockfleet.health.services import seed_services
 from dockfleet.health.status import update_service_health
 
@@ -19,7 +19,7 @@ def test_update_service_health_changes_db_fields(tmp_path):
     config_path = "examples/dockfleet.yaml"
     config: DockFleetConfig = load_config(config_path)
 
-    with Session(engine) as session:
+    with get_session() as session:
         seed_services(config, session)
 
     service_name = list(config.services.keys())[0]
@@ -27,7 +27,7 @@ def test_update_service_health_changes_db_fields(tmp_path):
     # 3) Healthy update -> status 'running', last_health_check set
     update_service_health(service_name, is_healthy=True, reason=None)
 
-    with Session(engine) as session:
+    with get_session() as session:
         svc = session.exec(select(Service).where(Service.name == service_name)).one()
         assert svc.status == "running"
         assert svc.last_health_check is not None
@@ -40,7 +40,7 @@ def test_update_service_health_changes_db_fields(tmp_path):
         reason="test failure",
     )
 
-    with Session(engine) as session:
+    with get_session() as session:
         svc = session.exec(select(Service).where(Service.name == service_name)).one()
 
         assert svc.status == "running"

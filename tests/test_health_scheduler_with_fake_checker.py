@@ -1,5 +1,5 @@
 import time
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from dockfleet.cli.config import (
     DockFleetConfig,
@@ -10,7 +10,7 @@ from dockfleet.health.models import (
     ContainerStatus,
     HealthStatus,
     Service,
-    engine,
+    get_session,
     init_db,
 )
 from dockfleet.health.scheduler import HealthScheduler
@@ -61,7 +61,7 @@ def test_scheduler_uses_injected_checker_and_db_updates(tmp_path):
     config_path = "examples/dockfleet.yaml"
     config: DockFleetConfig = load_config(config_path)
 
-    with Session(engine) as session:
+    with get_session() as session:
         seed_services(config, session)
 
     service_name = "api"
@@ -75,7 +75,7 @@ def test_scheduler_uses_injected_checker_and_db_updates(tmp_path):
     )
 
     def get_service():
-        with Session(engine) as session_local:
+        with get_session() as session_local:
             return session_local.exec(
                 select(Service).where(Service.name == service_name)
             ).one()
@@ -128,7 +128,7 @@ def test_scheduler_skips_stopped_service():
     config_path = "examples/dockfleet.yaml"
     config: DockFleetConfig = load_config(config_path)
 
-    with Session(engine) as session:
+    with get_session() as session:
         seed_services(config, session)
         for s in session.exec(select(Service)).all():
             s.status = ContainerStatus.STOPPED
@@ -162,7 +162,7 @@ def test_scheduler_skips_stopped_service():
 
     assert len(called) == 0
 
-    with Session(engine) as session:
+    with get_session() as session:
         for s in session.exec(select(Service)).all():
             assert s.status == ContainerStatus.STOPPED
             assert s.consecutive_failures == 0

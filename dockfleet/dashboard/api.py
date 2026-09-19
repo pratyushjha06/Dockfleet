@@ -4,13 +4,13 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from dockfleet.cli.config import load_config
 from dockfleet.core.orchestrator import get_orchestrator
 from dockfleet.dashboard.routes import router as dashboard_router
 from dockfleet.health.log_ingestor import ingest_docker_logs_once
-from dockfleet.health.models import PROJECT_ROOT, engine, init_db
+from dockfleet.health.models import PROJECT_ROOT, get_session, init_db
 from dockfleet.health.models import Service as DBService
 from dockfleet.health.scheduler import HealthScheduler
 from dockfleet.health.seed import bootstrap_from_path
@@ -105,7 +105,7 @@ def on_shutdown() -> None:
 # Fetch services (helper)
 # ------------------------------------------------
 def fetch_services() -> list[dict]:
-    with Session(engine) as session:
+    with get_session() as session:
         services = session.exec(select(DBService)).all()
 
         return [

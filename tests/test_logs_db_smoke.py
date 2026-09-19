@@ -11,10 +11,8 @@ Covers:
 
 from datetime import datetime, timedelta
 
-from sqlmodel import Session
-
 from dockfleet.dashboard.routes import list_logs
-from dockfleet.health.models import LogEvent, Service, engine, init_db
+from dockfleet.health.models import LogEvent, Service, get_session, init_db
 
 
 def setup_function(_func):
@@ -22,7 +20,7 @@ def setup_function(_func):
     Fresh DB + seed a few services/logs before each smoke test.
     """
     init_db()
-    with Session(engine) as session:
+    with get_session() as session:
         # ensure tables exist and clear them
         session.query(LogEvent).all()
         session.query(Service).all()
@@ -40,7 +38,7 @@ def _seed_logs():
     """
     now = datetime.utcnow()
 
-    with Session(engine) as session:
+    with get_session() as session:
         api = Service(
             name="api",
             image="api:latest",

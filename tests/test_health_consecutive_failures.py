@@ -1,7 +1,7 @@
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from dockfleet.cli.config import DockFleetConfig, load_config
-from dockfleet.health.models import Service, engine, init_db
+from dockfleet.health.models import Service, get_session, init_db
 from dockfleet.health.services import seed_services
 from dockfleet.health.status import update_service_health
 
@@ -24,14 +24,14 @@ def test_consecutive_failures_and_status_transitions(tmp_path):
     config_path = "examples/dockfleet.yaml"
     config: DockFleetConfig = load_config(config_path)
 
-    with Session(engine) as session:
+    with get_session() as session:
         seed_services(config, session)
 
     service_name = list(config.services.keys())[0]
 
     # Helper to fetch fresh row
     def get_service():
-        with Session(engine) as session_local:
+        with get_session() as session_local:
             return session_local.exec(
                 select(Service).where(Service.name == service_name)
             ).one()

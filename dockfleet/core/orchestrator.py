@@ -6,7 +6,7 @@ import threading
 import time
 
 from pydantic import BaseModel
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from dockfleet.cli.config import DockFleetConfig, RestartPolicy
 from dockfleet.core.docker import DockerManager
@@ -16,7 +16,12 @@ from dockfleet.core.docker_flags import (
     build_resource_flags,
 )
 from dockfleet.health.logs import store_log_line
-from dockfleet.health.models import ContainerStatus, HealthStatus, Service, engine
+from dockfleet.health.models import (
+    ContainerStatus,
+    HealthStatus,
+    Service,
+    get_session,
+)
 from dockfleet.health.seed import bootstrap_from_config
 from dockfleet.health.status import (
     mark_restart_successful,
@@ -326,7 +331,7 @@ class Orchestrator:
     def _mark_restart_failed(self, service_name: str, reason: str) -> None:
         """Mark a service restart attempt as failed in DB, setting status=STOPPED and health_status=CRASHED."""
         try:
-            with Session(engine) as session:
+            with get_session() as session:
                 db_svc = session.exec(
                     select(Service).where(Service.name == service_name)
                 ).one_or_none()
@@ -391,7 +396,7 @@ class Orchestrator:
 
         try:
             # Set DB health_status to RESTARTING during restart execution
-            with Session(engine) as session:
+            with get_session() as session:
                 db_svc = session.exec(
                     select(Service).where(Service.name == service_name)
                 ).one_or_none()
@@ -445,7 +450,7 @@ class Orchestrator:
                 return False
         except Exception as e:
             try:
-                with Session(engine) as session:
+                with get_session() as session:
                     db_svc = session.exec(
                         select(Service).where(Service.name == service_name)
                     ).one_or_none()
@@ -463,7 +468,7 @@ class Orchestrator:
     def _increment_restart_count(self, service_name: str) -> None:
         """Increment the cumulative restart count for a service in the database."""
         try:
-            with Session(engine) as session:
+            with get_session() as session:
                 svc = session.exec(
                     select(Service).where(Service.name == service_name)
                 ).one_or_none()
@@ -544,7 +549,7 @@ class Orchestrator:
         logger.info("%s auto-restarted", service_name)
         mark_restart_successful(service_name)
 
-        with Session(engine) as session:
+        with get_session() as session:
             svc = session.exec(
                 select(Service).where(Service.name == service_name)
             ).one_or_none()

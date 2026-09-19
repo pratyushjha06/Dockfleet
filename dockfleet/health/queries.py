@@ -4,9 +4,9 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlmodel import Session, func, select
+from sqlmodel import func, select
 
-from .models import RestartEvent, Service, engine
+from .models import RestartEvent, Service, get_session
 
 
 def get_all_services() -> list[Service]:
@@ -15,7 +15,7 @@ def get_all_services() -> list[Service]:
     Dashboard/API layer can either use these ORM objects directly
     or call get_services_for_dashboard() for JSON-ready dicts.
     """
-    with Session(engine) as session:
+    with get_session() as session:
         services = session.exec(select(Service)).all()
     return services
 
@@ -124,7 +124,7 @@ def get_restart_history(
       ...
     ]
     """
-    with Session(engine) as session:
+    with get_session() as session:
         svc = session.exec(
             select(Service).where(Service.name == service_name)
         ).one_or_none()
@@ -164,7 +164,7 @@ def get_most_unstable_services(
     """
     since = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
-    with Session(engine) as session:
+    with get_session() as session:
         stmt = (
             select(Service.name, func.count(RestartEvent.id))
             .join(RestartEvent, RestartEvent.service_id == Service.id)
@@ -214,7 +214,7 @@ def get_failure_reasons_breakdown(
     """
     since = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
-    with Session(engine) as session:
+    with get_session() as session:
         svc = session.exec(
             select(Service).where(Service.name == service_name)
         ).one_or_none()

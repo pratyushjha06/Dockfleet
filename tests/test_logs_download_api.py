@@ -2,20 +2,18 @@
 
 from datetime import datetime, timedelta
 
-from sqlmodel import Session
-
 from dockfleet.health.logs import (
     iter_logs_as_csv,
     iter_logs_as_text,
     query_logs,
 )
-from dockfleet.health.models import LogEvent, Service, engine, init_db
+from dockfleet.health.models import LogEvent, Service, get_session, init_db
 
 
 def setup_function(_func):
     # Fresh tables + seed for each test
     init_db()
-    with Session(engine) as session:
+    with get_session() as session:
         session.query(LogEvent).all()
         session.query(Service).all()
         session.query(LogEvent).delete()
@@ -26,7 +24,7 @@ def setup_function(_func):
 
 
 def _seed_logs():
-    with Session(engine) as session:
+    with get_session() as session:
         svc = Service(
             name="api",
             image="dummy-image",

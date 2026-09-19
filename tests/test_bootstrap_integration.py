@@ -1,8 +1,8 @@
 from sqlalchemy import text
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from dockfleet.cli.config import DockFleetConfig, load_config
-from dockfleet.health.models import Service, engine, init_db
+from dockfleet.health.models import Service, get_session, init_db
 from dockfleet.health.seed import bootstrap_from_config
 
 
@@ -18,13 +18,13 @@ def test_bootstrap_from_config_seeds_services(tmp_path):
 
     # Act: init DB + seed via bootstrap
     init_db()
-    with Session(engine) as session:
+    with get_session() as session:
         session.exec(text("DELETE FROM service"))
         session.commit()
     bootstrap_from_config(config)
 
     # Assert: services table has one row per service in config
-    with Session(engine) as session:
+    with get_session() as session:
         services_in_db = session.exec(select(Service)).all()
 
     # Number of services configured in YAML

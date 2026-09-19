@@ -1,13 +1,13 @@
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from dockfleet.health.logs import store_log_line
-from dockfleet.health.models import LogEvent, Service, engine, init_db
+from dockfleet.health.models import LogEvent, Service, get_session, init_db
 
 
 def setup_function(_func):
     # Fresh tables for each test (simple version)
     init_db()
-    with Session(engine) as session:
+    with get_session() as session:
         session.exec(select(LogEvent)).all()  # ensure table exists
         session.exec(select(Service)).all()
         session.query(LogEvent).delete()
@@ -17,7 +17,7 @@ def setup_function(_func):
 
 def test_store_log_and_filter_by_service():
     # Arrange: create one service
-    with Session(engine) as session:
+    with get_session() as session:
         svc = Service(
             name="api",
             image="dummy-image",
@@ -31,7 +31,7 @@ def test_store_log_and_filter_by_service():
     store_log_line("api", "Request failed with 500", level="ERROR", source="test")
 
     # Assert: logs present and filterable by service_name
-    with Session(engine) as session:
+    with get_session() as session:
         rows = session.query(LogEvent).filter(LogEvent.service_name == "api").all()
 
     assert len(rows) >= 2
@@ -47,7 +47,7 @@ def test_store_log_skips_unknown_service():
     )
 
     # Assert: no LogEvent rows for that name
-    with Session(engine) as session:
+    with get_session() as session:
         rows = (
             session.query(LogEvent)
             .filter(LogEvent.service_name == "unknown-service")
@@ -61,7 +61,7 @@ def test_ingest_docker_logs_once_initial_and_incremental(monkeypatch):
     from unittest.mock import MagicMock, patch
     from dockfleet.health.log_ingestor import ingest_docker_logs_once
 
-    with Session(engine) as session:
+    with get_session() as session:
         svc = Service(
             name="api",
             image="dummy-image",
@@ -88,7 +88,7 @@ def test_ingest_docker_logs_once_initial_and_incremental(monkeypatch):
         # 1. Initial ingest (no prior logs) -> should use --tail
         ingest_docker_logs_once(tail=200)
 
-        with Session(engine) as session:
+        with get_session() as session:
             rows = session.exec(select(LogEvent).where(LogEvent.service_name == "api")).all()
             assert len(rows) == 2
             messages = [r.message for r in rows]
@@ -101,7 +101,7 @@ def test_ingest_docker_logs_once_initial_and_incremental(monkeypatch):
         # 2. Subsequent ingest -> should use --since with latest_ts isoformat
         ingest_docker_logs_once(tail=200)
 
-        with Session(engine) as session:
+        with get_session() as session:
             rows = session.exec(select(LogEvent).where(LogEvent.service_name == "api").order_by(LogEvent.created_at)).all()
             assert len(rows) == 3
             messages = [r.message for r in rows]

@@ -20,7 +20,7 @@ from dockfleet.health.models import (
     HealthStatus,
     LogEvent,
     RestartEvent,
-    engine,
+    get_session,
 )
 from dockfleet.health.queries import (
     get_failure_reasons_breakdown,
@@ -312,7 +312,7 @@ async def explore_logs(service_name: str, days: int = 1):
     """Retrieve time-windowed log records for a service."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
-    with Session(engine) as session:
+    with get_session() as session:
         statement = (
             select(LogEvent)
             .where(
@@ -478,7 +478,7 @@ def get_metrics():
     total_restarts = sum(s.get("restart_count", 0) for s in services)
 
     since = datetime.now(timezone.utc) - timedelta(hours=24)
-    with Session(engine) as session:
+    with get_session() as session:
         stmt = select(RestartEvent).where(RestartEvent.restarted_at >= since)
         health_failures = len(session.exec(stmt).all())
 
@@ -518,7 +518,7 @@ def analytics_summary(
     since = datetime.now(timezone.utc) - timedelta(hours=window_hours)
     base = get_most_unstable_services(limit=limit, window_hours=window_hours)
 
-    with Session(engine) as session:
+    with get_session() as session:
         stmt_total = select(RestartEvent).where(RestartEvent.restarted_at >= since)
         all_events = session.exec(stmt_total).all()
         total_restarts = len(all_events)
@@ -572,7 +572,7 @@ def analytics_unstable_services(
     """Retrieve top unstable services ranked by restart frequency."""
     base = get_most_unstable_services(limit=limit, window_hours=window_hours)
 
-    with Session(engine) as session:
+    with get_session() as session:
         results: list[UnstableService] = []
         for row in base:
             name = row["service_name"]
