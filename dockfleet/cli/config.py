@@ -97,7 +97,7 @@ class ServiceConfig(BaseModel):
     @field_validator("healthcheck")
     @classmethod
     def validate_healthcheck(cls, value):
-        """Validate health check has type and interval specified."""
+        """Validate health check has type and interval specified, and endpoint when required."""
         if value is None:
             return value
 
@@ -106,6 +106,11 @@ class ServiceConfig(BaseModel):
 
         if value.interval is None:
             raise ValueError("healthcheck.interval is required")
+
+        if value.type.lower() in {"http", "tcp"} and not value.endpoint:
+            raise ValueError(
+                f"healthcheck.endpoint is required when type is '{value.type}'"
+            )
 
         return value
 

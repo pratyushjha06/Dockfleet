@@ -174,3 +174,82 @@ def test_invalid_backoff_multiplier():
 
     with pytest.raises(ValueError):
         DockFleetConfig(**config)
+
+
+def test_tcp_healthcheck_missing_endpoint():
+    config = {
+        "services": {
+            "api": {
+                "image": "nginx",
+                "restart": "always",
+                "healthcheck": {
+                    "type": "tcp",
+                    "interval": 10,
+                },
+            }
+        }
+    }
+    with pytest.raises(ValueError, match="endpoint"):
+        DockFleetConfig(**config)
+
+
+def test_http_healthcheck_missing_endpoint():
+    config = {
+        "services": {
+            "api": {
+                "image": "nginx",
+                "restart": "always",
+                "healthcheck": {
+                    "type": "http",
+                    "interval": 10,
+                },
+            }
+        }
+    }
+    with pytest.raises(ValueError, match="endpoint"):
+        DockFleetConfig(**config)
+
+
+def test_process_healthcheck_without_endpoint():
+    config = {
+        "services": {
+            "api": {
+                "image": "nginx",
+                "restart": "always",
+                "healthcheck": {
+                    "type": "process",
+                    "interval": 10,
+                },
+            }
+        }
+    }
+    parsed = DockFleetConfig(**config)
+    assert parsed.services["api"].healthcheck.endpoint is None
+
+
+def test_valid_tcp_and_http_healthchecks_with_endpoint():
+    config = {
+        "services": {
+            "web": {
+                "image": "nginx",
+                "restart": "always",
+                "healthcheck": {
+                    "type": "http",
+                    "endpoint": "http://localhost:8080/health",
+                    "interval": 10,
+                },
+            },
+            "db": {
+                "image": "postgres:15",
+                "restart": "always",
+                "healthcheck": {
+                    "type": "tcp",
+                    "endpoint": "localhost:5432",
+                    "interval": 30,
+                },
+            },
+        }
+    }
+    parsed = DockFleetConfig(**config)
+    assert parsed.services["web"].healthcheck.endpoint == "http://localhost:8080/health"
+    assert parsed.services["db"].healthcheck.endpoint == "localhost:5432"
