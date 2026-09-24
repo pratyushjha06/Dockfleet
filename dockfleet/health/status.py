@@ -106,7 +106,8 @@ def update_service_health(
         svc.last_health_check = now
 
         if is_healthy:
-            svc.status = ContainerStatus.RUNNING
+            if svc.status != ContainerStatus.STOPPED and svc.status != ContainerStatus.STOPPED.value:
+                svc.status = ContainerStatus.RUNNING
             svc.health_status = HealthStatus.HEALTHY
             svc.consecutive_failures = 0
         else:

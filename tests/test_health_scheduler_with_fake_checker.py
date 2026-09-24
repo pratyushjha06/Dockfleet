@@ -63,6 +63,10 @@ def test_scheduler_uses_injected_checker_and_db_updates(tmp_path):
 
     with get_session() as session:
         seed_services(config, session)
+        for s in session.exec(select(Service)).all():
+            s.status = ContainerStatus.RUNNING
+            session.add(s)
+        session.commit()
 
     service_name = "api"
 

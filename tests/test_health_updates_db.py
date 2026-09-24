@@ -21,6 +21,10 @@ def test_update_service_health_changes_db_fields(tmp_path):
 
     with get_session() as session:
         seed_services(config, session)
+        for s in session.exec(select(Service)).all():
+            s.status = "running"
+            session.add(s)
+        session.commit()
 
     service_name = list(config.services.keys())[0]
 

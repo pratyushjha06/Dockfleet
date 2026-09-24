@@ -5,6 +5,7 @@ import logging
 import threading
 import time
 from pathlib import Path
+
 from sqlmodel import select
 
 from dockfleet.cli.config import DockFleetConfig, HealthCheckConfig
@@ -136,6 +137,14 @@ class HealthScheduler:
         """
         results: dict[str, bool] = {}
         futures = {}
+        
+        # Batch load all service statuses in O(1) query
+        db_statuses = {}
+        with get_session() as session:
+            all_svcs = session.exec(select(Service)).all()
+            for s in all_svcs:
+                db_statuses[s.name] = s.status
+
         # Run all health checks concurrently
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             for name, svc_cfg in self.config.services.items():
@@ -145,13 +154,10 @@ class HealthScheduler:
                 if hc is None:
                     continue
 
-                # Check if the service is currently marked as STOPPED in the database
-                with get_session() as session:
-                    svc_db = session.exec(
-                        select(Service).where(Service.name == name)
-                    ).one_or_none()
+                # O(1) cache check instead of opening a DB session per service
+                status = db_statuses.get(name)
 
-                if svc_db is not None and svc_db.status in (
+                if status in (
                     ContainerStatus.STOPPED,
                     ContainerStatus.STOPPED.value,
                 ):

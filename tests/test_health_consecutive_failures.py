@@ -26,6 +26,10 @@ def test_consecutive_failures_and_status_transitions(tmp_path):
 
     with get_session() as session:
         seed_services(config, session)
+        for s in session.exec(select(Service)).all():
+            s.status = "running"
+            session.add(s)
+        session.commit()
 
     service_name = list(config.services.keys())[0]
 
