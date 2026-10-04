@@ -158,15 +158,19 @@ def get_most_unstable_services(
     Return services ordered by number of RestartEvent in the last `window_hours`.
     Output example:
       [
-        {"service_name": "api", "restarts": 3},
-        {"service_name": "worker", "restarts": 1},
+        {"service_name": "api", "restarts": 3, "last_restart_at": <datetime>},
+        {"service_name": "worker", "restarts": 1, "last_restart_at": <datetime>},
       ]
     """
     since = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
     with get_session() as session:
         stmt = (
-            select(Service.name, func.count(RestartEvent.id))
+            select(
+                Service.name,
+                func.count(RestartEvent.id),
+                func.max(RestartEvent.restarted_at),
+            )
             .join(RestartEvent, RestartEvent.service_id == Service.id)
             .where(RestartEvent.restarted_at >= since)
             .group_by(Service.id, Service.name)
@@ -180,8 +184,9 @@ def get_most_unstable_services(
             {
                 "service_name": name,
                 "restarts": count,
+                "last_restart_at": last_ts,
             }
-            for name, count in rows
+            for name, count, last_ts in rows
         ]
 
 

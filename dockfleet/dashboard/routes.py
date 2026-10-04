@@ -523,19 +523,11 @@ def analytics_summary(
 
         unstable: list[UnstableService] = []
         for row in base:
-            name = row["service_name"]
-            stmt_last = (
-                select(RestartEvent)
-                .where(RestartEvent.service_name == name)
-                .order_by(RestartEvent.restarted_at.desc())
-                .limit(1)
-            )
-            last = session.exec(stmt_last).one_or_none()
             unstable.append(
                 UnstableService(
-                    service_name=name,
+                    service_name=row["service_name"],
                     restarts=row["restarts"],
-                    last_restart_at=to_ist_iso(last.restarted_at) if last else None,
+                    last_restart_at=to_ist_iso(row.get("last_restart_at")),
                 )
             )
 
@@ -565,24 +557,15 @@ def analytics_unstable_services(
     """Retrieve top unstable services ranked by restart frequency."""
     base = get_most_unstable_services(limit=limit, window_hours=window_hours)
 
-    with get_session() as session:
-        results: list[UnstableService] = []
-        for row in base:
-            name = row["service_name"]
-            stmt = (
-                select(RestartEvent)
-                .where(RestartEvent.service_name == name)
-                .order_by(RestartEvent.restarted_at.desc())
-                .limit(1)
+    results: list[UnstableService] = []
+    for row in base:
+        results.append(
+            UnstableService(
+                service_name=row["service_name"],
+                restarts=row["restarts"],
+                last_restart_at=to_ist_iso(row.get("last_restart_at")),
             )
-            last = session.exec(stmt).one_or_none()
-            results.append(
-                UnstableService(
-                    service_name=name,
-                    restarts=row["restarts"],
-                    last_restart_at=to_ist_iso(last.restarted_at) if last else None,
-                )
-            )
+        )
 
     return results
 
