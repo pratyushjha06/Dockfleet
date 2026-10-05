@@ -170,7 +170,8 @@ services:
 This fails validation because `memory` must end in `m` or `g`. Running `dockfleet validate` on this returns:
 ```text
 Configuration Validation Error in 'dockfleet.yaml':
- - services -> web -> resources -> memory: Value error, invalid memory limit (expected like 512m or 1g)
+Validation failed:
+  services.web.resources.memory: invalid memory limit (expected like 512m or 1g)
 ```
 
 ---

@@ -146,7 +146,7 @@ def setup_health_logging() -> None:
 def validate(path: Path = typer.Argument("examples/dockfleet.yaml")):
     """Validate a DockFleet YAML configuration file before running services."""
     try:
-        load_config(path)
+        load_config(path, strict=True)
         typer.echo("✓ Config valid")
     except typer.Exit:
         raise
