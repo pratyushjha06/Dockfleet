@@ -97,16 +97,7 @@ def get_services() -> list[dict]:
             elif status == HealthStatus.RESTARTING.value:
                 services[service_name]["health_status"] = HealthStatus.RESTARTING.value
             elif status == ContainerStatus.STOPPED.value:
-                # only downgrade to "stopped" if we don't already know it's unhealthy or crashed
-                if services[service_name]["health_status"] not in (
-                    HealthStatus.UNHEALTHY.value,
-                    HealthStatus.UNHEALTHY,
-                    HealthStatus.CRASHED.value,
-                    HealthStatus.CRASHED,
-                ):
-                    services[service_name][
-                        "health_status"
-                    ] = ContainerStatus.STOPPED.value
+                pass
 
     except Exception as e:
         print("Docker ps -a failed:", e)
