@@ -297,7 +297,7 @@ def list_logs(
         {
             "id": log.id,
             "service_name": log.service_name,
-            "timestamp": log.created_at,
+            "timestamp": to_ist_iso(log.created_at),
             "level": log.level,
             "message": log.message,
             "source": log.source,
@@ -326,7 +326,7 @@ async def explore_logs(service_name: str, days: int = 1):
             .limit(500)
         )
         logs = session.exec(statement).all()
-        return [{"timestamp": log.created_at, "message": log.message} for log in logs]
+        return [{"timestamp": to_ist_iso(log.created_at), "message": log.message} for log in logs]
 
 
 # ------------------------------------------------
