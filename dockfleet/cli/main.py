@@ -288,8 +288,16 @@ def restart(path: Path = typer.Argument("examples/dockfleet.yaml")):
 
         typer.echo(f"Restarting services from {path}...\n")
 
+        # Stop background scheduler before restarting services
+        was_running = stop_background_scheduler(PROJECT_ROOT)
+
         orch = Orchestrator(config)
         orch.restart()
+
+        # Respawn background scheduler if it was running
+        if was_running:
+            typer.echo("Reloading background health scheduler...")
+            spawn_background_scheduler(str(path))
 
     except Exception as e:
         typer.echo(f"Error restarting services: {e}")
