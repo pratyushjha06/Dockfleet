@@ -455,7 +455,9 @@ def test_get_services_preserves_unhealthy_status_for_stopped_containers(monkeypa
         assert services_by_name["svc_crashed_stopped"]["health_status"] == HealthStatus.CRASHED.value
 
         assert services_by_name["svc_healthy_stopped"]["status"] == ContainerStatus.STOPPED.value
-        assert services_by_name["svc_healthy_stopped"]["health_status"] == ContainerStatus.STOPPED.value
+        # health_status must remain a valid HealthStatus value; "stopped" is a
+        # lifecycle (ContainerStatus) concept, not a health concept.
+        assert services_by_name["svc_healthy_stopped"]["health_status"] == HealthStatus.HEALTHY.value
 
         # Test /services endpoint
         async def _test_http():
@@ -471,6 +473,8 @@ def test_get_services_preserves_unhealthy_status_for_stopped_containers(monkeypa
         assert data["svc_unhealthy_stopped"]["health_status"] == "unhealthy"
         assert data["svc_crashed_stopped"]["status"] == "stopped"
         assert data["svc_crashed_stopped"]["health_status"] == "crashed"
+        assert data["svc_healthy_stopped"]["status"] == "stopped"
+        assert data["svc_healthy_stopped"]["health_status"] == "healthy"
 
 
 
