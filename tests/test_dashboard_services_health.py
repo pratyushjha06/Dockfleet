@@ -455,7 +455,7 @@ def test_get_services_preserves_unhealthy_status_for_stopped_containers(monkeypa
         assert services_by_name["svc_crashed_stopped"]["health_status"] == HealthStatus.CRASHED.value
 
         assert services_by_name["svc_healthy_stopped"]["status"] == ContainerStatus.STOPPED.value
-        assert services_by_name["svc_healthy_stopped"]["health_status"] == ContainerStatus.STOPPED.value
+        assert services_by_name["svc_healthy_stopped"]["health_status"] == HealthStatus.HEALTHY.value
 
         # Test /services endpoint
         async def _test_http():

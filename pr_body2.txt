@@ -1,0 +1,14 @@
+## Summary
+Updates the `dockfleet restart` command to reload the background health scheduler if it was running prior to the restart.
+
+## Problem
+The `restart` command merely restarted containers via the orchestrator, ignoring the detached background scheduler. It continued running with stale configuration.
+
+## Solution
+Modified `restart` in `dockfleet/cli/main.py` to stop the background scheduler before restarting services, and then respawn it if it was previously running (matching the behavior in `up`/`down`).
+
+## Testing
+- Automated tests via `pytest tests/test_cli.py` passed
+
+## Related Issue
+Closes #276

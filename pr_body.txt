@@ -1,0 +1,14 @@
+## Summary
+Fixes domain model type pollution in dashboard service merging.
+
+## Problem
+In dockfleet/dashboard/services.py, when a container is stopped, ContainerStatus.STOPPED.value ("stopped") is incorrectly assigned to health_status. This pollutes the HealthStatus domain model, which expects values like "healthy", "unhealthy", "crashed", etc., and may cause validation failures.
+
+## Solution
+Removed the assignment of ContainerStatus.STOPPED.value to health_status when a container is stopped. This allows the service to retain a valid HealthStatus value from the database (e.g., "healthy" for a clean stop), preventing type pollution while correctly setting the container's lifecycle status to "stopped".
+
+## Testing
+- The change was verified logically against the schema in dockfleet/health/models.py.
+
+## Related Issue
+Closes #277
