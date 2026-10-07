@@ -357,4 +357,29 @@ def test_parse_docker_timestamp_formats():
     assert dt == datetime(2026, 10, 2, 20, 21, 32, 0, tzinfo=timezone.utc)
 
 
+def test_normalize_utc_datetime():
+    from datetime import datetime, timezone
+    from dockfleet.health.log_ingestor import _normalize_utc_datetime
+
+    # 1. Naive datetime -> converted to UTC aware
+    naive_dt = datetime(2026, 10, 2, 12, 0, 0)
+    norm_naive = _normalize_utc_datetime(naive_dt)
+    assert norm_naive is not None
+    assert norm_naive.tzinfo == timezone.utc
+    assert norm_naive == datetime(2026, 10, 2, 12, 0, 0, tzinfo=timezone.utc)
+
+    # 2. Timezone-aware datetime -> converted to UTC
+    aware_dt = datetime(2026, 10, 2, 14, 0, 0, tzinfo=timezone.utc)
+    norm_aware = _normalize_utc_datetime(aware_dt)
+    assert norm_aware == aware_dt
+
+    # 3. String representation
+    norm_str = _normalize_utc_datetime("2026-10-02T12:00:00Z")
+    assert norm_str == datetime(2026, 10, 2, 12, 0, 0, tzinfo=timezone.utc)
+
+    # 4. None / invalid
+    assert _normalize_utc_datetime(None) is None
+    assert _normalize_utc_datetime("not-a-date") is None
+
+
 

@@ -51,6 +51,25 @@ def _parse_docker_timestamp(ts_str: str) -> datetime | None:
     return None
 
 
+def _normalize_utc_datetime(dt: datetime | str | None) -> datetime | None:
+    """Normalize any datetime (naive or timezone-aware) or timestamp string to UTC timezone-aware datetime."""
+    if dt is None:
+        return None
+    if isinstance(dt, str):
+        parsed = _parse_docker_timestamp(dt)
+        if parsed is not None:
+            return parsed
+        try:
+            dt = datetime.fromisoformat(dt)
+        except Exception:
+            return None
+    if isinstance(dt, datetime):
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    return None
+
+
 def ingest_docker_logs_once(tail: int = 200) -> None:
     """
     Pull last `tail` docker logs for every known Service and store them
@@ -106,27 +125,21 @@ def ingest_docker_logs_once(tail: int = 200) -> None:
 
                 boundary_records: list[tuple[datetime, str]] = []
                 cursor_dt = (
-                    _parse_docker_timestamp(cursor_ts_str)
+                    _normalize_utc_datetime(_parse_docker_timestamp(cursor_ts_str))
                     if cursor_ts_str
                     else None
                 )
                 if cursor_dt is not None:
-                    cursor_dt_cmp = cursor_dt.astimezone(timezone.utc).replace(
-                        tzinfo=None
-                    )
                     existing_events = session.exec(
                         select(LogEvent)
                         .where(LogEvent.service_id == svc_id)
-                        .where(LogEvent.created_at >= cursor_dt_cmp)
-                        .order_by(LogEvent.id)
+                        .order_by(LogEvent.id.desc())
+                        .limit(500)
                     ).all()
                     for e in existing_events:
-                        e_dt = e.created_at
-                        if e_dt.tzinfo is None:
-                            e_dt = e_dt.replace(tzinfo=timezone.utc)
-                        else:
-                            e_dt = e_dt.astimezone(timezone.utc)
-                        boundary_records.append((e_dt, e.message or ""))
+                        e_dt = _normalize_utc_datetime(e.created_at)
+                        if e_dt is not None and e_dt >= cursor_dt:
+                            boundary_records.append((e_dt, e.message or ""))
 
                 for line in spool:
                     line = line.rstrip()
@@ -146,9 +159,11 @@ def ingest_docker_logs_once(tail: int = 200) -> None:
 
                     if log_created_at is None:
                         log_created_at = datetime.now(timezone.utc)
+                    else:
+                        log_created_at = _normalize_utc_datetime(log_created_at)
 
                     # Boundary deduplication for incremental polling
-                    if cursor_dt is not None and raw_ts is not None:
+                    if cursor_dt is not None and raw_ts is not None and log_created_at is not None:
                         if log_created_at < cursor_dt:
                             continue
                         if log_created_at == cursor_dt:
