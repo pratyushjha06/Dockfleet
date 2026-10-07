@@ -348,3 +348,155 @@ def test_out_of_range_ports(invalid_port):
     with pytest.raises(ValueError, match="Port values must be between 1 and 65535"):
         DockFleetConfig(**config)
 
+
+@pytest.mark.parametrize(
+    "valid_ip_port",
+    [
+        "127.0.0.1:8080:80",
+        "0.0.0.0:3000:3000",
+        "192.168.1.100:5432:5432",
+        "localhost:8000:80",
+    ],
+)
+def test_valid_host_ip_ports(valid_ip_port):
+    config = {
+        "services": {
+            "api": {
+                "image": "nginx",
+                "restart": "always",
+                "ports": [valid_ip_port],
+            }
+        }
+    }
+    parsed = DockFleetConfig(**config)
+    assert parsed.services["api"].ports == [valid_ip_port]
+
+
+@pytest.mark.parametrize(
+    "valid_proto_port",
+    [
+        "8080:80/tcp",
+        "53:53/udp",
+        "5432:5432/sctp",
+        "8080:80/TCP",
+        "53:53/UDP",
+    ],
+)
+def test_valid_protocol_ports(valid_proto_port):
+    config = {
+        "services": {
+            "api": {
+                "image": "nginx",
+                "restart": "always",
+                "ports": [valid_proto_port],
+            }
+        }
+    }
+    parsed = DockFleetConfig(**config)
+    assert parsed.services["api"].ports == [valid_proto_port]
+
+
+def test_valid_host_ip_with_protocol():
+    config = {
+        "services": {
+            "api": {
+                "image": "nginx",
+                "restart": "always",
+                "ports": ["127.0.0.1:8080:80/tcp", "0.0.0.0:53:53/udp"],
+            }
+        }
+    }
+    parsed = DockFleetConfig(**config)
+    assert parsed.services["api"].ports == ["127.0.0.1:8080:80/tcp", "0.0.0.0:53:53/udp"]
+
+
+def test_valid_ports_dict_format():
+    config = {
+        "services": {
+            "api": {
+                "image": "nginx",
+                "restart": "always",
+                "ports": {
+                    "8000": "80",
+                    "127.0.0.1:3000": 3000,
+                    "9000": 9000,
+                },
+            }
+        }
+    }
+    parsed = DockFleetConfig(**config)
+    assert parsed.services["api"].ports == ["8000:80", "127.0.0.1:3000:3000", "9000:9000"]
+
+
+@pytest.mark.parametrize(
+    "invalid_proto_port",
+    [
+        "8080:80/http",
+        "8080:80/grpc",
+        "8080:80/",
+        "8080:80/invalid",
+    ],
+)
+def test_invalid_protocol_ports(invalid_proto_port):
+    config = {
+        "services": {
+            "api": {
+                "image": "nginx",
+                "restart": "always",
+                "ports": [invalid_proto_port],
+            }
+        }
+    }
+    with pytest.raises(ValueError, match="Invalid port"):
+        DockFleetConfig(**config)
+
+
+@pytest.mark.parametrize(
+    "invalid_ip_port",
+    [
+        "127.0.0.1:0:80",
+        "127.0.0.1:70000:80",
+        "127.0.0.1:80:0",
+        "127.0.0.1:80:65536",
+    ],
+)
+def test_invalid_host_ip_out_of_range(invalid_ip_port):
+    config = {
+        "services": {
+            "api": {
+                "image": "nginx",
+                "restart": "always",
+                "ports": [invalid_ip_port],
+            }
+        }
+    }
+    with pytest.raises(ValueError, match="Port values must be between 1 and 65535"):
+        DockFleetConfig(**config)
+
+
+@pytest.mark.parametrize(
+    "malformed_port",
+    [
+        "8080",
+        "127.0.0.1:8080:80:80",
+        ":80",
+        "80:",
+        "::",
+        "abc:80",
+        "80:abc",
+        "127.0.0.1:abc:80",
+    ],
+)
+def test_malformed_ports(malformed_port):
+    config = {
+        "services": {
+            "api": {
+                "image": "nginx",
+                "restart": "always",
+                "ports": [malformed_port],
+            }
+        }
+    }
+    with pytest.raises(ValueError, match="Invalid port mapping"):
+        DockFleetConfig(**config)
+
