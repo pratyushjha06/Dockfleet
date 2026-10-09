@@ -627,4 +627,53 @@ def test_cli_health_logs_follow_truncation_resets_offset(tmp_path, monkeypatch):
 
 
 
+def test_cli_show_logs_handles_string_created_at_without_crash(tmp_path, monkeypatch):
+    """Regression test: show-logs must not crash with AttributeError when
+    SQLite returns LogEvent.created_at as an ISO 8601 string rather than a
+    datetime object.
 
+    SQLite stores datetime columns as text and SQLAlchemy does not always
+    coerce them back to datetime (e.g. for legacy rows written before
+    timezone-aware handling was enforced).  The old code called
+    ts.strftime() unconditionally, raising:
+        AttributeError: 'str' object has no attribute 'strftime'
+    """
+    from sqlmodel import Session, SQLModel, create_engine, text
+    from dockfleet.health.models import LogEvent, Service, get_session
+
+    db_path = tmp_path / "test.db"
+    test_engine = create_engine(f"sqlite:///{db_path}")
+    SQLModel.metadata.create_all(test_engine)
+
+    # Seed a Service row so the FK constraint is satisfied.
+    with Session(test_engine) as session:
+        svc = Service(name="api", image="nginx", restart_policy="always", restart_count=0)
+        session.add(svc)
+        session.commit()
+        svc_id = svc.id
+
+    # Insert a LogEvent with a bare string timestamp directly via SQL,
+    # bypassing SQLAlchemy type coercion.  This simulates legacy rows or
+    # dialect quirks where created_at is stored/returned as plain text.
+    with Session(test_engine) as session:
+        session.exec(  # type: ignore[call-overload]
+            text(
+                "INSERT INTO logevent (service_id, service_name, created_at, message, source) "
+                "VALUES (:sid, 'api', '2026-10-07T10:00:00', 'hello from legacy row', 'test')"
+            ),
+            params={"sid": svc_id},
+        )
+        session.commit()
+
+    monkeypatch.setattr(
+        "dockfleet.cli.main.get_session",
+        lambda: get_session(engine=test_engine),
+    )
+
+    result = runner.invoke(app, ["show-logs"])
+
+    # Must succeed — not crash with AttributeError
+    assert result.exit_code == 0, f"show-logs crashed: {result.output}"
+    assert "hello from legacy row" in result.stdout
+    # Timestamp must be rendered (not absent or raw None)
+    assert "2026-10-07" in result.stdout

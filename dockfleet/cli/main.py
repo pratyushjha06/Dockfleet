@@ -463,10 +463,21 @@ def show_logs(
 
             for log in logs:
                 ts = getattr(log, "timestamp", None) or getattr(log, "created_at", None)
-                if ts:
+                if ts is None:
+                    ts_str = "no-time"
+                elif isinstance(ts, datetime):
                     ts_str = ts.strftime("%Y-%m-%d %H:%M:%S")
                 else:
-                    ts_str = "no-time"
+                    # SQLite may return created_at as an ISO 8601 string instead of a
+                    # datetime object (e.g. legacy rows, dialect quirks). Parsing and
+                    # re-formatting guards against AttributeError: 'str' has no
+                    # attribute 'strftime'. Fall back to the raw string on parse error.
+                    try:
+                        ts_str = datetime.fromisoformat(str(ts)).strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        )
+                    except (ValueError, TypeError):
+                        ts_str = str(ts)
 
                 typer.echo(f"[{ts_str}] [{log.service_name}] {log.message}")
     except typer.Exit:
