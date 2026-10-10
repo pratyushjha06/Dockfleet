@@ -150,3 +150,30 @@ def test_iter_logs_as_csv_handles_legacy_string_created_at(mock_query):
 
     assert "2026-01-01T12:00:00.000000" in full_csv
     assert "legacy string csv message" in full_csv
+
+
+def test_setup_health_logging_with_preinitialized_root_logger(tmp_path, monkeypatch):
+    """Test setup_health_logging forces root logger reconfiguration even if already initialized."""
+    import logging
+    from dockfleet.health.logging import setup_health_logging
+
+    log_file = tmp_path / "dockfleet-health.log"
+    monkeypatch.setattr("dockfleet.health.logging.LOG_PATH", log_file)
+
+    # Pre-initialize root logger with a custom handler and level
+    root_logger = logging.getLogger()
+    root_logger.addHandler(logging.NullHandler())
+    root_logger.setLevel(logging.CRITICAL)
+
+    setup_health_logging()
+
+    test_logger = logging.getLogger("dockfleet.health.checker")
+    test_logger.info("scheduler check succeeded")
+
+    for handler in logging.getLogger().handlers:
+        handler.flush()
+
+    assert log_file.exists()
+    content = log_file.read_text(encoding="utf-8")
+    assert "scheduler check succeeded" in content
+

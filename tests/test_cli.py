@@ -640,6 +640,32 @@ def test_cli_health_logs_follow_truncation_resets_offset(tmp_path, monkeypatch):
     assert "Stopped following health logs." in result.stdout
 
 
+def test_cli_setup_health_logging_with_preinitialized_root_logger(tmp_path, monkeypatch):
+    """Test CLI setup_health_logging forces root logger reconfiguration even if already initialized."""
+    import logging
+    from dockfleet.cli.main import setup_health_logging
+
+    log_file = tmp_path / "dockfleet-health.log"
+    monkeypatch.setattr("dockfleet.cli.main.HEALTH_LOG_PATH", log_file)
+
+    root_logger = logging.getLogger()
+    root_logger.addHandler(logging.NullHandler())
+    root_logger.setLevel(logging.CRITICAL)
+
+    setup_health_logging()
+
+    test_logger = logging.getLogger("dockfleet.cli.health")
+    test_logger.info("cli health log output")
+
+    for handler in logging.getLogger().handlers:
+        handler.flush()
+
+    assert log_file.exists()
+    content = log_file.read_text(encoding="utf-8")
+    assert "cli health log output" in content
+
+
+
 
 
 

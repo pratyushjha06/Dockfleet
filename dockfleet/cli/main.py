@@ -148,6 +148,7 @@ def setup_health_logging() -> None:
         handlers=[
             logging.FileHandler(HEALTH_LOG_PATH, encoding="utf-8"),
         ],
+        force=True,
     )
 
 
