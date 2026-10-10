@@ -464,7 +464,6 @@ class Orchestrator:
         - Sets DB health_status = HealthStatus.RESTARTING during execution.
         - If restart_policy == "never": do nothing and return False.
         - Otherwise:
-          - Optional exponential backoff.
           - Best-effort stop of any existing container.
           - Start a fresh container with the same config.
           - Return True if the new container start succeeded.
@@ -505,17 +504,6 @@ class Orchestrator:
                     db_svc.health_status = HealthStatus.RESTARTING
                     session.add(db_svc)
                     session.commit()
-
-            # Optional exponential backoff
-            if backoff_attempt > 0:
-                delay = min(2**backoff_attempt, 32)
-                logger.info(
-                    "%s: backoff %ss (attempt %s)",
-                    service_name,
-                    delay,
-                    backoff_attempt,
-                )
-                time.sleep(delay)
 
             logger.info("Restarting %s", service_name)
             container_name = self.container_name(service_name)

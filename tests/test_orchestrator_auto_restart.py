@@ -133,3 +133,33 @@ def test_restart_failure_marks_crashed():
     assert svc.status == ContainerStatus.STOPPED
     assert svc.health_status == HealthStatus.CRASHED
     assert "auto-restart failed" in (svc.last_failure_reason or "")
+
+
+def test_restart_service_executes_immediately_without_blocking():
+    """Verify restart_service does not block or call time.sleep even if backoff_attempt > 0."""
+    config = DockFleetConfig(
+        services={
+            "svc-noblock": ServiceConfig(
+                image="nginx:alpine", restart=RestartPolicy.always
+            )
+        }
+    )
+    orch = Orchestrator(config)
+
+    with get_session() as session:
+        svc = Service(
+            name="svc-noblock", image="nginx:alpine", restart_policy="always"
+        )
+        session.add(svc)
+        session.commit()
+
+    with (
+        patch("subprocess.run") as mock_run,
+        patch.object(orch, "start_service", return_value=True),
+        patch("time.sleep") as mock_sleep,
+    ):
+        mock_run.return_value = MagicMock(returncode=0)
+        result = orch.restart_service("svc-noblock", config, backoff_attempt=3)
+
+    assert result is True
+    mock_sleep.assert_not_called()
