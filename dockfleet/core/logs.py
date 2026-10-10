@@ -42,15 +42,44 @@ async def stream_container_logs(service_name: str, request: any = None):
                 def _push():
                     if stop_readers.is_set():
                         return
-                    if queue.full():
+                    is_sentinel = item[1] is None or item[0] in ("stdout_error", "stderr_error")
+                    if is_sentinel:
+                        if queue.full():
+                            try:
+                                popped = queue.get_nowait()
+                                if popped[1] is None or popped[0] in ("stdout_error", "stderr_error"):
+                                    # Don't drop existing sentinel, put it back
+                                    try:
+                                        queue.put_nowait(popped)
+                                    except Exception:
+                                        pass
+                            except (asyncio.QueueEmpty, Exception):
+                                pass
                         try:
-                            queue.get_nowait()
-                        except (asyncio.QueueEmpty, Exception):
+                            queue.put_nowait(item)
+                        except asyncio.QueueFull:
+                            try:
+                                queue.get_nowait()
+                                queue.put_nowait(item)
+                            except Exception:
+                                pass
+                    else:
+                        if queue.full():
+                            try:
+                                popped = queue.get_nowait()
+                                if popped[1] is None or popped[0] in ("stdout_error", "stderr_error"):
+                                    # Never drop a sentinel to make room for a log line
+                                    try:
+                                        queue.put_nowait(popped)
+                                    except Exception:
+                                        pass
+                                    return
+                            except (asyncio.QueueEmpty, Exception):
+                                pass
+                        try:
+                            queue.put_nowait(item)
+                        except (asyncio.QueueFull, Exception):
                             pass
-                    try:
-                        queue.put_nowait(item)
-                    except (asyncio.QueueFull, Exception):
-                        pass
 
                 try:
                     loop.call_soon_threadsafe(_push)
@@ -67,7 +96,6 @@ async def stream_container_logs(service_name: str, request: any = None):
                             if not line or not isinstance(line, str):
                                 break
                             enqueue_item(("stdout", line))
-                    enqueue_item(("stdout", None))
                 except (OSError, ValueError) as e:
                     if not stop_readers.is_set():
                         logger.exception(
@@ -80,6 +108,8 @@ async def stream_container_logs(service_name: str, request: any = None):
                             "Stdout reader unexpected exception for %s", container
                         )
                         enqueue_item(("stdout_error", e))
+                finally:
+                    enqueue_item(("stdout", None))
 
             def read_stderr():
                 """Drain stderr stream lines and queue them."""
@@ -90,7 +120,6 @@ async def stream_container_logs(service_name: str, request: any = None):
                             if not line or not isinstance(line, str):
                                 break
                             enqueue_item(("stderr", line))
-                    enqueue_item(("stderr", None))
                 except (OSError, ValueError) as e:
                     if not stop_readers.is_set():
                         logger.exception(
@@ -103,6 +132,8 @@ async def stream_container_logs(service_name: str, request: any = None):
                             "Stderr reader unexpected exception for %s", container
                         )
                         enqueue_item(("stderr_error", e))
+                finally:
+                    enqueue_item(("stderr", None))
 
             t_stdout = loop.run_in_executor(None, read_stdout)
             t_stderr = loop.run_in_executor(None, read_stderr)
@@ -116,14 +147,17 @@ async def stream_container_logs(service_name: str, request: any = None):
                     except Exception:
                         pass
 
+                # If reader threads have finished and queue is drained, terminate promptly
+                if t_stdout.done() and t_stderr.done() and queue.empty():
+                    break
+
                 try:
-                    if request is not None:
-                        stream_type, payload = await asyncio.wait_for(
-                            queue.get(), timeout=0.5
-                        )
-                    else:
-                        stream_type, payload = await queue.get()
+                    stream_type, payload = await asyncio.wait_for(
+                        queue.get(), timeout=0.2
+                    )
                 except asyncio.TimeoutError:
+                    if t_stdout.done() and t_stderr.done() and queue.empty():
+                        break
                     if request is not None and hasattr(request, "is_disconnected"):
                         try:
                             if await request.is_disconnected():

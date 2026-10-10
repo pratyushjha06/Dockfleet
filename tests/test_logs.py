@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -598,6 +599,33 @@ async def test_stream_logs_endpoint_client_disconnect_terminates_subprocess(mock
     await asyncio.sleep(0.05)
 
     assert mock_proc.terminate.called or mock_proc.kill.called
+
+
+@pytest.mark.asyncio
+@patch("dockfleet.core.logs.store_log_line_in_db")
+@patch("dockfleet.core.logs.subprocess.Popen")
+async def test_stream_container_logs_terminates_promptly_on_eof_under_high_volume(mock_popen, mock_store):
+    """Under extreme volume (5000 lines), stream terminates promptly when EOF is reached without hanging on sentinels."""
+    mock_proc = MagicMock()
+    burst_lines = [f"high volume line {i}\n" for i in range(5000)] + [""]
+    mock_proc.stdout.readline = MagicMock(side_effect=burst_lines)
+    mock_proc.stderr.readline = MagicMock(return_value="")
+    mock_proc.wait = MagicMock(return_value=0)
+    mock_proc.returncode = 0
+    mock_proc.terminate = MagicMock()
+    mock_proc.poll = MagicMock(return_value=0)
+    mock_popen.return_value = mock_proc
+
+    events = []
+    # Use wait_for to ensure the stream terminates in a reasonable time (does not hang)
+    async def collect():
+        async for event in stream_container_logs("api"):
+            events.append(event)
+
+    await asyncio.wait_for(collect(), timeout=5.0)
+    assert len(events) >= 1000
+    assert any("high volume line 4999" in e for e in events)
+
 
 
 
