@@ -277,6 +277,44 @@ def test_cli_logs_follow_interrupt_returncode_signal(mock_run):
     assert "Service 'web' not found or container not running." not in result.stdout
 
 
+@patch("dockfleet.cli.main.subprocess.run")
+def test_cli_logs_follow_normal_container_exit(mock_run):
+    """Test that dockfleet logs --follow terminates cleanly on normal container exit."""
+    import json
+    from unittest.mock import MagicMock
+
+    inspect_data = json.dumps([{"State": {"Status": "exited", "Running": False, "ExitCode": 0}}])
+    mock_run.side_effect = [
+        MagicMock(returncode=0, stdout=""),  # initial inspect
+        MagicMock(returncode=1),             # docker logs -f terminated on container exit
+        MagicMock(returncode=0, stdout=inspect_data),  # post inspect
+    ]
+    result = runner.invoke(app, ["logs", "web", "--follow"])
+    assert result.exit_code == 0
+    assert "Streaming logs for web" in result.stdout
+    assert "Service 'web' not found or container not running." not in result.stdout
+
+
+@patch("dockfleet.cli.main.subprocess.run")
+def test_cli_logs_follow_nonzero_container_exit(mock_run):
+    """Test that dockfleet logs --follow outputs container exit code on non-zero exit."""
+    import json
+    from unittest.mock import MagicMock
+
+    inspect_data = json.dumps([{"State": {"Status": "exited", "Running": False, "ExitCode": 137}}])
+    mock_run.side_effect = [
+        MagicMock(returncode=0, stdout=""),  # initial inspect
+        MagicMock(returncode=1),             # docker logs -f terminated
+        MagicMock(returncode=0, stdout=inspect_data),  # post inspect
+    ]
+    result = runner.invoke(app, ["logs", "web", "--follow"])
+    assert result.exit_code == 0
+    assert "Streaming logs for web" in result.stdout
+    assert "Container 'web' exited with code 137." in result.stdout
+    assert "Service 'web' not found or container not running." not in result.stdout
+
+
+
 
 @patch("dockfleet.cli.main.subprocess.run")
 def test_cli_logs_success_no_follow(mock_run):

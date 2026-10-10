@@ -391,9 +391,37 @@ def logs(
             if hasattr(signal, "SIGINT"):
                 interrupt_codes.add(-signal.SIGINT)
                 interrupt_codes.add(signal.SIGINT)
+            if hasattr(signal, "SIGTERM"):
+                interrupt_codes.add(-signal.SIGTERM)
+                interrupt_codes.add(signal.SIGTERM)
+                interrupt_codes.add(143)
+                interrupt_codes.add(137)
 
             if result.returncode in interrupt_codes:
                 raise typer.Exit(code=0)
+
+            try:
+                post_inspect = subprocess.run(
+                    ["docker", "inspect", container_name],
+                    capture_output=True,
+                    encoding="utf-8",
+                    errors="replace",
+                )
+                if post_inspect.returncode == 0:
+                    data = json.loads(post_inspect.stdout)
+                    if data and isinstance(data, list) and "State" in data[0]:
+                        state = data[0]["State"]
+                        running = state.get("Running", False)
+                        status = state.get("Status", "unknown")
+                        exit_code = state.get("ExitCode", 0)
+                        if not running or status in ("exited", "dead", "stopped"):
+                            if exit_code != 0:
+                                typer.echo(f"Container '{service}' exited with code {exit_code}.")
+                            raise typer.Exit(code=0)
+            except typer.Exit:
+                raise
+            except Exception:
+                pass
 
             typer.echo(f"Service '{service}' not found or container not running.")
             raise typer.Exit(code=1)
