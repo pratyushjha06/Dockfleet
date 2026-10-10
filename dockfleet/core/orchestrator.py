@@ -767,10 +767,25 @@ class Orchestrator:
 
         raw_containers = self.docker.get_containers_json()
 
+        db_health_map = {}
+        try:
+            with get_session() as session:
+                db_services = session.exec(select(Service)).all()
+                for svc in db_services:
+                    hs = getattr(svc, "health_status", None)
+                    if isinstance(hs, HealthStatus):
+                        db_health_map[svc.name] = hs.value
+                    elif hs:
+                        db_health_map[svc.name] = str(hs).lower()
+        except Exception as exc:
+            logger.debug("Failed to fetch service health from DB in get_ps_data: %s", exc)
+
         results = []
         for container in raw_containers:
             name = container.get("Names") or container.get("Name") or ""
-            if not name.startswith("dockfleet_"):
+            if isinstance(name, list):
+                name = name[0] if name else ""
+            if not isinstance(name, str) or not name.startswith("dockfleet_"):
                 continue
             service_name = name.removeprefix("dockfleet_")
 
@@ -786,12 +801,22 @@ class Orchestrator:
             else:
                 status = state_raw if state_raw else "unknown"
 
-            if "(healthy)" in status_raw:
-                health = "healthy"
+            db_health = db_health_map.get(service_name)
+
+            if db_health in (
+                HealthStatus.UNHEALTHY.value,
+                HealthStatus.CRASHED.value,
+                HealthStatus.RESTARTING.value,
+            ):
+                health = db_health
             elif "(unhealthy)" in status_raw:
                 health = "unhealthy"
+            elif "(healthy)" in status_raw:
+                health = "healthy"
             elif "(health: starting)" in status_raw:
                 health = "starting"
+            elif db_health:
+                health = db_health
             elif status == "running":
                 health = "healthy"
             elif status == "stopped":

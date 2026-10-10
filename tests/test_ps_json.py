@@ -94,3 +94,77 @@ def test_dockfleet_ps_json_error_handling():
     assert result.exit_code == 1
     # Check that error message is present in output and not invalid json
     assert "not found" in result.output
+
+
+def test_dockfleet_ps_json_reflects_unhealthy_status_from_health_engine(
+    mock_dockfleet_yaml,
+):
+    """Test dockfleet ps --json reflects the unhealthy status from the health engine in DB."""
+    from dockfleet.health.models import (
+        ContainerStatus,
+        HealthStatus,
+        Service,
+        get_session,
+        init_db,
+    )
+    from sqlalchemy import text
+
+    init_db()
+    with get_session() as session:
+        session.exec(text("DELETE FROM service"))
+        session.add(
+            Service(
+                name="api",
+                image="python:3.10",
+                restart_policy="always",
+                status=ContainerStatus.RUNNING,
+                health_status=HealthStatus.UNHEALTHY,
+            )
+        )
+        session.add(
+            Service(
+                name="redis",
+                image="redis:alpine",
+                restart_policy="always",
+                status=ContainerStatus.RUNNING,
+                health_status=HealthStatus.HEALTHY,
+            )
+        )
+        session.commit()
+
+    mock_containers = [
+        {
+            "Names": "dockfleet_api",
+            "Status": "Up 5 minutes",
+            "State": "running",
+        },
+        {
+            "Names": "dockfleet_redis",
+            "Status": "Up 2 minutes",
+            "State": "running",
+        },
+    ]
+
+    with patch(
+        "dockfleet.core.docker.DockerManager.get_containers_json",
+        return_value=mock_containers,
+    ):
+        result = runner.invoke(app, ["ps", "--json", mock_dockfleet_yaml])
+        assert result.exit_code == 0
+
+        parsed = json.loads(result.stdout)
+        assert len(parsed) == 2
+
+        api_svc = next(s for s in parsed if s["name"] == "api")
+        redis_svc = next(s for s in parsed if s["name"] == "redis")
+
+        assert api_svc == {
+            "name": "api",
+            "status": "running",
+            "health": "unhealthy",
+        }
+        assert redis_svc == {
+            "name": "redis",
+            "status": "running",
+            "health": "healthy",
+        }
