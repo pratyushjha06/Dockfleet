@@ -670,6 +670,63 @@ def test_get_services_matching_dockfleet_prefix_in_service_name(monkeypatch):
     assert services[0]["memory"] == "120MB"
 
 
+def test_manual_stop_service_uses_orchestrator(tmp_path, monkeypatch):
+    """
+    Verify that calling POST /services/{name}/stop calls Orchestrator.stop_service
+    for proper container cleanup and marks service stopped in DB.
+    """
+    db_path = tmp_path / "test_manual_stop.db"
+    test_engine = create_engine(f"sqlite:///{db_path}")
+    SQLModel.metadata.create_all(test_engine)
+
+    with Session(test_engine) as session:
+        svc = DBService(
+            name="api",
+            status=ContainerStatus.RUNNING,
+            health_status=HealthStatus.HEALTHY,
+            image="nginx:alpine",
+            restart_policy="always",
+            restart_count=0,
+            consecutive_failures=0,
+        )
+        session.add(svc)
+        session.commit()
+
+    monkeypatch.setattr(
+        "dockfleet.dashboard.services.get_session",
+        lambda: get_session(engine=test_engine),
+    )
+    monkeypatch.setattr(
+        "dockfleet.dashboard.routes.get_session",
+        lambda: get_session(engine=test_engine),
+    )
+    monkeypatch.setattr(
+        "dockfleet.health.status.get_session",
+        lambda: get_session(engine=test_engine),
+    )
+
+    mock_orch = MagicMock()
+    mock_orch.stop_service.return_value = True
+    monkeypatch.setattr("dockfleet.dashboard.routes.get_orchestrator", lambda: mock_orch)
+
+    async def _test_http():
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            return await client.post("/services/api/stop")
+
+    response = asyncio.run(_test_http())
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    mock_orch.stop_service.assert_called_once_with("api")
+
+    with Session(test_engine) as session:
+        svc_after = session.exec(select(DBService).where(DBService.name == "api")).one()
+        assert svc_after.status == ContainerStatus.STOPPED
+        assert svc_after.health_status == HealthStatus.HEALTHY
+
+
+
 
 
 
