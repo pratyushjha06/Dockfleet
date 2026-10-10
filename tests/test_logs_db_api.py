@@ -430,5 +430,65 @@ def test_ingest_docker_logs_unicode(monkeypatch):
         assert "\u00e9\u00e0\u00fc\u00f6\u00df caf\u00e9 \u2014 \u00a9 \u00ae" in rows[2].message
 
 
+def test_ingest_docker_logs_partial_service_failure_preserves_successful_logs():
+    """Verify that if svc2 fails (non-zero exit or error), logs for svc1 are still committed and preserved."""
+    from unittest.mock import MagicMock, patch
+    from dockfleet.health.log_ingestor import ingest_docker_logs_once
+
+    with get_session() as session:
+        session.exec(select(LogEvent)).all()
+        session.exec(select(Service)).all()
+        session.query(LogEvent).delete()
+        session.query(Service).delete()
+
+        svc1 = Service(
+            name="svc1",
+            image="dummy-image",
+            restart_policy="always",
+        )
+        svc2 = Service(
+            name="svc2",
+            image="dummy-image",
+            restart_policy="always",
+        )
+        session.add(svc1)
+        session.add(svc2)
+        session.commit()
+
+    def mock_subprocess_popen(cmd, *args, **kwargs):
+        container_arg = cmd[-1]
+        if "svc1" in container_arg:
+            mock_process = MagicMock()
+            mock_process.wait.return_value = 0
+            mock_stdout = MagicMock()
+            mock_stdout.__iter__.return_value = ["2026-10-02T22:21:32.123456789Z svc1 log 1\n"]
+            mock_process.stdout = mock_stdout
+            return mock_process
+        elif "svc2" in container_arg:
+            mock_process = MagicMock()
+            mock_process.wait.return_value = 1
+            mock_stdout = MagicMock()
+            mock_stdout.__iter__.return_value = ["2026-10-02T22:21:33.123456789Z svc2 failed log\n"]
+            mock_process.stdout = mock_stdout
+            return mock_process
+        raise ValueError(f"Unexpected container: {container_arg}")
+
+    with patch("subprocess.Popen", side_effect=mock_subprocess_popen):
+        ingest_docker_logs_once(tail=200)
+
+    with get_session() as session:
+        svc1_rows = session.exec(
+            select(LogEvent).where(LogEvent.service_name == "svc1")
+        ).all()
+        svc2_rows = session.exec(
+            select(LogEvent).where(LogEvent.service_name == "svc2")
+        ).all()
+
+        assert len(svc1_rows) == 1
+        assert svc1_rows[0].message == "svc1 log 1"
+        assert len(svc2_rows) == 0
+
+
+
 
 
