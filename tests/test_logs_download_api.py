@@ -1,6 +1,6 @@
 # tests/test_logs_download_api.py
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from dockfleet.health.logs import (
     iter_logs_as_csv,
@@ -128,3 +128,38 @@ def test_iter_logs_as_csv():
     csv_body = "\n".join(lines[1:])
     assert "api" in csv_body
     assert "request timeout error" in csv_body
+
+
+def test_query_logs_wildcard_escaping():
+    """Verify that searching for '%' or '_' matches only literal characters without SQL LIKE wildcard injection."""
+    with get_session() as session:
+        session.add_all([
+            LogEvent(
+                service_id=1,
+                service_name="api",
+                created_at=datetime.now(timezone.utc),
+                level="INFO",
+                message="Memory usage at 95% limit",
+                source="docker",
+            ),
+            LogEvent(
+                service_id=1,
+                service_name="api",
+                created_at=datetime.now(timezone.utc),
+                level="INFO",
+                message="Service_A ready",
+                source="docker",
+            ),
+        ])
+        session.commit()
+
+    # Searching for % should ONLY return the row containing literal %
+    percent_rows = query_logs(q="%")
+    assert len(percent_rows) == 1
+    assert percent_rows[0].message == "Memory usage at 95% limit"
+
+    # Searching for _ should ONLY return the row containing literal _
+    underscore_rows = query_logs(q="_")
+    assert len(underscore_rows) == 1
+    assert underscore_rows[0].message == "Service_A ready"
+

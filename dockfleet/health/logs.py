@@ -115,9 +115,7 @@ def query_logs(
             stmt = stmt.where(func.lower(LogEvent.service_name) == service_name.lower())
 
         if q:
-            pattern = f"%{q}%"
-            # SQLite: LIKE (case-sensitive by default); can be tuned later.
-            stmt = stmt.where(LogEvent.message.like(pattern))  # type: ignore
+            stmt = stmt.where(LogEvent.message.contains(q, autoescape=True))  # type: ignore
 
         if cursor_ts is not None and cursor_id is not None:
             # Deterministic keyset pagination for descending order
