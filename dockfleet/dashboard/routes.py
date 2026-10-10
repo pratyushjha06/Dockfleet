@@ -403,24 +403,34 @@ def system_status():
     restarting = sum(
         1 for s in services if s.get("health_status") == HealthStatus.RESTARTING.value
     )
-    running = sum(
-        1
-        for s in services
-        if s["status"] == ContainerStatus.RUNNING.value
-        and s.get("health_status") != HealthStatus.RESTARTING.value
-    )
-    stopped = sum(
-        1
-        for s in services
-        if s["status"] == ContainerStatus.STOPPED.value
-        and s.get("health_status") != HealthStatus.RESTARTING.value
-    )
-
     unhealthy = sum(
         1
         for s in services
         if s.get("health_status")
         in (HealthStatus.UNHEALTHY.value, HealthStatus.CRASHED.value)
+        and s.get("health_status") != HealthStatus.RESTARTING.value
+    )
+    running = sum(
+        1
+        for s in services
+        if s.get("status") == ContainerStatus.RUNNING.value
+        and s.get("health_status")
+        not in (
+            HealthStatus.RESTARTING.value,
+            HealthStatus.UNHEALTHY.value,
+            HealthStatus.CRASHED.value,
+        )
+    )
+    stopped = sum(
+        1
+        for s in services
+        if s.get("status") != ContainerStatus.RUNNING.value
+        and s.get("health_status")
+        not in (
+            HealthStatus.RESTARTING.value,
+            HealthStatus.UNHEALTHY.value,
+            HealthStatus.CRASHED.value,
+        )
     )
 
     return {
