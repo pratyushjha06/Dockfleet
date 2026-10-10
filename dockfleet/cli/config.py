@@ -73,7 +73,7 @@ class ServiceConfig(BaseModel):
 
     image: str
     restart: RestartPolicy
-    ports: list[str] | None = None
+    ports: list[str] | dict[str, str | int] | None = None
     healthcheck: HealthCheckConfig | None = None
     resources: ResourcesConfig | None = None
     depends_on: list[str] | None = None
@@ -84,31 +84,75 @@ class ServiceConfig(BaseModel):
     backoff_multiplier: float | None = None
 
     # PORT VALIDATION
-    @field_validator("ports")
+    @field_validator("ports", mode="before")
     @classmethod
     def validate_ports(cls, value):
-        """Validate port mappings conform to host:container format and valid port range (1-65535)."""
+        """Validate port mappings conform to [host_ip:]host:container[/protocol] format, valid port range (1-65535), and dict or list format."""
         if value is None:
             return value
 
-        pattern = re.compile(r"^\d+:\d+$")
+        # Convert dictionary format to list of strings
+        if isinstance(value, dict):
+            converted = []
+            for k, v in value.items():
+                if not k or not isinstance(v, (str, int)):
+                    raise ValueError(f"Invalid port mapping dict format: {k}: {v}")
+                converted.append(f"{k}:{v}")
+            value = converted
 
+        if not isinstance(value, list):
+            raise ValueError("Invalid ports format, expected list or dict")
+
+        normalized = []
         for port in value:
-            if not pattern.match(port):
+            port_str = str(port).strip()
+            if not port_str:
+                raise ValueError("Invalid port mapping ''. Expected format 'host:container'")
+
+            clean_port = port_str
+            if "/" in clean_port:
+                parts_proto = clean_port.split("/")
+                if len(parts_proto) != 2 or not parts_proto[1]:
+                    raise ValueError(
+                        f"Invalid port mapping '{port_str}'. Expected format 'host:container'"
+                    )
+                proto = parts_proto[1].lower()
+                if proto not in {"tcp", "udp", "sctp"}:
+                    raise ValueError(
+                        f"Invalid port protocol '{proto}' in '{port_str}'. Expected tcp, udp, or sctp"
+                    )
+                clean_port = parts_proto[0]
+
+            parts = clean_port.split(":")
+            if len(parts) == 2:
+                host_str, container_str = parts
+            elif len(parts) == 3:
+                host_ip, host_str, container_str = parts
+                if not host_ip:
+                    raise ValueError(
+                        f"Invalid port mapping '{port_str}'. Expected format 'host:container'"
+                    )
+            else:
                 raise ValueError(
-                    f"Invalid port mapping '{port}'. Expected format 'host:container'"
+                    f"Invalid port mapping '{port_str}'. Expected format 'host:container'"
                 )
 
-            host_str, container_str = port.split(":")
+            if not host_str.isdigit() or not container_str.isdigit():
+                raise ValueError(
+                    f"Invalid port mapping '{port_str}'. Expected format 'host:container'"
+                )
+
             host_port = int(host_str)
             container_port = int(container_str)
 
             if not (1 <= host_port <= 65535 and 1 <= container_port <= 65535):
                 raise ValueError(
-                    f"Invalid port mapping '{port}'. Port values must be between 1 and 65535"
+                    f"Invalid port mapping '{port_str}'. Port values must be between 1 and 65535"
                 )
 
-        return value
+            normalized.append(port_str)
+
+        return normalized
 
     # HEALTHCHECK VALIDATION
     @field_validator("healthcheck")
