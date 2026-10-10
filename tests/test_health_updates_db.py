@@ -52,3 +52,18 @@ def test_update_service_health_changes_db_fields(tmp_path):
         assert svc.last_health_check is not None
         assert svc.restart_count == healthy_restart_count
         assert svc.last_failure_reason == "test failure"
+
+    # 5) Recovery update -> status 'running', health_status 'healthy', last_failure_reason cleared to None
+    update_service_health(
+        service_name,
+        is_healthy=True,
+        reason=None,
+    )
+
+    with get_session() as session:
+        svc = session.exec(select(Service).where(Service.name == service_name)).one()
+
+        assert svc.status == "running"
+        assert svc.health_status == "healthy"
+        assert svc.consecutive_failures == 0
+        assert svc.last_failure_reason is None

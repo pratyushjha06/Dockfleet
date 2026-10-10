@@ -122,6 +122,7 @@ def update_service_health(
                 svc.status = ContainerStatus.RUNNING
             svc.health_status = HealthStatus.HEALTHY
             svc.consecutive_failures = 0
+            svc.last_failure_reason = None
         else:
             svc.consecutive_failures += 1
             if svc.consecutive_failures >= 3:

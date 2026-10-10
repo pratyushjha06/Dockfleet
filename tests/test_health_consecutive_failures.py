@@ -78,6 +78,15 @@ def test_consecutive_failures_and_status_transitions(tmp_path):
     assert svc.restart_count == baseline_restart_count
     assert svc.last_failure_reason == "fail 3"
 
+    # Cycle 5: recovers to healthy -> resets consecutive_failures and clears last_failure_reason
+    update_service_health(service_name, is_healthy=True, reason=None)
+    svc = get_service()
+    assert svc.status == "running"
+    assert svc.health_status == "healthy"
+    assert svc.consecutive_failures == 0
+    assert svc.restart_count == baseline_restart_count
+    assert svc.last_failure_reason is None
+
 
 def test_manual_restart_resets_consecutive_failures(tmp_path):
     """
