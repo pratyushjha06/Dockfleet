@@ -3,7 +3,28 @@ import pytest
 from dockfleet.cli.config import DockFleetConfig
 
 
-@pytest.mark.parametrize("valid_mem", ["512m", "512mb", "1g", "1gb", "1024k", "1024kb", "1048576b", "512M", "1GB", "256MiB"])
+@pytest.mark.parametrize(
+    "valid_mem",
+    [
+        "512m",
+        "512mb",
+        "1g",
+        "1gb",
+        "1024k",
+        "1024kb",
+        "1048576b",
+        "512M",
+        "1GB",
+        "256MiB",
+        "0.5g",
+        "0.5G",
+        "1.5gb",
+        "0.5m",
+        ".5g",
+        "1048576",
+        "1024",
+    ],
+)
 def test_valid_resources(valid_mem):
     config = {
         "services": {
