@@ -13,6 +13,21 @@ logger = logging.getLogger(__name__)
 DEFAULT_EMPTY_TIMESTAMP: str = ""
 
 
+def _csv_field(value: str) -> str:
+    """
+    Escape a single CSV field per RFC 4180.
+
+    If the value contains a double-quote, comma, or newline the function:
+    1. Replaces every ``"`` with ``""`` (RFC 4180 §2.7).
+    2. Wraps the resulting string in double-quotes.
+
+    Fields that contain none of those characters are returned as-is.
+    """
+    if '"' in value or "," in value or "\n" in value:
+        return '"' + value.replace('"', '""') + '"'
+    return value
+
+
 def _format_created_at(value: datetime | str | None) -> str:
     """
     Format a LogEvent created_at timestamp value to an ISO string representation.
@@ -207,14 +222,11 @@ def iter_logs_as_csv(
             service = event.service_name or ""
             ts = _format_created_at(event.created_at)
             level = event.level or ""
-            msg = (event.message or "").replace("\n", "\\n").replace('"', '""')
+            # Newlines within the message body are represented as literal \n so
+            # that each log event stays on a single CSV row.  RFC 4180 quoting
+            # and inner-quote escaping are handled uniformly by _csv_field.
+            msg = (event.message or "").replace("\n", "\\n")
             source = event.source or ""
-
-            # minimal CSV-escaping: wrap fields containing commas/quotes/newlines
-            def _csv_field(value: str) -> str:
-                if "," in value or '"' in value or "\n" in value:
-                    return f'"{value}"'
-                return value
 
             line = ",".join(
                 [
