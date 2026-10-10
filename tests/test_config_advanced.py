@@ -144,6 +144,30 @@ def test_valid_environment_dict_with_scalars():
     }
 
 
+def test_valid_environment_dict_with_none_values():
+    """Verify that environment dict syntax with None/null values is accepted and converted to empty strings."""
+    config = {
+        "services": {
+            "api": {
+                "image": "nginx",
+                "restart": "always",
+                "environment": {
+                    "EMPTY_VAR": None,
+                    "PORT": 8080,
+                    "NULL_VAR": None,
+                },
+            }
+        }
+    }
+
+    parsed = DockFleetConfig(**config)
+    assert parsed.services["api"].environment == {
+        "EMPTY_VAR": "",
+        "PORT": "8080",
+        "NULL_VAR": "",
+    }
+
+
 def test_invalid_environment():
     config = {
         "services": {

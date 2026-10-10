@@ -159,9 +159,14 @@ class ServiceConfig(BaseModel):
         elif isinstance(value, dict):
             converted = {}
             for k, v in value.items():
-                if not k or not isinstance(v, (str, int, float, bool)):
+                if not k:
                     raise ValueError("Invalid environment dict format")
-                converted[str(k)] = str(v)
+                if v is None:
+                    converted[str(k)] = ""
+                elif isinstance(v, (str, int, float, bool)):
+                    converted[str(k)] = str(v)
+                else:
+                    raise ValueError("Invalid environment dict format")
             return converted
 
         raise ValueError("Invalid environment format, expected list or dict")
