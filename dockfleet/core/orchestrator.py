@@ -246,7 +246,7 @@ def normalize_services(services):
 
 
 def _extract_host_ports(service_config: dict) -> list[tuple[str, int]]:
-    """Extract list of (host, port) tuples configured for a service."""
+    """Extract list of (host, port) tuples configured for a service (only explicit host port bindings)."""
     ports = service_config.get("ports") or []
     if isinstance(ports, dict):
         raw_ports = [f"{k}:{v}" for k, v in ports.items()]
@@ -265,18 +265,18 @@ def _extract_host_ports(service_config: dict) -> list[tuple[str, int]]:
         parts = p_str.split(":")
         try:
             if len(parts) == 1:
-                host_ports.append(("0.0.0.0", int(parts[0])))
+                # Single container port (e.g. "80", 80). No explicit host port binding.
+                continue
             elif len(parts) == 2:
-                if parts[0].replace(".", "").isdigit():
-                    if "." in parts[0]:
-                        host_ports.append((parts[0], int(parts[1])))
-                    else:
-                        host_ports.append(("0.0.0.0", int(parts[0])))
+                if "." in parts[0]:
+                    # IP with container port (no explicit host port, e.g. "127.0.0.1:80")
+                    continue
                 else:
-                    host_ports.append((parts[0], int(parts[1])))
+                    host_ports.append(("0.0.0.0", int(parts[0])))
             elif len(parts) == 3:
                 host_ip = parts[0] if parts[0] else "0.0.0.0"
-                host_ports.append((host_ip, int(parts[1])))
+                if parts[1]:
+                    host_ports.append((host_ip, int(parts[1])))
         except (ValueError, TypeError):
             continue
     return host_ports

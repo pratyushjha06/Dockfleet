@@ -821,7 +821,12 @@ def test_extract_host_ports():
     assert _extract_host_ports({"ports": {"8000": "80"}}) == [("0.0.0.0", 8000)]
     assert _extract_host_ports({"ports": {"127.0.0.1:8000": "80"}}) == [("127.0.0.1", 8000)]
 
-    # 5. Empty or missing ports
+    # 5. Single port mapping without explicit host port (e.g. container port only)
+    assert _extract_host_ports({"ports": ["80", "443/tcp", 8080]}) == []
+    assert _extract_host_ports({"ports": ["127.0.0.1:80"]}) == []
+    assert _extract_host_ports({"ports": ["127.0.0.1::80"]}) == []
+
+    # 6. Empty or missing ports
     assert _extract_host_ports({}) == []
     assert _extract_host_ports({"ports": None}) == []
 
