@@ -562,13 +562,28 @@ def test_cli_health_dev_once_unhealthy(mock_scheduler_cls, mock_bootstrap):
 
 @patch("dockfleet.cli.main.bootstrap_from_path")
 @patch("dockfleet.cli.main.HealthScheduler")
-def test_cli_health_dev_once_missing_result(mock_scheduler_cls, mock_bootstrap):
-    """Test that health-dev --once exits with code 1 when a configured service check is missing."""
+def test_cli_health_dev_once_stopped_services(mock_scheduler_cls, mock_bootstrap):
+    """Test that health-dev --once exits with code 0 when stopped services exist and active services are healthy."""
+    mock_scheduler = mock_scheduler_cls.return_value
+    mock_scheduler.run_single_pass.return_value = {"db": True}
+
+    result = runner.invoke(app, ["health-dev", "examples/dockfleet.yaml", "--once"])
+    assert result.exit_code == 0
+    assert "Running a single health pass" in result.stdout
+    assert "db: healthy" in result.stdout
+    assert "Single health pass complete." in result.stdout
+    mock_scheduler.run_single_pass.assert_called_once()
+
+
+@patch("dockfleet.cli.main.bootstrap_from_path")
+@patch("dockfleet.cli.main.HealthScheduler")
+def test_cli_health_dev_once_all_stopped_services(mock_scheduler_cls, mock_bootstrap):
+    """Test that health-dev --once exits with code 0 when all configured services are stopped."""
     mock_scheduler = mock_scheduler_cls.return_value
     mock_scheduler.run_single_pass.return_value = {}
 
     result = runner.invoke(app, ["health-dev", "examples/dockfleet.yaml", "--once"])
-    assert result.exit_code == 1
+    assert result.exit_code == 0
     assert "Single health pass complete." in result.stdout
     mock_scheduler.run_single_pass.assert_called_once()
 

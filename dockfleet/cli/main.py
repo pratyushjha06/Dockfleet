@@ -569,7 +569,7 @@ def health_dev(
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 typer.echo(f"[{timestamp}] {name}: {status_str.lower()}")
             typer.echo("Single health pass complete.")
-            if not all(results.get(svc, False) for svc in services_with_health):
+            if not all(results.values()):
                 raise typer.Exit(code=1)
             return
 
