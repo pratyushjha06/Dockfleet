@@ -171,7 +171,7 @@ class HealthScheduler:
                 future = executor.submit(self._run_single_check, name, hc)
                 futures[future] = name
 
-            # Process results sequentially to avoid SQLite locking issues
+            # Process results sequentially to record health checks in SQLite immediately
             for future in concurrent.futures.as_completed(futures):
                 name = futures[future]
                 try:
@@ -189,9 +189,6 @@ class HealthScheduler:
                         ok,
                         reason=None if ok else "health check failed",
                     )
-
-                    # after DB update, decide & trigger restart if needed
-                    self._handle_post_health(name)
                 except Exception as exc:  # noqa: BLE001 # pragma: no cover (defensive)
                     # Defensive guard: one bad service should not kill scheduler
                     self._logger.error(
@@ -199,6 +196,17 @@ class HealthScheduler:
                         name,
                         exc,
                     )
+
+        # After all health check results are recorded in SQLite, handle post-health actions (auto-restarts)
+        for name in results:
+            try:
+                self._handle_post_health(name)
+            except Exception as exc:  # noqa: BLE001 # pragma: no cover (defensive)
+                self._logger.error(
+                    "HealthScheduler: error handling post-health for %s: %s",
+                    name,
+                    exc,
+                )
 
         return results
 
