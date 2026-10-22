@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from dockfleet.cli.config import DockFleetConfig, RestartPolicy, ServiceConfig
+from dockfleet.core.docker import DockerManager
 from dockfleet.core.orchestrator import (
     Orchestrator,
     ServiceStat,
@@ -781,6 +782,46 @@ def test_down_stops_in_reverse_dependency_order():
     # Dependencies: frontend -> api -> db
     # Reverse topological order: frontend first, then api, then db
     assert stopped_order == ["frontend", "api", "db"]
+
+
+@patch("dockfleet.core.orchestrator.mark_service_stopped")
+@patch("dockfleet.core.docker.subprocess.run")
+def test_stop_service_treats_absent_container_as_success(mock_run, mock_mark_stopped):
+    """stop_service must succeed when Docker reports that the container does not exist."""
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=["docker", "stop", "dockfleet_api"],
+        returncode=1,
+        stdout="",
+        stderr="Error response from daemon: No such container: dockfleet_api\n",
+    )
+    config = DockFleetConfig(
+        services={"api": ServiceConfig(image="nginx", restart=RestartPolicy.always)}
+    )
+    orch = Orchestrator(config)
+
+    assert orch.stop_service("api") is True
+    mock_mark_stopped.assert_called_once_with("api")
+
+
+@patch("dockfleet.core.orchestrator.mark_service_stopped")
+@patch.object(DockerManager, "remove_container", return_value=None)
+@patch.object(DockerManager, "stop_container", return_value=None)
+def test_down_is_idempotent_when_containers_are_already_gone(
+    mock_stop, mock_remove, mock_mark_stopped
+):
+    """A second down() must not fail just because the containers were already removed."""
+    config = DockFleetConfig(
+        services={
+            "api": ServiceConfig(image="nginx", restart=RestartPolicy.always),
+            "web": ServiceConfig(image="nginx", restart=RestartPolicy.always),
+        }
+    )
+    orch = Orchestrator(config)
+
+    orch.down()
+    orch.down()
+
+    assert mock_stop.call_count == 4
 
 
 def test_down_stops_api_before_db():

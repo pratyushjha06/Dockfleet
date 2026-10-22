@@ -52,8 +52,33 @@ class DockerManager:
                 raise RuntimeError(result.stderr)
 
     def stop_container(self, name):
-        """Stop a running container by name."""
-        subprocess.run(["docker", "stop", name], check=True)
+        """Stop a running container by name.
+
+        Idempotent: a container that no longer exists is treated as already
+        stopped. Other Docker failures raise ``RuntimeError`` with the CLI's
+        stderr attached so callers see the actual cause (daemon unreachable,
+        permission denied, ...) instead of a bare exit status.
+        """
+        try:
+            result = subprocess.run(
+                ["docker", "stop", name],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                f"docker stop {name} timed out after 60 seconds"
+            ) from exc
+
+        if result.returncode != 0:
+            stderr = (result.stderr or "").strip()
+            if "no such container" in stderr.lower():
+                return
+            raise RuntimeError(
+                stderr
+                or f"docker stop {name} failed with exit code {result.returncode}"
+            )
 
     def list_containers(self):
         """Print currently running Docker containers."""
