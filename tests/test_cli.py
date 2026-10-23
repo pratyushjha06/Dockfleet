@@ -1,5 +1,5 @@
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
@@ -564,6 +564,67 @@ def test_cli_show_logs_service_filter_and_custom_limit(tmp_path, monkeypatch):
     assert "web log 9" in lines[0]
     assert "web log 8" in lines[1]
     assert "web log 7" in lines[2]
+
+
+def test_cli_show_logs_handles_legacy_string_created_at(monkeypatch):
+    """Regression: legacy rows with a string created_at must print instead of crashing."""
+    from datetime import datetime, timezone
+    from dockfleet.health.models import LogEvent
+
+    parseable = LogEvent(
+        id=2,
+        service_id=1,
+        service_name="api",
+        created_at=datetime.now(timezone.utc),
+        message="legacy row message",
+    )
+    parseable.created_at = "2026-01-01T12:00:00.000000"  # type: ignore
+
+    unstructured = LogEvent(
+        id=1,
+        service_id=1,
+        service_name="api",
+        created_at=datetime.now(timezone.utc),
+        message="unparsable row message",
+    )
+    unstructured.created_at = "not-a-timestamp"  # type: ignore
+
+    session = MagicMock()
+    session.__enter__.return_value = session
+    session.exec.return_value.all.return_value = [parseable, unstructured]
+    monkeypatch.setattr("dockfleet.cli.main.get_session", lambda: session)
+
+    result = runner.invoke(app, ["show-logs"])
+
+    assert result.exit_code == 0
+    assert "Failed to fetch logs" not in result.stdout
+    assert "[2026-01-01 12:00:00] [api] legacy row message" in result.stdout
+    assert "[not-a-timestamp] [api] unparsable row message" in result.stdout
+
+
+def test_cli_show_logs_handles_missing_timestamp(monkeypatch):
+    """Rows without a usable timestamp render as no-time instead of raising."""
+    from datetime import datetime, timezone
+    from dockfleet.health.models import LogEvent
+
+    event = LogEvent(
+        id=1,
+        service_id=1,
+        service_name="api",
+        created_at=datetime.now(timezone.utc),
+        message="row without timestamp",
+    )
+    event.created_at = None  # type: ignore
+
+    session = MagicMock()
+    session.__enter__.return_value = session
+    session.exec.return_value.all.return_value = [event]
+    monkeypatch.setattr("dockfleet.cli.main.get_session", lambda: session)
+
+    result = runner.invoke(app, ["show-logs"])
+
+    assert result.exit_code == 0
+    assert "[no-time] [api] row without timestamp" in result.stdout
 
 
 @patch("dockfleet.cli.main.bootstrap_from_path")

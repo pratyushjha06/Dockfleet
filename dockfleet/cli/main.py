@@ -465,6 +465,31 @@ def logs(
 # ------------------------------------------------
 
 
+def _format_log_timestamp(ts) -> str:
+    """
+    Render a stored log timestamp for display.
+
+    Handles:
+    - datetime: formatted as "YYYY-MM-DD HH:MM:SS"
+    - str: parsed when it is a valid ISO timestamp, otherwise printed as-is
+      (legacy rows predating the created_at type fix)
+    - None: "no-time"
+    """
+    if ts is None:
+        return "no-time"
+
+    if isinstance(ts, datetime):
+        return ts.strftime("%Y-%m-%d %H:%M:%S")
+
+    if isinstance(ts, str):
+        try:
+            return datetime.fromisoformat(ts).strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return ts
+
+    return str(ts)
+
+
 @app.command("show-logs")
 def show_logs(
     service: str = typer.Option(None, "--service", help="Filter by service name"),
@@ -492,10 +517,7 @@ def show_logs(
 
             for log in logs:
                 ts = getattr(log, "timestamp", None) or getattr(log, "created_at", None)
-                if ts:
-                    ts_str = ts.strftime("%Y-%m-%d %H:%M:%S")
-                else:
-                    ts_str = "no-time"
+                ts_str = _format_log_timestamp(ts)
 
                 typer.echo(f"[{ts_str}] [{log.service_name}] {log.message}")
     except typer.Exit:
