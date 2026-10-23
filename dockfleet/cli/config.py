@@ -71,13 +71,72 @@ class ResourcesConfig(BaseModel):
         return value
 
 
+# Port mapping helpers
+PORT_PROTOCOLS = {"tcp", "udp", "sctp"}
+
+
+def _port_format_error(port: str) -> str:
+    """Return a readable error for a malformed port mapping."""
+    return (
+        f"Invalid port mapping '{port}'. Expected 'host:container' or "
+        "'ip:host:container' with an optional /tcp, /udp or /sctp suffix"
+    )
+
+
+def _parse_port_mapping(port: str) -> tuple[str | None, int, int]:
+    """
+    Parse a Docker port mapping into (host_ip, host_port, container_port).
+
+    Accepts ``host:container``, ``ip:host:container``,
+    ``[ipv6]:host:container`` and an optional ``/tcp``, ``/udp`` or ``/sctp``
+    protocol suffix. Raises ValueError when the mapping is malformed or a port
+    falls outside the valid range.
+    """
+    mapping, _, protocol = port.partition("/")
+    if protocol and protocol.lower() not in PORT_PROTOCOLS:
+        raise ValueError(
+            f"Invalid port mapping '{port}'. Protocol must be one of tcp, udp or sctp"
+        )
+
+    host_ip = None
+    if mapping.startswith("["):
+        closing = mapping.find("]")
+        if closing == -1 or not mapping[closing + 1 :].startswith(":"):
+            raise ValueError(_port_format_error(port))
+        host_ip = mapping[1:closing]
+        host_port, _, container_port = mapping[closing + 2 :].partition(":")
+    else:
+        parts = mapping.split(":")
+        if len(parts) == 2:
+            host_port, container_port = parts
+        elif len(parts) == 3:
+            host_ip, host_port, container_port = parts
+        else:
+            raise ValueError(_port_format_error(port))
+
+    if host_ip is not None and not host_ip:
+        raise ValueError(_port_format_error(port))
+
+    if not host_port.isdigit() or not container_port.isdigit():
+        raise ValueError(_port_format_error(port))
+
+    host_port_int = int(host_port)
+    container_port_int = int(container_port)
+    if not (1 <= host_port_int <= 65535 and 1 <= container_port_int <= 65535):
+        raise ValueError(
+            f"Invalid port mapping '{port}'. Port values must be between 1 and 65535"
+        )
+
+    return host_ip, host_port_int, container_port_int
+
+
 # Service Model
 class ServiceConfig(BaseModel):
     """Individual service specification in dockfleet.yaml."""
 
     image: str
     restart: RestartPolicy
-    ports: list[str] | None = None
+    ports: list[str] | dict[str, str | int] | None = None
     healthcheck: HealthCheckConfig | None = None
     resources: ResourcesConfig | None = None
     depends_on: list[str] | None = None
@@ -88,29 +147,23 @@ class ServiceConfig(BaseModel):
     backoff_multiplier: float | None = None
 
     # PORT VALIDATION
+    @field_validator("ports", mode="before")
+    @classmethod
+    def normalize_ports(cls, value):
+        """Normalize dictionary port mappings into a list of host:container strings."""
+        if isinstance(value, dict):
+            return [f"{host}:{container}" for host, container in value.items()]
+        return value
+
     @field_validator("ports")
     @classmethod
     def validate_ports(cls, value):
-        """Validate port mappings conform to host:container format and valid port range (1-65535)."""
+        """Validate port mappings and their port ranges (1-65535)."""
         if value is None:
             return value
 
-        pattern = re.compile(r"^\d+:\d+$")
-
         for port in value:
-            if not pattern.match(port):
-                raise ValueError(
-                    f"Invalid port mapping '{port}'. Expected format 'host:container'"
-                )
-
-            host_str, container_str = port.split(":")
-            host_port = int(host_str)
-            container_port = int(container_str)
-
-            if not (1 <= host_port <= 65535 and 1 <= container_port <= 65535):
-                raise ValueError(
-                    f"Invalid port mapping '{port}'. Port values must be between 1 and 65535"
-                )
+            _parse_port_mapping(port)
 
         return value
 
