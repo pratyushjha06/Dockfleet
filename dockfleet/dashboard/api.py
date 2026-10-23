@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -33,8 +34,21 @@ _health_scheduler: HealthScheduler | None = None
 
 
 def _get_default_config_path() -> Path:
-    """Return default YAML configuration path."""
-    return Path("examples/dockfleet.yaml")
+    """
+    Return the YAML configuration path used by the dashboard.
+
+    Resolution order:
+    1. ``DOCKFLEET_CONFIG`` when set (relative values resolve against the
+       current working directory for operator convenience).
+    2. The bundled ``examples/dockfleet.yaml``, anchored to the repository root
+       so the dashboard starts correctly from any working directory.
+    """
+    override = os.getenv("DOCKFLEET_CONFIG")
+    if override:
+        return Path(override).expanduser().resolve()
+
+    project_root = Path(__file__).resolve().parents[2]
+    return project_root / "examples" / "dockfleet.yaml"
 
 
 # ------------------------------------------------
@@ -48,6 +62,10 @@ def on_startup() -> None:
     init_db()
 
     config_path = _get_default_config_path()
+    if not config_path.is_file():
+        raise FileNotFoundError(
+            f"Dashboard configuration file not found: {config_path}"
+        )
 
     try:
         bootstrap_from_path(str(config_path))
