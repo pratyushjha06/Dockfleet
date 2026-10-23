@@ -130,7 +130,7 @@ def test_restart_failure_marks_crashed():
         orch.handle_unhealthy_service("svc-fail", config, "test failure")
 
     svc = _get_service("svc-fail")
-    assert svc.status == ContainerStatus.STOPPED
+    assert svc.status == ContainerStatus.UNKNOWN
     assert svc.health_status == HealthStatus.CRASHED
     assert "auto-restart failed" in (svc.last_failure_reason or "")
 

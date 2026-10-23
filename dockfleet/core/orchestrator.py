@@ -431,14 +431,22 @@ class Orchestrator:
             return False
 
     def _mark_restart_failed(self, service_name: str, reason: str) -> None:
-        """Mark a service restart attempt as failed in DB, setting status=STOPPED and health_status=CRASHED."""
+        """
+        Record a failed restart attempt.
+
+        The container state is unknown after a failed start, so the service is
+        marked UNKNOWN rather than STOPPED. STOPPED would make the health
+        engine treat the service as intentionally stopped and exclude it from
+        future checks, retries and backoff accounting. health_status stays
+        CRASHED and the reason is kept for the dashboard.
+        """
         try:
             with get_session() as session:
                 db_svc = session.exec(
                     select(Service).where(Service.name == service_name)
                 ).one_or_none()
                 if db_svc:
-                    db_svc.status = ContainerStatus.STOPPED
+                    db_svc.status = ContainerStatus.UNKNOWN
                     db_svc.health_status = HealthStatus.CRASHED
                     db_svc.last_failure_reason = f"auto-restart failed: {reason}"
                     session.add(db_svc)

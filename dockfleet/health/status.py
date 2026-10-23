@@ -218,7 +218,8 @@ def record_restart_event(service: Service, reason: str) -> None:
 def mark_restart_successful(service_name: str) -> None:
     """
     Called by orchestrator after a successful auto-restart.
-    Resets consecutive_failures and marks service as healthy + running.
+    Resets consecutive_failures, clears the stale failure reason and marks the
+    service as healthy + running.
     """
     with get_session() as session:
         svc = session.exec(
@@ -232,6 +233,7 @@ def mark_restart_successful(service_name: str) -> None:
         svc.consecutive_failures = 0
         svc.status = ContainerStatus.RUNNING
         svc.health_status = HealthStatus.HEALTHY
+        svc.last_failure_reason = None
 
         session.add(svc)
         session.commit()
