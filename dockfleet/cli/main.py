@@ -534,14 +534,15 @@ def show_logs(
 
 @app.command()
 def doctor():
-    """Check system environment (Python version and Docker availability)."""
+    """Check system environment (Python version, Docker CLI and Docker daemon)."""
     typer.echo("Running DockFleet doctor...\n")
 
     # Python version check
     version = sys.version.split()[0]
     typer.echo(f"Python version: {version}")
 
-    # Docker check
+    # Docker CLI check. This only proves the client binary exists; it does not
+    # contact the daemon, so a daemon check follows below.
     try:
         result = subprocess.run(
             ["docker", "--version"],
@@ -549,13 +550,43 @@ def doctor():
             text=True,
             check=True,
         )
-        typer.echo(f"Docker detected: {result.stdout.strip()}")
-        typer.echo("✓ Environment looks good")
     except typer.Exit:
         raise
     except Exception:
-        typer.echo("✗ Docker not found or not running")
+        typer.echo("Docker CLI: not found")
+        typer.echo("Install Docker and make sure 'docker' is available on PATH.")
         raise typer.Exit(code=1)
+
+    typer.echo(f"Docker client: {result.stdout.strip()}")
+
+    # Docker daemon check: 'docker info' requires a reachable daemon.
+    try:
+        info = subprocess.run(
+            ["docker", "info", "--format", "{{.ServerVersion}}"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except subprocess.TimeoutExpired:
+        typer.echo("Docker daemon: unreachable (no response within 5s)")
+        typer.echo("Start Docker Desktop or dockerd and re-run doctor.")
+        raise typer.Exit(code=1)
+    except Exception as exc:
+        typer.echo(f"Docker daemon: unreachable ({exc})")
+        typer.echo("Start Docker Desktop or dockerd and re-run doctor.")
+        raise typer.Exit(code=1)
+
+    if info.returncode != 0:
+        stderr = (info.stderr or "").strip()
+        typer.echo("Docker daemon: unreachable")
+        if stderr:
+            typer.echo(f"  {stderr}")
+        typer.echo("Start Docker Desktop or dockerd and re-run doctor.")
+        raise typer.Exit(code=1)
+
+    server_version = info.stdout.strip() or "unknown"
+    typer.echo(f"Docker daemon: running (server {server_version})")
+    typer.echo("✓ Environment looks good")
 
 
 # ------------------------------------------------
