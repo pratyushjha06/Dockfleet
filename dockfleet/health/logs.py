@@ -172,6 +172,20 @@ def iter_logs_as_text(
         cursor_id = last_event.id
 
 
+def _csv_field(value: str | None) -> str:
+    """
+    Escape a single CSV column value according to RFC 4180.
+
+    Values containing a comma, a double quote, or a line break are wrapped in
+    double quotes, and embedded quotes are doubled so the field survives a
+    round-trip through any compliant CSV reader.
+    """
+    text = "" if value is None else str(value)
+    if any(char in text for char in ('"', ",", "\n", "\r")):
+        return '"' + text.replace('"', '""') + '"'
+    return text
+
+
 def iter_logs_as_csv(
     service_name: str | None = None,
     q: str | None = None,
@@ -205,14 +219,8 @@ def iter_logs_as_csv(
             service = event.service_name or ""
             ts = _format_created_at(event.created_at)
             level = event.level or ""
-            msg = (event.message or "").replace("\n", "\\n").replace('"', '""')
+            msg = event.message or ""
             source = event.source or ""
-
-            # minimal CSV-escaping: wrap fields containing commas/quotes/newlines
-            def _csv_field(value: str) -> str:
-                if "," in value or '"' in value or "\n" in value:
-                    return f'"{value}"'
-                return value
 
             line = ",".join(
                 [
