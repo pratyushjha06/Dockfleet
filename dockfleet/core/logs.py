@@ -391,7 +391,14 @@ def stream_logs(service_name: str):
 
 
 def get_logs_services(service_name: str, limit: int = 100):
-    """Fetch last N logs (non-streaming)."""
+    """
+    Fetch last N logs (stdout and stderr) for a service.
+
+    ``docker logs`` separates non-TTY stdout and stderr into two streams, so
+    both have to be merged here; reading only stdout hid containers that log
+    exclusively to stderr. A nonzero exit code is reported instead of being
+    silently turned into an empty list.
+    """
     container = get_container_name(service_name)
 
     try:
@@ -400,10 +407,23 @@ def get_logs_services(service_name: str, limit: int = 100):
             capture_output=True,
             text=True,
         )
-        logs = result.stdout.strip().split("\n")
-        return logs
     except Exception as e:
+        logger.error("Failed to fetch logs for %s: %s", container, e)
         return [f"Error fetching logs: {str(e)}"]
+
+    stderr = (result.stderr or "").strip()
+    if result.returncode != 0:
+        logger.error(
+            "docker logs exited with code %d for %s: %s",
+            result.returncode,
+            container,
+            stderr,
+        )
+        detail = stderr or f"docker logs exited with code {result.returncode}"
+        return [f"Error fetching logs: {detail}"]
+
+    output = (result.stdout or "") + (result.stderr or "")
+    return [line for line in output.splitlines() if line.strip()]
 
 
 def store_log_line(service_name: str, message: str) -> None:
