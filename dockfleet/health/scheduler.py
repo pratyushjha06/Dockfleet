@@ -5,6 +5,7 @@ import logging
 import threading
 import time
 from pathlib import Path
+from typing import Iterable
 
 from sqlmodel import select
 
@@ -53,6 +54,11 @@ class HealthScheduler:
         # These values reset when a service becomes healthy again.
         self._restart_attempts: dict[str, int] = {}
         self._next_restart_at: dict[str, float] = {}
+
+        # Per-service next check deadlines (monotonic clock).  Services missing
+        # from this map are due immediately, which is also how the first pass
+        # after startup checks everything once.
+        self._next_check_at: dict[str, float] = {}
 
         # Cross-process lock to prevent duplicate schedulers for the same
         # project.  Callers must pass ``project_dir`` explicitly to enable
@@ -129,15 +135,22 @@ class HealthScheduler:
         if self._lock is not None and self._lock.is_held:
             self._lock.release()
 
-    def run_single_pass(self) -> dict[str, bool]:
+    def run_single_pass(self, services: Iterable[str] | None = None) -> dict[str, bool]:
         """
-        Execute a single health check pass across all configured services,
+        Execute a single health check pass across configured services,
         integrating with the health engine's unified state pipeline.
         Returns a dictionary mapping service_name to boolean health status.
+
+        When ``services`` is given only those names are checked; the poll loop
+        uses this to run each service on its own healthcheck interval.  Passing
+        ``None`` checks every configured service, which is what ``--once`` and
+        direct callers expect.
         """
         results: dict[str, bool] = {}
         futures = {}
-        
+        selected = set(services) if services is not None else None
+        deadline_base = time.monotonic()
+
         # Batch load all service statuses in O(1) query
         db_statuses = {}
         with get_session() as session:
@@ -148,11 +161,22 @@ class HealthScheduler:
         # Run all health checks concurrently
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             for name, svc_cfg in self.config.services.items():
+                if selected is not None and name not in selected:
+                    continue
+
                 hc: HealthCheckConfig | None = svc_cfg.healthcheck
 
                 # Skip services without healthcheck
                 if hc is None:
                     continue
+
+                # Schedule the next check from this pass. hc.interval is
+                # validated as positive, so the constructor value is only a
+                # fallback for programmatically built configs.
+                interval = (
+                    hc.interval if hc.interval is not None else self.interval_seconds
+                )
+                self._next_check_at[name] = deadline_base + interval
 
                 # O(1) cache check instead of opening a DB session per service
                 status = db_statuses.get(name)
@@ -218,19 +242,69 @@ class HealthScheduler:
         and writes results into the Service table via update_service_health.
         After each update, evaluates auto-restart rules and, when needed,
         asks the orchestrator to restart the container.
+
+        Each service is checked on its own ``healthcheck.interval``: the loop
+        wakes up for the earliest deadline and runs only the services that are
+        due, keeping a long interval from being polled at the fastest rate.
         """
         self._logger.info("HealthScheduler: poll loop started")
 
         while not self._stopped:
             start_time = time.monotonic()
-            self._logger.info("HealthScheduler: polling services...")
-            self.run_single_pass()
+
+            # Before the first pass no deadlines exist and every service is
+            # due, so the unrestricted form is used (it also keeps callers
+            # that stub run_single_pass working).
+            if not self._next_check_at:
+                self._logger.info("HealthScheduler: polling services...")
+                self.run_single_pass()
+            else:
+                due = self._due_services(start_time)
+                if due:
+                    self._logger.info(
+                        "HealthScheduler: polling %d due service(s)...", len(due)
+                    )
+                    self.run_single_pass(due)
+
             elapsed = time.monotonic() - start_time
-            sleep_time = max(0.0, self.interval_seconds - elapsed)
+            sleep_time = self._next_sleep_seconds(elapsed)
             if not self._stopped and sleep_time > 0:
                 time.sleep(sleep_time)
 
         self._logger.info("HealthScheduler: poll loop exiting")
+
+    def _due_services(self, now: float) -> list[str]:
+        """Return the names of health-checked services whose deadline passed."""
+        due: list[str] = []
+        for name, svc_cfg in self.config.services.items():
+            if svc_cfg.healthcheck is None:
+                continue
+
+            deadline = self._next_check_at.get(name)
+            if deadline is None or now >= deadline:
+                due.append(name)
+
+        return due
+
+    def _next_sleep_seconds(self, elapsed: float) -> float:
+        """
+        Return how long the loop should sleep before the next check is due.
+
+        Sleeps until the earliest deadline, capped at the loop interval so a
+        long per-service interval cannot delay ``stop()`` for minutes.  When no
+        deadline has been recorded yet the previous fixed-interval behavior is
+        preserved.
+        """
+        deadlines = [
+            self._next_check_at[name]
+            for name in self.config.services
+            if name in self._next_check_at
+        ]
+        if not deadlines:
+            return max(0.0, self.interval_seconds - elapsed)
+
+        cap = max(1.0, float(self.interval_seconds))
+        return min(max(0.0, min(deadlines) - time.monotonic()), cap)
 
     def _handle_post_health(self, name: str) -> None:
         """
