@@ -16,9 +16,9 @@ from sqlmodel import select
 from dockfleet.cli.config import load_config
 from dockfleet.core.orchestrator import Orchestrator
 from dockfleet.health.logs import LogEvent
-from dockfleet.health.models import PROJECT_ROOT, get_session
+from dockfleet.health.models import get_session
 from dockfleet.health.scheduler import HealthScheduler
-from dockfleet.health.scheduler_lock import SchedulerLock
+from dockfleet.health.scheduler_lock import SchedulerLock, default_lock_dir
 from dockfleet.health.seed import bootstrap_from_path
 
 app = typer.Typer(help="DockFleet CLI - Manage Docker services from YAML configuration")
@@ -52,17 +52,24 @@ def spawn_background_scheduler(config_path: Path | str) -> subprocess.Popen:
     return subprocess.Popen(cmd, **kwargs)
 
 
-def stop_background_scheduler(project_dir: Path | str = PROJECT_ROOT) -> bool:
+def stop_background_scheduler(project_dir: Path | str | None = None) -> bool:
     """
     Attempt to stop a running background scheduler process by reading .scheduler.pid.
     Handles process termination across both POSIX and Windows operating systems.
     Deletes all temporary lock and PID tracking files (.scheduler.lock, .scheduler.pid).
+
+    The default scope is the database directory (see ``default_lock_dir``), so a
+    scheduler started by any entry point is found. Pass ``project_dir`` for
+    tests or alternate projects.
     """
-    p = Path(project_dir).resolve()
-    if p.is_file() or p.suffix in (".db", ".yaml", ".yml", ".json"):
-        project_path = p.parent
+    if project_dir is None:
+        project_path = default_lock_dir()
     else:
-        project_path = p
+        p = Path(project_dir).resolve()
+        if p.is_file() or p.suffix in (".db", ".yaml", ".yml", ".json"):
+            project_path = p.parent
+        else:
+            project_path = p
     pid_file = project_path / SchedulerLock.PID_FILENAME
     lock_file = project_path / SchedulerLock.LOCK_FILENAME
     stopped = False
@@ -228,7 +235,7 @@ def up(
 
         if detach:
             # Check if health scheduler is already running
-            lock = SchedulerLock(path)
+            lock = SchedulerLock(default_lock_dir())
             pid_info = lock._read_pid_file()
             if pid_info and lock._pid_is_running(pid_info.get("pid", -1)):
                 typer.echo(
@@ -242,7 +249,7 @@ def up(
             typer.echo("Use `dockfleet health-logs` to inspect health engine output.")
         else:
             setup_health_logging()
-            scheduler = HealthScheduler(config, project_dir=path)
+            scheduler = HealthScheduler(config, project_dir=default_lock_dir())
             typer.echo(
                 f"Running health scheduler in foreground (Ctrl+C to stop); logs -> {HEALTH_LOG_PATH}\n"
             )
@@ -277,7 +284,7 @@ def down(path: Path = typer.Argument("examples/dockfleet.yaml")):
         orch.down()
 
         # Stop background scheduler if running and delete temporary lock/pid files
-        stop_background_scheduler(path)
+        stop_background_scheduler()
 
         typer.echo("\n✓ Services stopped")
     except typer.Exit:
@@ -299,7 +306,7 @@ def restart(path: Path = typer.Argument("examples/dockfleet.yaml")):
         typer.echo(f"Restarting services from {path}...\n")
 
         # Stop background scheduler if running
-        stop_background_scheduler(path)
+        stop_background_scheduler()
 
         # Ensure DB has Service rows for this config
         typer.echo(f"Bootstrapping health DB from {path} ...")
@@ -639,9 +646,9 @@ def health_dev(
             raise typer.Exit(code=1)
 
         # For --once mode, skip locking (single pass, no long-running scheduler).
-        # For long-running mode, lock to prevent duplicate schedulers.
-        # Lock scope: project directory where config / dockfleet.db lives.
-        project_dir = path if not once else None
+        # For long-running mode, lock the database directory so the dashboard
+        # and every CLI entry point contend for the same lock.
+        project_dir = default_lock_dir() if not once else None
         scheduler = HealthScheduler(config, project_dir=project_dir)
 
         if once:
@@ -694,7 +701,7 @@ def self_heal(
         typer.echo(f"Bootstrapping health DB from {path} ...")
         bootstrap_from_path(str(path))
 
-        project_dir = path
+        project_dir = default_lock_dir()
         scheduler = HealthScheduler(config, project_dir=project_dir)
 
         typer.echo("Self-healing active. Press Ctrl+C to stop.\n")

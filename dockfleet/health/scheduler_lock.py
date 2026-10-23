@@ -26,6 +26,11 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
+
+from dockfleet.health.models import DB_PATH
+
 logger = logging.getLogger(__name__)
 
 # Platform-specific file locking ------------------------------------------------
@@ -66,6 +71,36 @@ else:
 
 
 # SchedulerLock ----------------------------------------------------------------
+
+
+def default_lock_dir() -> Path:
+    """
+    Return the project directory used to scope the scheduler lock.
+
+    The scope is the directory that holds the health database, not the config
+    file. The CLI receives a YAML path (often ``examples/dockfleet.yaml``) while
+    the dashboard previously used the repository root, so resolving through
+    the database gives every entry point one lock for the same project.
+
+    ``DOCKFLEET_DB_URL`` is honoured exactly like the engine honours it. When
+    the URL is unset, unparseable, in-memory or not SQLite, the default
+    ``dockfleet.db`` directory is used.
+    """
+    db_url = os.getenv("DOCKFLEET_DB_URL")
+    if db_url:
+        try:
+            url = make_url(db_url)
+        except ArgumentError:
+            logger.warning(
+                "Could not parse DOCKFLEET_DB_URL; using the default database directory"
+            )
+            return DB_PATH.parent
+
+        database = url.database
+        if url.drivername.startswith("sqlite") and database and database != ":memory:":
+            return Path(database).expanduser().resolve().parent
+
+    return DB_PATH.parent
 
 
 class SchedulerLock:

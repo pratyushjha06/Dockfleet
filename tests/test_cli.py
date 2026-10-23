@@ -453,8 +453,10 @@ services:
 @patch("dockfleet.cli.main.SchedulerLock._pid_is_running", return_value=True)
 @patch("dockfleet.cli.main.os.kill")
 @patch("dockfleet.core.orchestrator.Orchestrator.down")
-def test_cli_down_stops_scheduler_in_subdirectory(mock_down, mock_kill, mock_pid_running, tmp_path):
-    """Test that dockfleet down on a subdirectory config path stops the running background scheduler and cleans up lock/pid files."""
+def test_cli_down_stops_scheduler_in_database_scope(
+    mock_down, mock_kill, mock_pid_running, tmp_path
+):
+    """down finds the scheduler through the database scope even when the config lives in a subdirectory."""
     import json
     import signal
     from dockfleet.health.scheduler_lock import SchedulerLock
@@ -469,8 +471,8 @@ services:
     restart: always
 """)
 
-    pid_file = sub_dir / SchedulerLock.PID_FILENAME
-    lock_file = sub_dir / SchedulerLock.LOCK_FILENAME
+    pid_file = tmp_path / SchedulerLock.PID_FILENAME
+    lock_file = tmp_path / SchedulerLock.LOCK_FILENAME
     pid_file.write_text(json.dumps({"pid": 4321}))
     lock_file.write_text("lock")
 

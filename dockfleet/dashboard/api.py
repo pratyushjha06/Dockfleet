@@ -11,9 +11,10 @@ from dockfleet.cli.config import load_config
 from dockfleet.core.orchestrator import get_orchestrator
 from dockfleet.dashboard.routes import router as dashboard_router
 from dockfleet.health.log_ingestor import ingest_docker_logs_once
-from dockfleet.health.models import PROJECT_ROOT, get_session, init_db
+from dockfleet.health.models import get_session, init_db
 from dockfleet.health.models import Service as DBService
 from dockfleet.health.scheduler import HealthScheduler
+from dockfleet.health.scheduler_lock import default_lock_dir
 from dockfleet.health.seed import bootstrap_from_path
 
 # ✅ Create app FIRST
@@ -87,10 +88,10 @@ def on_startup() -> None:
         print("Orchestrator failed:", exc)
 
     try:
-        # Lock scope: PROJECT_ROOT (where dockfleet.db lives), not config dir.
-        # This ensures CLI and dashboard always use the same lock regardless of
-        # where the YAML config file is located.
-        _health_scheduler = HealthScheduler(config, project_dir=PROJECT_ROOT)
+        # Lock scope: the database directory, shared with every CLI entry
+        # point, so the dashboard and `dockfleet up` cannot both run a
+        # scheduler for the same project.
+        _health_scheduler = HealthScheduler(config, project_dir=default_lock_dir())
         _health_scheduler.start()
         print("HealthScheduler started")
     except RuntimeError as exc:
