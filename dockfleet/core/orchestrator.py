@@ -5,6 +5,7 @@ import subprocess
 import sys
 import threading
 import time
+from datetime import datetime, timezone
 
 from pydantic import BaseModel
 from sqlmodel import select
@@ -988,7 +989,7 @@ class Orchestrator:
         return sorted(stats, key=lambda x: x.service_name)
 
     def _get_container_uptime(self, container_name: str) -> str:
-        """Get uptime from docker inspect."""
+        """Get the elapsed uptime of a container from docker inspect."""
         try:
             result = subprocess.run(
                 [
@@ -1003,15 +1004,61 @@ class Orchestrator:
                 timeout=5,
             )
             if result.returncode == 0:
-                started_at = result.stdout.strip()
-                if "T" in started_at:
-                    time_part = started_at.split("T")[1].split(".")[0].rstrip("Z")
-                    return f"Up {time_part}"
-                elif started_at:
-                    return f"Up {started_at}"
+                started_at = self._parse_started_at(result.stdout)
+                if started_at is not None:
+                    return self._format_uptime_duration(
+                        datetime.now(timezone.utc) - started_at
+                    )
         except Exception:
             pass
         return "Unknown"
+
+    @staticmethod
+    def _parse_started_at(value: str) -> datetime | None:
+        """
+        Parse a Docker ``StartedAt`` value such as ``2026-10-15T14:23:07.123456789Z``.
+
+        Docker emits nanosecond precision, which ``datetime.fromisoformat``
+        does not accept on every supported Python version, so the fraction is
+        trimmed to microseconds before parsing.
+        """
+        text = (value or "").strip()
+        if not text:
+            return None
+
+        if text.endswith("Z"):
+            text = text[:-1]
+
+        if "." in text:
+            head, _, fraction = text.partition(".")
+            digits = "".join(ch for ch in fraction if ch.isdigit())[:6]
+            text = f"{head}.{digits}" if digits else head
+
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError:
+            return None
+
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+
+        return parsed
+
+    @staticmethod
+    def _format_uptime_duration(delta) -> str:
+        """Format an elapsed duration as a readable uptime value."""
+        total_seconds = max(0, int(delta.total_seconds()))
+        days, remainder = divmod(total_seconds, 86400)
+        hours, remainder = divmod(remainder, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        if days:
+            return f"Up {days}d {hours:02d}:{minutes:02d}"
+        if hours:
+            return f"Up {hours}h {minutes:02d}m"
+        if minutes:
+            return f"Up {minutes}m {seconds:02d}s"
+        return f"Up {seconds}s"
 
     def _get_missing_stats(self) -> list[ServiceStat]:
         """Return all services as unknown."""
