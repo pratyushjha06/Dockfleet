@@ -50,12 +50,15 @@ class HealthChecker:
                 except OSError:
                     pass
 
-    def check_process(self, container_name: str) -> bool:
+    def check_process(self, container_name: str, timeout: float = 5.0) -> bool:
         """
         Return True if Docker container is running, else False.
 
         Uses:
             docker inspect -f "{{.State.Running}}" <container_name>
+
+        The inspect call is bounded by ``timeout`` seconds so a stuck
+        Docker CLI cannot stall the scheduler's polling loop.
         """
         try:
             result = subprocess.run(
@@ -68,12 +71,22 @@ class HealthChecker:
                 ],
                 capture_output=True,
                 text=True,
+                timeout=timeout,
             )
         except FileNotFoundError:
             # docker CLI not installed / not on PATH
             self._logger.warning(
                 "Process check FAILED for %s (docker CLI not found)",
                 container_name,
+            )
+            return False
+        except subprocess.TimeoutExpired:
+            # Bounded wait: report the service as unhealthy instead of
+            # blocking the scheduler thread indefinitely.
+            self._logger.warning(
+                "Process check FAILED for %s (docker inspect timed out after %.1fs)",
+                container_name,
+                timeout,
             )
             return False
 
