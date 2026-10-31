@@ -1,15 +1,18 @@
 import re
 from enum import Enum
 from pathlib import Path
-
 import typer
 import yaml
-from pydantic import BaseModel, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, ValidationError, field_validator
+
+
 
 
 # Healthcheck Model
 class HealthCheckConfig(BaseModel):
     """Configuration for service health checks (HTTP, TCP, or process)."""
+
+    model_config = ConfigDict(extra="forbid")
 
     type: str
     endpoint: str | None = None
@@ -38,6 +41,7 @@ class RestartPolicy(str, Enum):
 # Resources Model
 class ResourcesConfig(BaseModel):
     """Resource constraints for containers (memory and CPU limits)."""
+    model_config = ConfigDict(extra="forbid")
 
     memory: str | None = None
     cpu: float | None = None
@@ -133,7 +137,7 @@ def _parse_port_mapping(port: str) -> tuple[str | None, int, int]:
 # Service Model
 class ServiceConfig(BaseModel):
     """Individual service specification in dockfleet.yaml."""
-
+    model_config = ConfigDict(extra="forbid")
     image: str
     restart: RestartPolicy
     ports: list[str] | dict[str, str | int] | None = None
@@ -254,7 +258,7 @@ class ServiceConfig(BaseModel):
 
 class DockFleetConfig(BaseModel):
     """Top-level Dockfleet deployment configuration model."""
-
+    model_config = ConfigDict(extra="forbid")
     self_healing: bool = True
     services: dict[str, ServiceConfig]
 
@@ -299,27 +303,43 @@ class DockFleetConfig(BaseModel):
 
 
 # YAML Loader
+# YAML Loader
 def load_config(path: Path) -> DockFleetConfig:
     """Parse and validate YAML configuration file into a DockFleetConfig object."""
     try:
-        with open(path, "r") as f:
-            data = yaml.safe_load(f)
+        with open(path, "r") as file:
+            data = yaml.safe_load(file)
 
         if not data:
             typer.echo(f"Error: Config file '{path}' is empty.", err=True)
             raise typer.Exit(code=1)
 
         return DockFleetConfig(**data)
-    except yaml.YAMLError as e:
-        typer.echo(f"Error parsing YAML file '{path}':\n{e}", err=True)
+
+    except yaml.YAMLError as error:
+        typer.echo(f"Error parsing YAML file '{path}':\n{error}", err=True)
         raise typer.Exit(code=1)
-    except ValidationError as e:
+
+    except ValidationError as error:
         typer.echo(f"Configuration Validation Error in '{path}':", err=True)
-        for err in e.errors():
-            loc = " -> ".join(str(location_part) for location_part in err["loc"])
-            msg = err["msg"]
-            typer.echo(f" - {loc}: {msg}", err=True)
+
+        for item in error.errors():
+            field = " -> ".join(str(part) for part in item["loc"])
+            error_type = item["type"]
+            message = item["msg"]
+
+            if error_type == "extra_forbidden":
+                message = "Unknown field. Check the field name or remove it."
+            elif error_type == "missing":
+                message = "Required field is missing."
+            elif error_type == "enum":
+                allowed = item.get("ctx", {}).get("expected")
+                message = f"Allowed values: {allowed}" if allowed else message
+
+            typer.echo(f" - {field}: {message}", err=True)
+
         raise typer.Exit(code=1)
+
     except FileNotFoundError:
         typer.echo(f"Error: Configuration file '{path}' not found.", err=True)
         raise typer.Exit(code=1)
