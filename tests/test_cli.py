@@ -14,20 +14,36 @@ def test_cli_validate_success():
     assert "Config valid" in result.stdout
 
 
-def test_cli_validate_invalid_schema(tmp_path):
-    bad_config = tmp_path / "bad.yaml"
-    bad_config.write_text("""
+def test_cli_validate_unknown_field(tmp_path):
+    config = tmp_path / "unknown_field.yaml"
+    config.write_text("""
 services:
-  web:
+  api:
     image: nginx
-    resources:
-      cpu: -1.0
+    restart: always
+    unknown_option: true
 """)
-    result = runner.invoke(app, ["validate", str(bad_config)])
-    assert result.exit_code == 1
-    assert "Unexpected error:" not in result.stdout
-    assert "Configuration Validation Error" in result.output
 
+    result = runner.invoke(app, ["validate", str(config)])
+
+    assert result.exit_code == 1
+    assert "services -> api -> unknown_option" in result.output
+    assert "Unknown field" in result.output
+
+
+def test_cli_validate_missing_required_field(tmp_path):
+    config = tmp_path / "missing_field.yaml"
+    config.write_text("""
+services:
+  api:
+    image: nginx
+""")
+
+    result = runner.invoke(app, ["validate", str(config)])
+
+    assert result.exit_code == 1
+    assert "services -> api -> restart" in result.output
+    assert "Required field is missing" in result.output
 
 def test_cli_validate_out_of_range_port(tmp_path):
     bad_config = tmp_path / "bad_port.yaml"
